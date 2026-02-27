@@ -40,12 +40,34 @@ Check compatibility:
 java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD
 ```
 
+Record compatibility result to SQLite:
+```bash
+java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD --record-db checks.db --contract-id orders.created --commit-sha local-dev
+```
+
 ## CI Contract Checks (Changed Contracts Only)
 GitHub Actions runs full tests and then checks only changed contract directories.
 
 Local dry-run of the same changed-contract check:
 ```bash
 BASE_SHA=<older_commit_sha> HEAD_SHA=<newer_commit_sha> bash scripts/ci/check-changed-contracts.sh
+```
+
+## Contract Service API (Read-Only)
+Run service:
+```bash
+cd D:\ideas\contract-service
+mvn spring-boot:run
+```
+
+Endpoints:
+```bash
+curl http://localhost:8080/contracts
+curl http://localhost:8080/contracts/orders.created
+curl http://localhost:8080/contracts/orders.created/versions
+curl http://localhost:8080/contracts/orders.created/versions/v1
+curl http://localhost:8080/checks
+curl "http://localhost:8080/checks?contractId=orders.created"
 ```
 
 ## Sample Contracts

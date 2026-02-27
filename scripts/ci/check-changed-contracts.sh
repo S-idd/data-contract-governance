@@ -47,6 +47,8 @@ for dir in "${changed_contract_dirs[@]}"; do
   echo "  - $dir"
 done
 
+overall_status=0
+
 for contract_dir in "${changed_contract_dirs[@]}"; do
   if [[ ! -d "$contract_dir" ]]; then
     echo "Skipping removed or missing directory: $contract_dir"
@@ -74,8 +76,25 @@ for contract_dir in "${changed_contract_dirs[@]}"; do
   echo "Checking compatibility for $contract_dir"
   echo "  base: $base_version_file"
   echo "  candidate: $candidate_version_file"
-  java -jar "$JAR_PATH" check-compat --base "$base_path" --candidate "$candidate_path" --mode BACKWARD
+  contract_id="$(basename "$contract_dir")"
+  if java -jar "$JAR_PATH" check-compat \
+      --base "$base_path" \
+      --candidate "$candidate_path" \
+      --mode BACKWARD \
+      --record-db checks.db \
+      --contract-id "$contract_id" \
+      --commit-sha "$HEAD_SHA"; then
+    echo "Compatibility passed for $contract_id"
+  else
+    echo "Compatibility failed for $contract_id"
+    overall_status=1
+  fi
 done
 
 echo ""
+if [[ "$overall_status" -ne 0 ]]; then
+  echo "Changed contract checks completed with failures."
+  exit 1
+fi
+
 echo "Changed contract checks completed successfully."
