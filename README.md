@@ -70,6 +70,24 @@ curl http://localhost:8080/checks
 curl "http://localhost:8080/checks?contractId=orders.created"
 ```
 
+OpenAPI / Swagger UI:
+```bash
+http://localhost:8080/swagger-ui/index.html
+http://localhost:8080/v3/api-docs
+```
+
+## One-Command Demo (Windows PowerShell)
+```powershell
+cd D:\ideas
+.\scripts\demo\make-demo.ps1
+```
+This script:
+- builds CLI fat jar
+- records one compatibility check in SQLite
+- starts `contract-service`
+- prints Swagger URL and sample API outputs
+- stops service automatically
+
 ## Sample Contracts
 - [orders.created metadata](contracts/orders.created/metadata.yaml)
 - [orders.created v1](contracts/orders.created/v1.json)

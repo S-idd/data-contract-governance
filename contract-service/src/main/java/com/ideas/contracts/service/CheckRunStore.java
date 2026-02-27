@@ -1,5 +1,7 @@
 package com.ideas.contracts.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ideas.contracts.service.model.CheckRunResponse;
 import jakarta.annotation.PostConstruct;
 import java.nio.file.Path;
@@ -11,15 +13,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CheckRunStore {
+  private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
+
   private final Path dbPath;
+  private final ObjectMapper objectMapper;
 
   public CheckRunStore(@Value("${checks.db.path:checks.db}") String dbPath) {
     this.dbPath = Paths.get(dbPath);
+    this.objectMapper = new ObjectMapper();
   }
 
   @PostConstruct
@@ -83,8 +90,8 @@ public class CheckRunStore {
               rs.getString("base_version"),
               rs.getString("candidate_version"),
               rs.getString("status"),
-              rs.getString("breaking_changes"),
-              rs.getString("warnings"),
+              parseDetails(rs.getString("breaking_changes")),
+              parseDetails(rs.getString("warnings")),
               rs.getString("commit_sha"),
               rs.getString("created_at")));
         }
@@ -97,5 +104,26 @@ public class CheckRunStore {
 
   private Connection openConnection() throws SQLException {
     return DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+  }
+
+  private List<String> parseDetails(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return List.of();
+    }
+
+    String trimmed = raw.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        List<String> values = objectMapper.readValue(trimmed, STRING_LIST_TYPE);
+        return values == null ? List.of() : values;
+      } catch (Exception ignored) {
+        // Fallback to legacy parsing below.
+      }
+    }
+
+    return java.util.Arrays.stream(trimmed.split("\\s*\\|\\s*"))
+        .map(String::trim)
+        .filter(value -> !value.isEmpty())
+        .collect(Collectors.toList());
   }
 }

@@ -1,5 +1,7 @@
 package com.ideas.contracts.cli;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ideas.contracts.core.CompatibilityResult;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -10,6 +12,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class CheckRunRecorder {
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   public void record(
       Path dbPath,
       String contractId,
@@ -67,11 +71,19 @@ public class CheckRunRecorder {
       statement.setString(3, baseVersion);
       statement.setString(4, candidateVersion);
       statement.setString(5, result.status().name());
-      statement.setString(6, String.join(" | ", result.breakingChanges()));
-      statement.setString(7, String.join(" | ", result.warnings()));
+      statement.setString(6, toJsonArray(result.breakingChanges()));
+      statement.setString(7, toJsonArray(result.warnings()));
       statement.setString(8, commitSha);
       statement.setString(9, Instant.now().toString());
       statement.executeUpdate();
+    }
+  }
+
+  private String toJsonArray(java.util.List<String> values) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(values);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Failed to serialize check details.", e);
     }
   }
 }

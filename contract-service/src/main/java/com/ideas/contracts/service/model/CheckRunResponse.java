@@ -6,8 +6,8 @@ public record CheckRunResponse(
     String baseVersion,
     String candidateVersion,
     String status,
-    String breakingChanges,
-    String warnings,
+    java.util.List<String> breakingChanges,
+    java.util.List<String> warnings,
     String commitSha,
     String createdAt
 ) {}
