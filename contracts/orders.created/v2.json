@@ -3,7 +3,7 @@
   "type": "object",
   "properties": {
     "orderId": {
-      "type": "string"
+      "type": "integer"
     },
     "status": {
       "type": "string",
