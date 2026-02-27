@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build and test
+        run: mvn --batch-mode --no-transfer-progress test
+
+      - name: Build CLI fat jar
+        run: mvn --batch-mode --no-transfer-progress -pl contract-cli -am package -DskipTests
+
+      - name: Set diff range
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+            echo "HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_ENV"
+          else
+            echo "BASE_SHA=${{ github.event.before }}" >> "$GITHUB_ENV"
+            echo "HEAD_SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check changed contracts
+        shell: bash
+        run: bash scripts/ci/check-changed-contracts.sh

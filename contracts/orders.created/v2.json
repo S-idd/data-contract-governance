@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "orderId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["CREATED", "PAID", "SHIPPED"]
+    },
+    "amount": {
+      "type": "number"
+    },
+    "currency": {
+      "type": "string"
+    }
+  },
+  "required": ["orderId", "status"]
+}
