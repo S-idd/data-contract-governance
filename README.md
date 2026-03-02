@@ -45,6 +45,11 @@ Record compatibility result to SQLite:
 java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD --record-db checks.db --contract-id orders.created --commit-sha local-dev
 ```
 
+Record compatibility result to PostgreSQL:
+```bash
+java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD --record-jdbc-url "jdbc:postgresql://localhost:5432/contracts" --record-db-user contracts_user --record-db-password change-me --contract-id orders.created --commit-sha local-dev
+```
+
 ## CI Contract Checks (Changed Contracts Only)
 GitHub Actions runs full tests and then checks only changed contract directories.
 
@@ -58,6 +63,12 @@ Run service:
 ```bash
 cd D:\ideas\contract-service
 mvn spring-boot:run
+```
+
+Run service with PostgreSQL check-store:
+```bash
+cd D:\ideas\contract-service
+SPRING_APPLICATION_JSON='{"checks":{"db":{"url":"jdbc:postgresql://localhost:5432/contracts","username":"contracts_user","password":"change-me"}}}' mvn spring-boot:run
 ```
 
 Endpoints:

@@ -1,9 +1,13 @@
 package com.ideas.contracts.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.ideas.contracts.service.model.CheckRunResponse;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -17,9 +21,36 @@ class CheckRunStoreTest {
   Path tempDir;
 
   @Test
+  void configuredDbTargetSanitizesJdbcCredentials() {
+    CheckRunStore store = new CheckRunStore(
+        "jdbc:postgresql://app_user:secret@localhost:5432/contracts?ssl=true&password=top-secret",
+        "unused.db",
+        "db-user",
+        "db-password");
+
+    String configuredTarget = store.configuredDbTarget();
+    assertTrue(configuredTarget.contains("***:***@"));
+    assertFalse(configuredTarget.contains("secret"));
+    assertFalse(configuredTarget.contains("top-secret"));
+  }
+
+  @Test
+  void listThrowsStoreExceptionWhenDbPathIsUnavailable() throws Exception {
+    Path dbPath = tempDir.resolve("checks-directory");
+    Files.createDirectories(dbPath);
+
+    CheckRunStore store = new CheckRunStore("", dbPath.toString(), "", "");
+    store.initialize();
+
+    CheckRunStoreException exception =
+        assertThrows(CheckRunStoreException.class, () -> store.list(null, null));
+    assertTrue(exception.getMessage().contains("unavailable"));
+  }
+
+  @Test
   void listParsesJsonArrayAndLegacyStringFormats() throws Exception {
     Path dbPath = tempDir.resolve("checks-test.db");
-    CheckRunStore store = new CheckRunStore(dbPath.toString());
+    CheckRunStore store = new CheckRunStore("", dbPath.toString(), "", "");
     store.initialize();
 
     try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath)) {

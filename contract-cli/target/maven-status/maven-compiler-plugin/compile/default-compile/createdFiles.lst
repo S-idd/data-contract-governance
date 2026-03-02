@@ -1,0 +1,5 @@
+com/ideas/contracts/cli/DiffCommand.class
+com/ideas/contracts/cli/LintCommand.class
+com/ideas/contracts/cli/CheckRunRecorder.class
+com/ideas/contracts/cli/ContractCliApplication.class
+com/ideas/contracts/cli/CheckCompatCommand.class

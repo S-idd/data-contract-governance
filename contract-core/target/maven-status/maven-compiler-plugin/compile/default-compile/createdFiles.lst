@@ -1,0 +1,9 @@
+com/ideas/contracts/core/CheckStatus.class
+com/ideas/contracts/core/DefaultContractEngine$SchemaSnapshot.class
+com/ideas/contracts/core/ContractMetadata.class
+com/ideas/contracts/core/DefaultContractEngine$Comparison.class
+com/ideas/contracts/core/ContractEngine.class
+com/ideas/contracts/core/DefaultContractEngine.class
+com/ideas/contracts/core/CompatibilityResult.class
+com/ideas/contracts/core/CompatibilityMode.class
+com/ideas/contracts/core/DefaultContractEngine$FieldInfo.class
