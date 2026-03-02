@@ -69,6 +69,8 @@ class CheckControllerDbFailureIntegrationTest {
 
   private static synchronized void ensureTestPaths() {
     if (tempRoot != null) {
+
+      
       return;
     }
     try {
