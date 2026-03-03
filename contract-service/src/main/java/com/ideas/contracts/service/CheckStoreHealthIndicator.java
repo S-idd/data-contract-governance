@@ -15,19 +15,27 @@ public class CheckStoreHealthIndicator implements HealthIndicator {
   @Override
   public Health health() {
     CheckRunStore.HealthSnapshot snapshot = checkRunStore.healthSnapshot();
+    CheckRunStore.PoolSnapshot poolSnapshot = checkRunStore.poolSnapshot();
     if (snapshot.available()) {
-      return Health.up()
-          .withDetail("component", "check_run_store")
-          .withDetail("dbTarget", checkRunStore.configuredDbTarget())
-          .build();
+      return baseDetails(Health.up(), poolSnapshot).build();
     }
 
-    return Health.down()
-        .withDetail("component", "check_run_store")
-        .withDetail("dbTarget", checkRunStore.configuredDbTarget())
+    return baseDetails(Health.down(), poolSnapshot)
         .withDetail("reason", snapshot.reason())
         .build();
   }
-}
 
+  private Health.Builder baseDetails(Health.Builder builder, CheckRunStore.PoolSnapshot poolSnapshot) {
+    return builder
+        .withDetail("component", "check_run_store")
+        .withDetail("dbTarget", checkRunStore.configuredDbTarget())
+        .withDetail("poolTotalConnections", poolSnapshot.totalConnections())
+        .withDetail("poolActiveConnections", poolSnapshot.activeConnections())
+        .withDetail("poolIdleConnections", poolSnapshot.idleConnections())
+        .withDetail("poolThreadsAwaitingConnection", poolSnapshot.threadsAwaitingConnection())
+        .withDetail("poolMaximumSize", poolSnapshot.maximumPoolSize())
+        .withDetail("poolMinimumIdle", poolSnapshot.minimumIdle())
+        .withDetail("poolConnectionTimeoutMs", poolSnapshot.connectionTimeoutMs());
+  }
+}
 

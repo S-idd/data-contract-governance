@@ -9,7 +9,10 @@ import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "check-compat", description = "Check schema compatibility")
+@CommandLine.Command(
+    name = "check-compat",
+    description = "Check schema compatibility",
+    mixinStandardHelpOptions = true)
 public class CheckCompatCommand implements Callable<Integer> {
   @CommandLine.Option(names = "--base", required = true, description = "Base schema file path")
   private Path baseSchema;
@@ -39,9 +42,19 @@ public class CheckCompatCommand implements Callable<Integer> {
   private String recordDbUser;
 
   @CommandLine.Option(
+      names = "--record-db-user-env",
+      description = "Optional environment variable name that holds database username used with --record-jdbc-url")
+  private String recordDbUserEnv;
+
+  @CommandLine.Option(
       names = "--record-db-password",
       description = "Optional database password used with --record-jdbc-url")
   private String recordDbPassword;
+
+  @CommandLine.Option(
+      names = "--record-db-password-env",
+      description = "Optional environment variable name that holds database password used with --record-jdbc-url")
+  private String recordDbPasswordEnv;
 
   @CommandLine.Option(
       names = "--contract-id",
@@ -57,28 +70,39 @@ public class CheckCompatCommand implements Callable<Integer> {
   @Override
   public Integer call() {
     ContractEngine engine = new DefaultContractEngine();
+    CompatibilityResult result;
     try {
-      CompatibilityResult result = engine.checkCompatibility(baseSchema, candidateSchema, mode);
-      System.out.println("Status: " + result.status());
-      if (!result.breakingChanges().isEmpty()) {
-        System.out.println("Breaking changes: " + result.breakingChanges());
-      }
-      if (!result.warnings().isEmpty()) {
-        System.out.println("Warnings: " + result.warnings());
-      }
-      persistIfRequested(result);
-      return result.status() == CheckStatus.PASS ? 0 : 1;
+      result = engine.checkCompatibility(baseSchema, candidateSchema, mode);
     } catch (IllegalStateException ex) {
-      System.err.println("Compatibility check failed: " + ex.getMessage());
+      System.err.println("Schema compatibility check failed: " + ex.getMessage());
       return 2;
     }
+
+    System.out.println("Schema compatibility: " + result.status());
+    if (!result.breakingChanges().isEmpty()) {
+      System.out.println("Breaking changes: " + result.breakingChanges());
+    }
+    if (!result.warnings().isEmpty()) {
+      System.out.println("Warnings: " + result.warnings());
+    }
+
+    try {
+      if (persistIfRequested(result)) {
+        System.out.println("Persistence: RECORDED");
+      }
+    } catch (IllegalStateException ex) {
+      System.err.println("Persistence failed: " + ex.getMessage());
+      return 2;
+    }
+
+    return result.status() == CheckStatus.PASS ? 0 : 1;
   }
 
-  private void persistIfRequested(CompatibilityResult result) {
+  private boolean persistIfRequested(CompatibilityResult result) {
     boolean persistToSqlite = recordDbPath != null;
     boolean persistToJdbc = recordJdbcUrl != null && !recordJdbcUrl.isBlank();
     if (!persistToSqlite && !persistToJdbc) {
-      return;
+      return false;
     }
     if (persistToSqlite && persistToJdbc) {
       throw new IllegalStateException("Use either --record-db or --record-jdbc-url, not both.");
@@ -89,22 +113,27 @@ public class CheckCompatCommand implements Callable<Integer> {
 
     String baseVersion = versionName(baseSchema);
     String candidateVersion = versionName(candidateSchema);
-    CheckRunRecorder recorder = new CheckRunRecorder();
+    CheckRunRecorder recorder = createRecorder();
 
     if (persistToSqlite) {
       recorder.record(recordDbPath, contractId, baseVersion, candidateVersion, result, commitSha);
-      return;
+      return true;
     }
+
+    String resolvedUsername = resolveCredential(recordDbUser, recordDbUserEnv, "--record-db-user-env");
+    String resolvedPassword =
+        resolveCredential(recordDbPassword, recordDbPasswordEnv, "--record-db-password-env");
 
     recorder.record(
         recordJdbcUrl.trim(),
-        normalizeCredential(recordDbUser),
-        recordDbPassword,
+        resolvedUsername,
+        resolvedPassword,
         contractId,
         baseVersion,
         candidateVersion,
         result,
         commitSha);
+    return true;
   }
 
   private String versionName(Path path) {
@@ -117,5 +146,34 @@ public class CheckCompatCommand implements Callable<Integer> {
       return null;
     }
     return value.trim();
+  }
+
+  private String resolveCredential(String value, String envVarName, String envOptionName) {
+    String normalizedValue = normalizeCredential(value);
+    if (normalizedValue != null) {
+      return normalizedValue;
+    }
+
+    String normalizedEnvVarName = normalizeCredential(envVarName);
+    if (normalizedEnvVarName == null) {
+      return null;
+    }
+
+    String envValue = readEnvironmentVariable(normalizedEnvVarName);
+    if (envValue == null || envValue.isBlank()) {
+      throw new IllegalStateException(
+          "Environment variable '" + normalizedEnvVarName + "' configured via "
+              + envOptionName
+              + " is not set or blank.");
+    }
+    return envValue.trim();
+  }
+
+  protected CheckRunRecorder createRecorder() {
+    return new CheckRunRecorder();
+  }
+
+  protected String readEnvironmentVariable(String key) {
+    return System.getenv(key);
   }
 }

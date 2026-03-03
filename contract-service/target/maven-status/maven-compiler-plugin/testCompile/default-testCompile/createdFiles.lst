@@ -1,0 +1,3 @@
+com/ideas/contracts/service/ContractServiceApiIntegrationTest.class
+com/ideas/contracts/service/CheckRunStoreTest.class
+com/ideas/contracts/service/CheckControllerDbFailureIntegrationTest.class

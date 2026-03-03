@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -22,11 +23,13 @@ class CheckRunStoreTest {
 
   @Test
   void configuredDbTargetSanitizesJdbcCredentials() {
-    CheckRunStore store = new CheckRunStore(
-        "jdbc:postgresql://app_user:secret@localhost:5432/contracts?ssl=true&password=top-secret",
-        "unused.db",
-        "db-user",
-        "db-password");
+    CheckStoreProperties properties = baseProperties();
+    properties.setUrl(
+        "jdbc:postgresql://app_user:secret@localhost:5432/contracts?ssl=true&password=top-secret");
+    properties.setUsername("db-user");
+    properties.setPassword("db-password");
+
+    CheckRunStore store = new CheckRunStore(properties);
 
     String configuredTarget = store.configuredDbTarget();
     assertTrue(configuredTarget.contains("***:***@"));
@@ -35,11 +38,25 @@ class CheckRunStoreTest {
   }
 
   @Test
+  void postgresUrlGetsSslModeWhenSslIsEnabled() {
+    CheckStoreProperties properties = baseProperties();
+    properties.setUrl("jdbc:postgresql://localhost:5432/contracts");
+    properties.getSsl().setEnabled(true);
+    properties.getSsl().setMode("verify-full");
+
+    CheckRunStore store = new CheckRunStore(properties);
+
+    assertTrue(store.configuredDbTarget().contains("sslmode=verify-full"));
+  }
+
+  @Test
   void listThrowsStoreExceptionWhenDbPathIsUnavailable() throws Exception {
     Path dbPath = tempDir.resolve("checks-directory");
     Files.createDirectories(dbPath);
 
-    CheckRunStore store = new CheckRunStore("", dbPath.toString(), "", "");
+    CheckStoreProperties properties = baseProperties();
+    properties.setPath(dbPath.toString());
+    CheckRunStore store = new CheckRunStore(properties);
     store.initialize();
 
     CheckRunStoreException exception =
@@ -50,7 +67,9 @@ class CheckRunStoreTest {
   @Test
   void listParsesJsonArrayAndLegacyStringFormats() throws Exception {
     Path dbPath = tempDir.resolve("checks-test.db");
-    CheckRunStore store = new CheckRunStore("", dbPath.toString(), "", "");
+    CheckStoreProperties properties = baseProperties();
+    properties.setPath(dbPath.toString());
+    CheckRunStore store = new CheckRunStore(properties);
     store.initialize();
 
     try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath)) {
@@ -94,6 +113,44 @@ class CheckRunStoreTest {
     assertIterableEquals(List.of(), legacy.warnings());
   }
 
+  @Test
+  void constructorFailsWhenCredentialEnvVariableIsMissing() {
+    CheckStoreProperties properties = baseProperties();
+    properties.setUrl("jdbc:postgresql://localhost:5432/contracts");
+    properties.setUsernameEnv("MISSING_DB_USER");
+
+    IllegalStateException exception =
+        assertThrows(IllegalStateException.class, () -> new CheckRunStore(properties, key -> null));
+    assertTrue(exception.getMessage().contains("MISSING_DB_USER"));
+  }
+
+  @Test
+  void constructorFailsWhenSecurePostgresIsEnforcedWithoutStrictSslMode() {
+    CheckStoreProperties properties = baseProperties();
+    properties.setUrl("jdbc:postgresql://localhost:5432/contracts");
+    properties.setEnforceSecurePostgres(true);
+    properties.getSsl().setEnabled(true);
+    properties.getSsl().setMode("require");
+
+    IllegalStateException exception =
+        assertThrows(IllegalStateException.class, () -> new CheckRunStore(properties));
+    assertTrue(exception.getMessage().contains("checks.db.ssl.mode must be one of"));
+  }
+
+  @Test
+  void initializeFailsFastWhenEnabledAndStoreCannotInitialize() throws Exception {
+    Path dbPath = tempDir.resolve("checks-directory-fast-fail");
+    Files.createDirectories(dbPath);
+
+    CheckStoreProperties properties = baseProperties();
+    properties.setPath(dbPath.toString());
+    properties.setFailFastStartup(true);
+    CheckRunStore store = new CheckRunStore(properties);
+
+    IllegalStateException exception = assertThrows(IllegalStateException.class, store::initialize);
+    assertTrue(exception.getMessage().contains("Failed to initialize check history store"));
+  }
+
   private void insertRow(
       Connection connection,
       String runId,
@@ -120,5 +177,12 @@ class CheckRunStoreTest {
       statement.setString(9, createdAt);
       statement.executeUpdate();
     }
+  }
+
+  private CheckStoreProperties baseProperties() {
+    CheckStoreProperties properties = new CheckStoreProperties();
+    properties.setPath(tempDir.resolve("default-checks.db").toString());
+    properties.getPool().setConnectionTimeout(Duration.ofMillis(250));
+    return properties;
   }
 }
