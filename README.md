@@ -94,6 +94,7 @@ mvn spring-boot:run
 ```
 
 Service check-store hardening (env-configurable):
+- Check-store schema is managed via shared Flyway migrations in `contract-core/src/main/resources/db/migration` (used by both CLI and service), replacing runtime `CREATE TABLE` DDL.
 - `checks.db.pool.maximum-size` and `checks.db.pool.minimum-idle` tune HikariCP pooling.
 - `checks.db.pool.connection-timeout`, `checks.db.pool.validation-timeout`, and `checks.db.query-timeout` enforce request/DB time bounds.
 - `checks.db.ssl.enabled=true` enables PostgreSQL SSL params (`sslmode`, optional cert paths).
@@ -105,6 +106,30 @@ Service check-store hardening (env-configurable):
 Production observability:
 - `/actuator/health` includes check-store pool details (`poolActiveConnections`, `poolIdleConnections`, `poolThreadsAwaitingConnection`).
 - `/actuator/metrics` exposes gauges: `check_store.pool.connections.active`, `check_store.pool.connections.idle`, `check_store.pool.connections.pending`, `check_store.pool.connections.total`, `check_store.pool.connections.max`.
+
+PostgreSQL smoke-test for migrations:
+```bash
+export CHECKS_DB_URL="jdbc:postgresql://localhost:5432/contracts"
+export CHECKS_DB_USERNAME="contracts_user"
+export CHECKS_DB_PASSWORD="change-me"
+export PSQL_URL="postgresql://contracts_user:change-me@localhost:5432/contracts"
+
+java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar \
+  check-compat \
+  --base contracts/orders.created/v1.json \
+  --candidate contracts/orders.created/v2.json \
+  --mode BACKWARD \
+  --record-jdbc-url "$CHECKS_DB_URL" \
+  --record-db-user "$CHECKS_DB_USERNAME" \
+  --record-db-password "$CHECKS_DB_PASSWORD" \
+  --contract-id orders.created \
+  --commit-sha postgres-migration-test
+```
+Then validate:
+```bash
+psql "$PSQL_URL" -c "select version, description, success from flyway_schema_history order by installed_rank;"
+psql "$PSQL_URL" -c "select run_id, contract_id, status, created_at from check_runs order by created_at desc limit 5;"
+```
 
 Endpoints:
 ```bash

@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -59,27 +61,22 @@ class ContractServiceApiIntegrationTest {
         contractDir.resolve("v2.json"),
         "{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"string\"},\"status\":{\"type\":\"string\"}}}");
 
-    try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + checksDbPath);
-         PreparedStatement create = connection.prepareStatement("""
-             CREATE TABLE IF NOT EXISTS check_runs (
-               run_id TEXT PRIMARY KEY,
-               contract_id TEXT NOT NULL,
-               base_version TEXT NOT NULL,
-               candidate_version TEXT NOT NULL,
-               status TEXT NOT NULL,
-               breaking_changes TEXT,
-               warnings TEXT,
-               commit_sha TEXT,
-               created_at TEXT NOT NULL
-             )
-             """);
+    String jdbcUrl = "jdbc:sqlite:" + checksDbPath;
+    Flyway.configure()
+        .dataSource(jdbcUrl, null, null)
+        .locations("classpath:db/migration")
+        .baselineOnMigrate(true)
+        .baselineVersion(MigrationVersion.fromVersion("0"))
+        .load()
+        .migrate();
+
+    try (Connection connection = DriverManager.getConnection(jdbcUrl);
          PreparedStatement insert = connection.prepareStatement("""
              INSERT OR REPLACE INTO check_runs (
                run_id, contract_id, base_version, candidate_version, status,
                breaking_changes, warnings, commit_sha, created_at
              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
              """)) {
-      create.execute();
       insert.setString(1, "run-1");
       insert.setString(2, "orders.created");
       insert.setString(3, "v1");

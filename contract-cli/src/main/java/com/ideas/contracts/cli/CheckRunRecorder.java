@@ -3,6 +3,8 @@ package com.ideas.contracts.cli;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ideas.contracts.core.CompatibilityResult;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -71,8 +73,8 @@ public class CheckRunRecorder {
           java.nio.file.Files.createDirectories(parent);
         }
       }
+      migrateSchema(jdbcUrl, username, password);
       try (Connection connection = openConnection(jdbcUrl, username, password)) {
-        createTableIfMissing(connection);
         insertRow(connection, contractId, baseVersion, candidateVersion, result, commitSha);
       }
     } catch (SQLException e) {
@@ -84,22 +86,14 @@ public class CheckRunRecorder {
     }
   }
 
-  private void createTableIfMissing(Connection connection) throws SQLException {
-    try (PreparedStatement statement = connection.prepareStatement("""
-        CREATE TABLE IF NOT EXISTS check_runs (
-          run_id TEXT PRIMARY KEY,
-          contract_id TEXT NOT NULL,
-          base_version TEXT NOT NULL,
-          candidate_version TEXT NOT NULL,
-          status TEXT NOT NULL,
-          breaking_changes TEXT,
-          warnings TEXT,
-          commit_sha TEXT,
-          created_at TEXT NOT NULL
-        )
-        """)) {
-      statement.execute();
-    }
+  private void migrateSchema(String jdbcUrl, String username, String password) {
+    Flyway.configure()
+        .dataSource(jdbcUrl, normalizeCredential(username), normalizeCredential(password))
+        .locations("classpath:db/migration")
+        .baselineOnMigrate(true)
+        .baselineVersion(MigrationVersion.fromVersion("0"))
+        .load()
+        .migrate();
   }
 
   private void insertRow(
@@ -178,6 +172,13 @@ public class CheckRunRecorder {
 
   private String safeValue(String value) {
     return value == null || value.isBlank() ? "-" : value;
+  }
+
+  private String normalizeCredential(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    return value.trim();
   }
 
   private Connection openConnection(String jdbcUrl, String username, String password) throws SQLException {

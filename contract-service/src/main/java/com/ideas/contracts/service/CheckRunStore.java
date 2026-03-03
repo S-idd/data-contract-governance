@@ -7,6 +7,8 @@ import com.zaxxer.hikari.HikariConfigMXBean;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import com.ideas.contracts.service.model.CheckRunResponse;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.net.URLEncoder;
@@ -211,22 +213,7 @@ public class CheckRunStore {
             java.nio.file.Files.createDirectories(parent);
           }
         }
-        try (Connection connection = openConnection();
-             PreparedStatement statement = connection.prepareStatement("""
-                 CREATE TABLE IF NOT EXISTS check_runs (
-                   run_id TEXT PRIMARY KEY,
-                   contract_id TEXT NOT NULL,
-                   base_version TEXT NOT NULL,
-                   candidate_version TEXT NOT NULL,
-                   status TEXT NOT NULL,
-                   breaking_changes TEXT,
-                   warnings TEXT,
-                   commit_sha TEXT,
-                   created_at TEXT NOT NULL
-                 )
-                 """)) {
-          statement.execute();
-        }
+        migrateSchema();
         initialized = true;
         LOGGER.info(
             "event=check_store_initialized component=check_run_store db_target={} backend={}",
@@ -244,6 +231,16 @@ public class CheckRunStore {
 
   private Connection openConnection() throws SQLException {
     return dataSource.getConnection();
+  }
+
+  private void migrateSchema() {
+    Flyway.configure()
+        .dataSource(dataSource)
+        .locations("classpath:db/migration")
+        .baselineOnMigrate(true)
+        .baselineVersion(MigrationVersion.fromVersion("0"))
+        .load()
+        .migrate();
   }
 
   private void logDbFailure(String operation, Exception error, String contractId, String commitSha) {
