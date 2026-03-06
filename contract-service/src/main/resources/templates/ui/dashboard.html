@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contract Governance Dashboard</title>
+  <link rel="stylesheet" href="/ui.css">
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <div class="brand">Data Contract Governance</div>
+    <nav class="nav">
+      <a href="/ui">Dashboard</a>
+      <a href="/ui/contracts">Contracts</a>
+      <a href="/checks">Checks API</a>
+      <span class="request-id" th:text="'Request ID: ' + ${requestId}">Request ID</span>
+    </nav>
+  </header>
+
+  <section class="card">
+    <h1 class="title">Dashboard</h1>
+    <p class="subtitle">Quick visibility into contract inventory and recent compatibility checks.</p>
+    <div class="row">
+      <article class="card">
+        <div class="muted">Discovered Contracts</div>
+        <div class="metric-value" th:text="${contractCount}">0</div>
+      </article>
+      <article class="card">
+        <div class="muted">Recent Checks Loaded</div>
+        <div class="metric-value" th:text="${#lists.size(recentChecks)}">0</div>
+      </article>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="title" style="font-size: 20px;">Recent Checks</h2>
+    <form method="get" action="/ui" class="row">
+      <label>
+        <span class="muted">Contract ID</span>
+        <input class="input" type="text" name="contractId" th:value="${filterContractId}" placeholder="orders.created">
+      </label>
+      <label>
+        <span class="muted">Commit SHA</span>
+        <input class="input" type="text" name="commitSha" th:value="${filterCommitSha}" placeholder="abc123">
+      </label>
+      <label>
+        <span class="muted">Status</span>
+        <select class="select" name="status">
+          <option value="" th:selected="${filterStatus == ''}">Any</option>
+          <option value="PASS" th:selected="${filterStatus == 'PASS'}">PASS</option>
+          <option value="FAIL" th:selected="${filterStatus == 'FAIL'}">FAIL</option>
+        </select>
+      </label>
+      <div style="display:flex;align-items:flex-end;">
+        <button class="button" type="submit">Apply Filters</button>
+      </div>
+    </form>
+
+    <div class="warning" th:if="${checkStoreUnavailable}">
+      Check history store is currently unavailable. Contract data is still accessible.
+    </div>
+    <div class="warning" th:if="${uiErrorMessage != null and uiErrorMessage != ''}" th:text="${uiErrorMessage}">
+      Invalid filter parameters.
+    </div>
+
+    <div th:if="${#lists.isEmpty(recentChecks)}" class="muted" style="margin-top: 12px;">
+      No checks found for the current filters.
+    </div>
+
+    <table th:if="${!#lists.isEmpty(recentChecks)}">
+      <thead>
+      <tr>
+        <th>Run ID</th>
+        <th>Contract</th>
+        <th>Status</th>
+        <th>Commit</th>
+        <th>Created</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="check : ${recentChecks}">
+        <td><a th:href="@{/ui/checks/{runId}(runId=${check.runId})}" th:text="${check.runId}">run-id</a></td>
+        <td th:text="${check.contractId}">contract</td>
+        <td>
+          <span class="pill pill-pass" th:if="${check.status == 'PASS'}" th:text="${check.status}">PASS</span>
+          <span class="pill pill-fail" th:if="${check.status != 'PASS'}" th:text="${check.status}">FAIL</span>
+        </td>
+        <td th:text="${check.commitSha}">sha</td>
+        <td th:text="${check.createdAt}">ts</td>
+      </tr>
+      </tbody>
+    </table>
+
+    <p class="muted" th:if="${recentHasMore}">More checks are available. Narrow filters or use `/checks/page`.</p>
+  </section>
+</main>
+</body>
+</html>

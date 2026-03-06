@@ -8,13 +8,13 @@ Open-source Java/Spring Boot tooling to prevent breaking schema changes before m
 
 ## Build
 ```bash
-cd D:\ideas
+cd /path/to/data-contract-governance
 mvn test
 ```
 
 ## Build CLI Fat Jar
 ```bash
-cd D:\ideas
+cd /path/to/data-contract-governance
 mvn -pl contract-cli -am package
 ```
 
@@ -68,13 +68,13 @@ BASE_SHA=<older_commit_sha> HEAD_SHA=<newer_commit_sha> bash scripts/ci/check-ch
 ## Contract Service API (Read-Only)
 Run service (default SQLite):
 ```bash
-cd D:\ideas\contract-service
+cd /path/to/data-contract-governance/contract-service
 mvn spring-boot:run
 ```
 
 Run service with PostgreSQL in local profile (SSL disabled by default):
 ```bash
-cd D:\ideas\contract-service
+cd /path/to/data-contract-governance/contract-service
 SPRING_PROFILES_ACTIVE="local" \
 CHECKS_DB_URL="jdbc:postgresql://localhost:5432/contracts" \
 CHECKS_DB_USERNAME="contracts_user" \
@@ -84,7 +84,7 @@ mvn spring-boot:run
 
 Run service with PostgreSQL in prod profile (SSL enabled + strict mode by default):
 ```bash
-cd D:\ideas\contract-service
+cd /path/to/data-contract-governance/contract-service
 SPRING_PROFILES_ACTIVE="prod" \
 CHECKS_DB_URL="jdbc:postgresql://db.internal.example:5432/contracts" \
 CHECKS_DB_USERNAME="contracts_user" \
@@ -138,6 +138,8 @@ curl http://localhost:8080/contracts/orders.created
 curl http://localhost:8080/contracts/orders.created/versions
 curl http://localhost:8080/contracts/orders.created/versions/v1
 curl http://localhost:8080/checks
+curl http://localhost:8080/checks/run-1
+curl "http://localhost:8080/checks/page?limit=20&offset=0"
 curl "http://localhost:8080/checks?contractId=orders.created"
 ```
 
@@ -147,9 +149,34 @@ http://localhost:8080/swagger-ui/index.html
 http://localhost:8080/v3/api-docs
 ```
 
+Embedded UI routes:
+```bash
+http://localhost:8080/ui
+http://localhost:8080/ui/contracts
+http://localhost:8080/ui/contracts/orders.created
+http://localhost:8080/ui/checks/run-1
+```
+
+UI/security toggles (local-first defaults):
+- `APP_UI_ENABLED=true` enables embedded UI routes.
+- `APP_SECURITY_ENABLED=false` keeps local workflow frictionless.
+- When `APP_SECURITY_ENABLED=true`, `/ui/**` and `/checks/**` require HTTP Basic auth.
+- Configure basic auth credentials with:
+  - `APP_SECURITY_USERNAME`
+  - `APP_SECURITY_PASSWORD`
+
+Example secure run:
+```bash
+cd contract-service
+APP_SECURITY_ENABLED=true \
+APP_SECURITY_USERNAME=demo \
+APP_SECURITY_PASSWORD=demo-secret \
+mvn spring-boot:run
+```
+
 ## One-Command Demo (Windows PowerShell)
 ```powershell
-cd D:\ideas
+cd <repo-root>
 .\scripts\demo\make-demo.ps1
 ```
 This script:

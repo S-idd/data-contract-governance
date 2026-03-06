@@ -7,6 +7,7 @@ import com.zaxxer.hikari.HikariConfigMXBean;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import com.ideas.contracts.service.model.CheckRunResponse;
+import com.ideas.contracts.service.model.CheckRunPageResponse;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import jakarta.annotation.PostConstruct;
@@ -24,6 +25,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -133,22 +135,96 @@ public class CheckRunStore {
       try (ResultSet rs = statement.executeQuery()) {
         List<CheckRunResponse> rows = new ArrayList<>();
         while (rs.next()) {
-          rows.add(new CheckRunResponse(
-              rs.getString("run_id"),
-              rs.getString("contract_id"),
-              rs.getString("base_version"),
-              rs.getString("candidate_version"),
-              rs.getString("status"),
-              parseDetails(rs.getString("breaking_changes")),
-              parseDetails(rs.getString("warnings")),
-              rs.getString("commit_sha"),
-              rs.getString("created_at")));
+          rows.add(mapRow(rs));
         }
         return rows;
       }
     } catch (SQLException e) {
       logDbFailure("list_check_runs", e, contractId, commitSha);
       throw new CheckRunStoreException("Failed to query check runs from configured database.", e);
+    }
+  }
+
+  public CheckRunPageResponse listPage(CheckRunQuery query) {
+    ensureInitialized();
+    if (query == null) {
+      throw new IllegalArgumentException("query must not be null.");
+    }
+
+    StringBuilder sql = new StringBuilder("""
+        SELECT run_id, contract_id, base_version, candidate_version, status,
+               breaking_changes, warnings, commit_sha, created_at
+        FROM check_runs
+        WHERE 1=1
+        """);
+    List<Object> params = new ArrayList<>();
+
+    if (query.contractId() != null) {
+      sql.append(" AND contract_id = ?");
+      params.add(query.contractId());
+    }
+    if (query.commitSha() != null) {
+      sql.append(" AND commit_sha = ?");
+      params.add(query.commitSha());
+    }
+    if (query.status() != null) {
+      sql.append(" AND UPPER(status) = ?");
+      params.add(query.status());
+    }
+    sql.append(" ORDER BY created_at DESC");
+    sql.append(" LIMIT ? OFFSET ?");
+    params.add(query.limit() + 1);
+    params.add(query.offset());
+
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql.toString())) {
+      applyQueryTimeout(statement);
+      bindParams(statement, params);
+
+      try (ResultSet rs = statement.executeQuery()) {
+        List<CheckRunResponse> rows = new ArrayList<>();
+        while (rs.next()) {
+          rows.add(mapRow(rs));
+        }
+        boolean hasMore = rows.size() > query.limit();
+        if (hasMore) {
+          rows.remove(rows.size() - 1);
+        }
+        return new CheckRunPageResponse(rows, query.limit(), query.offset(), hasMore);
+      }
+    } catch (SQLException e) {
+      logDbFailure("list_check_runs_page", e, query.contractId(), query.commitSha());
+      throw new CheckRunStoreException("Failed to query check run page from configured database.", e);
+    }
+  }
+
+  public Optional<CheckRunResponse> findByRunId(String runId) {
+    ensureInitialized();
+    String normalizedRunId = trimToEmpty(runId);
+    if (normalizedRunId.isBlank()) {
+      throw new IllegalArgumentException("runId must not be blank.");
+    }
+
+    String sql = """
+        SELECT run_id, contract_id, base_version, candidate_version, status,
+               breaking_changes, warnings, commit_sha, created_at
+        FROM check_runs
+        WHERE run_id = ?
+        LIMIT 1
+        """;
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, normalizedRunId);
+      try (ResultSet rs = statement.executeQuery()) {
+        if (!rs.next()) {
+          return Optional.empty();
+        }
+        return Optional.of(mapRow(rs));
+      }
+    } catch (SQLException e) {
+      logDbFailure("find_check_run_by_id", e, null, null);
+      throw new CheckRunStoreException("Failed to query check run from configured database.", e);
     }
   }
 
@@ -276,6 +352,12 @@ public class CheckRunStore {
 
   private void applyQueryTimeout(PreparedStatement statement) throws SQLException {
     statement.setQueryTimeout(queryTimeoutSeconds);
+  }
+
+  private void bindParams(PreparedStatement statement, List<Object> params) throws SQLException {
+    for (int i = 0; i < params.size(); i++) {
+      statement.setObject(i + 1, params.get(i));
+    }
   }
 
   private String resolveUsername(CheckStoreProperties properties) {
@@ -529,5 +611,18 @@ public class CheckRunStore {
         .map(String::trim)
         .filter(value -> !value.isEmpty())
         .collect(Collectors.toList());
+  }
+
+  private CheckRunResponse mapRow(ResultSet rs) throws SQLException {
+    return new CheckRunResponse(
+        rs.getString("run_id"),
+        rs.getString("contract_id"),
+        rs.getString("base_version"),
+        rs.getString("candidate_version"),
+        rs.getString("status"),
+        parseDetails(rs.getString("breaking_changes")),
+        parseDetails(rs.getString("warnings")),
+        rs.getString("commit_sha"),
+        rs.getString("created_at"));
   }
 }

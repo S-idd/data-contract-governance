@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Check Detail</title>
+  <link rel="stylesheet" href="/ui.css">
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <div class="brand">Data Contract Governance</div>
+    <nav class="nav">
+      <a href="/ui">Dashboard</a>
+      <a href="/ui/contracts">Contracts</a>
+      <span class="request-id" th:text="'Request ID: ' + ${requestId}">Request ID</span>
+    </nav>
+  </header>
+
+  <section class="card" th:if="${checkStoreUnavailable}">
+    <h1 class="title">Check Store Unavailable</h1>
+    <p class="warning" th:text="${uiErrorMessage}">Check history store is currently unavailable.</p>
+  </section>
+
+  <section class="card" th:if="${checkRun != null}">
+    <h1 class="title">Check Run <span th:text="${checkRun.runId}">run-id</span></h1>
+    <p class="subtitle">Compatibility result with actionable guidance for developers.</p>
+    <div class="row">
+      <div><span class="muted">Contract:</span> <a th:href="@{/ui/contracts/{contractId}(contractId=${checkRun.contractId})}" th:text="${checkRun.contractId}">contract</a></div>
+      <div><span class="muted">Status:</span>
+        <span class="pill pill-pass" th:if="${checkRun.status == 'PASS'}" th:text="${checkRun.status}">PASS</span>
+        <span class="pill pill-fail" th:if="${checkRun.status != 'PASS'}" th:text="${checkRun.status}">FAIL</span>
+      </div>
+      <div><span class="muted">Base Version:</span> <span th:text="${checkRun.baseVersion}">v1</span></div>
+      <div><span class="muted">Candidate Version:</span> <span th:text="${checkRun.candidateVersion}">v2</span></div>
+      <div><span class="muted">Commit SHA:</span> <span th:text="${checkRun.commitSha}">sha</span></div>
+      <div><span class="muted">Created:</span> <span th:text="${checkRun.createdAt}">ts</span></div>
+    </div>
+  </section>
+
+  <section class="grid-two" th:if="${checkRun != null}">
+    <article class="card">
+      <h2 class="title" style="font-size:20px;">Breaking Changes</h2>
+      <p class="muted" th:if="${#lists.isEmpty(checkRun.breakingChanges)}">No breaking changes recorded.</p>
+      <ul class="list" th:if="${!#lists.isEmpty(checkRun.breakingChanges)}">
+        <li th:each="item : ${checkRun.breakingChanges}" th:text="${item}">change</li>
+      </ul>
+    </article>
+    <article class="card">
+      <h2 class="title" style="font-size:20px;">Warnings</h2>
+      <p class="muted" th:if="${#lists.isEmpty(checkRun.warnings)}">No warnings recorded.</p>
+      <ul class="list" th:if="${!#lists.isEmpty(checkRun.warnings)}">
+        <li th:each="item : ${checkRun.warnings}" th:text="${item}">warning</li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="card" th:if="${checkRun != null}">
+    <h2 class="title" style="font-size:20px;">Developer Guidance</h2>
+    <ul class="list">
+      <li th:each="item : ${guidance}" th:text="${item}">guidance</li>
+    </ul>
+  </section>
+
+  <section class="grid-two" th:if="${checkRun != null}">
+    <article class="card">
+      <h2 class="title" style="font-size:20px;">API Command</h2>
+      <div class="code" th:text="${curlSnippet}">curl ...</div>
+    </article>
+    <article class="card">
+      <h2 class="title" style="font-size:20px;">CLI Rerun Command</h2>
+      <div class="code" th:text="${cliSnippet}">java -jar ...</div>
+    </article>
+  </section>
+</main>
+</body>
+</html>

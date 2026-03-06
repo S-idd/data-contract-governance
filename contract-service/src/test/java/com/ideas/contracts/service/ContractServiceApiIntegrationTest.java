@@ -2,6 +2,8 @@ package com.ideas.contracts.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,25 +18,23 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ContractServiceApiIntegrationTest {
   private static Path tempRoot;
   private static Path contractsRoot;
   private static Path checksDbPath;
 
-  @LocalServerPort
-  private int port;
-
   @Autowired
-  private TestRestTemplate restTemplate;
+  private MockMvc mockMvc;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -92,11 +92,10 @@ class ContractServiceApiIntegrationTest {
 
   @Test
   void contractsEndpointReturnsSeededContract() throws Exception {
-    ResponseEntity<String> response =
-        restTemplate.getForEntity("http://localhost:" + port + "/contracts", String.class);
-
-    assertEquals(200, response.getStatusCode().value());
-    JsonNode body = objectMapper.readTree(response.getBody());
+    MvcResult response = mockMvc.perform(get("/contracts"))
+        .andExpect(status().isOk())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
     assertTrue(body.isArray());
     assertEquals(1, body.size());
     assertEquals("orders.created", body.get(0).get("contractId").asText());
@@ -105,13 +104,10 @@ class ContractServiceApiIntegrationTest {
 
   @Test
   void checksEndpointReturnsStructuredArrays() throws Exception {
-    ResponseEntity<String> response =
-        restTemplate.getForEntity(
-            "http://localhost:" + port + "/checks?contractId=orders.created",
-            String.class);
-
-    assertEquals(200, response.getStatusCode().value());
-    JsonNode body = objectMapper.readTree(response.getBody());
+    MvcResult response = mockMvc.perform(get("/checks").queryParam("contractId", "orders.created"))
+        .andExpect(status().isOk())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
     assertTrue(body.isArray());
     assertEquals(1, body.size());
     JsonNode first = body.get(0);
@@ -119,6 +115,51 @@ class ContractServiceApiIntegrationTest {
     assertTrue(first.get("breakingChanges").isArray());
     assertTrue(first.get("warnings").isArray());
     assertEquals("Enum value added: status.SHIPPED", first.get("warnings").get(0).asText());
+  }
+
+  @Test
+  void checksPageEndpointReturnsPaginatedPayload() throws Exception {
+    MvcResult response = mockMvc.perform(
+            get("/checks/page")
+                .queryParam("contractId", "orders.created")
+                .queryParam("limit", "1")
+                .queryParam("offset", "0"))
+        .andExpect(status().isOk())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertTrue(body.get("items").isArray());
+    assertEquals(1, body.get("items").size());
+    assertEquals(1, body.get("limit").asInt());
+    assertEquals(0, body.get("offset").asInt());
+    assertEquals(false, body.get("hasMore").asBoolean());
+  }
+
+  @Test
+  void checkRunEndpointReturnsSingleRunById() throws Exception {
+    MvcResult response = mockMvc.perform(get("/checks/run-1"))
+        .andExpect(status().isOk())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertEquals("run-1", body.get("runId").asText());
+    assertEquals("orders.created", body.get("contractId").asText());
+  }
+
+  @Test
+  void checkRunEndpointReturns404ForUnknownRunId() throws Exception {
+    MvcResult response = mockMvc.perform(get("/checks/unknown-run"))
+        .andExpect(status().isNotFound())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertEquals("CHECK_RUN_NOT_FOUND", body.get("code").asText());
+  }
+
+  @Test
+  void checksPageEndpointReturns400ForInvalidLimit() throws Exception {
+    MvcResult response = mockMvc.perform(get("/checks/page").queryParam("limit", "0"))
+        .andExpect(status().isBadRequest())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertEquals("INVALID_REQUEST", body.get("code").asText());
   }
 
   private static synchronized void ensureTestPaths() {

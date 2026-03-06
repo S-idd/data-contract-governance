@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contract Detail</title>
+  <link rel="stylesheet" href="/ui.css">
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <div class="brand">Data Contract Governance</div>
+    <nav class="nav">
+      <a href="/ui">Dashboard</a>
+      <a href="/ui/contracts">Contracts</a>
+      <span class="request-id" th:text="'Request ID: ' + ${requestId}">Request ID</span>
+    </nav>
+  </header>
+
+  <section class="card">
+    <h1 class="title" th:text="${contract.contractId}">contract-id</h1>
+    <p class="subtitle">Contract metadata and recent compatibility runs.</p>
+    <div class="row">
+      <div><span class="muted">Owner Team:</span> <span th:text="${contract.ownerTeam}">team</span></div>
+      <div><span class="muted">Domain:</span> <span th:text="${contract.domain}">domain</span></div>
+      <div><span class="muted">Compatibility Mode:</span> <span th:text="${contract.compatibilityMode}">mode</span></div>
+      <div><span class="muted">Status:</span> <span th:text="${contract.status}">ACTIVE</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="title" style="font-size:20px;">Available Versions</h2>
+    <ul class="list">
+      <li th:each="version : ${contract.versions}">
+        <a th:href="@{/contracts/{contractId}/versions/{version}(contractId=${contract.contractId},version=${version})}"
+           th:text="${version}">v1</a>
+      </li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2 class="title" style="font-size:20px;">Recent Checks</h2>
+    <div class="warning" th:if="${checkStoreUnavailable}" th:text="${uiErrorMessage}">
+      Check history store is currently unavailable.
+    </div>
+    <p class="muted" th:if="${!checkStoreUnavailable and #lists.isEmpty(checks)}">No check runs found for this contract.</p>
+
+    <table th:if="${!checkStoreUnavailable and !#lists.isEmpty(checks)}">
+      <thead>
+      <tr>
+        <th>Run ID</th>
+        <th>Status</th>
+        <th>Base</th>
+        <th>Candidate</th>
+        <th>Commit</th>
+        <th>Created</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="check : ${checks}">
+        <td><a th:href="@{/ui/checks/{runId}(runId=${check.runId})}" th:text="${check.runId}">run-id</a></td>
+        <td>
+          <span class="pill pill-pass" th:if="${check.status == 'PASS'}" th:text="${check.status}">PASS</span>
+          <span class="pill pill-fail" th:if="${check.status != 'PASS'}" th:text="${check.status}">FAIL</span>
+        </td>
+        <td th:text="${check.baseVersion}">v1</td>
+        <td th:text="${check.candidateVersion}">v2</td>
+        <td th:text="${check.commitSha}">sha</td>
+        <td th:text="${check.createdAt}">ts</td>
+      </tr>
+      </tbody>
+    </table>
+
+    <p class="muted" th:if="${checksHasMore}">More checks exist for this contract. Use `/checks/page?contractId=...` for paging.</p>
+  </section>
+</main>
+</body>
+</html>

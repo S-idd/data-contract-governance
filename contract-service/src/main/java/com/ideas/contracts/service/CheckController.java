@@ -1,6 +1,7 @@
 package com.ideas.contracts.service;
 
 import com.ideas.contracts.service.model.CheckRunResponse;
+import com.ideas.contracts.service.model.CheckRunPageResponse;
 import com.ideas.contracts.service.model.ApiErrorResponse;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -12,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -72,5 +74,54 @@ public class CheckController {
       @RequestParam(name = "contractId", required = false) String contractId,
       @RequestParam(name = "commitSha", required = false) String commitSha) {
     return checkRunStore.list(contractId, commitSha);
+  }
+
+  @GetMapping("/page")
+  @Operation(summary = "List checks page", description = "Returns a paginated checks response filtered by optional contractId, commitSha, and status.")
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "Check run page fetched successfully",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = CheckRunPageResponse.class))),
+      @ApiResponse(
+          responseCode = "400",
+          description = "Invalid pagination or filter query",
+          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class))),
+      @ApiResponse(
+          responseCode = "503",
+          description = "Check history store unavailable",
+          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class)))
+  })
+  public CheckRunPageResponse listChecksPage(
+      @RequestParam(name = "contractId", required = false) String contractId,
+      @RequestParam(name = "commitSha", required = false) String commitSha,
+      @RequestParam(name = "status", required = false) String status,
+      @RequestParam(name = "limit", required = false) Integer limit,
+      @RequestParam(name = "offset", required = false) Integer offset) {
+    CheckRunQuery query = CheckRunQuery.from(contractId, commitSha, status, limit, offset);
+    return checkRunStore.listPage(query);
+  }
+
+  @GetMapping("/{runId}")
+  @Operation(summary = "Get check run", description = "Returns a single check run by runId.")
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "Check run fetched successfully",
+          content = @Content(mediaType = "application/json", schema = @Schema(implementation = CheckRunResponse.class))),
+      @ApiResponse(
+          responseCode = "404",
+          description = "Check run not found",
+          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class))),
+      @ApiResponse(
+          responseCode = "503",
+          description = "Check history store unavailable",
+          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class)))
+  })
+  public CheckRunResponse getCheckRun(@PathVariable("runId") String runId) {
+    return checkRunStore.findByRunId(runId)
+        .orElseThrow(() -> new CheckRunNotFoundException(runId));
   }
 }

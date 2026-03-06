@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contracts</title>
+  <link rel="stylesheet" href="/ui.css">
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <div class="brand">Data Contract Governance</div>
+    <nav class="nav">
+      <a href="/ui">Dashboard</a>
+      <a href="/ui/contracts">Contracts</a>
+      <a href="/contracts">Contracts API</a>
+      <span class="request-id" th:text="'Request ID: ' + ${requestId}">Request ID</span>
+    </nav>
+  </header>
+
+  <section class="card">
+    <h1 class="title">Contracts</h1>
+    <p class="subtitle">Search by contract ID, owner team, or domain.</p>
+    <form method="get" action="/ui/contracts" class="row">
+      <label style="grid-column: 1 / -2;">
+        <span class="muted">Search</span>
+        <input class="input" type="text" name="q" th:value="${search}" placeholder="orders, platform, commerce">
+      </label>
+      <div style="display:flex;align-items:flex-end;">
+        <button class="button" type="submit">Search</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" th:if="${#lists.isEmpty(contracts)}">
+    <p class="muted">No contracts found for this search query.</p>
+  </section>
+
+  <section class="row" th:if="${!#lists.isEmpty(contracts)}">
+    <article class="card" th:each="contract : ${contracts}">
+      <h2 style="margin-top:0;">
+        <a th:href="@{/ui/contracts/{contractId}(contractId=${contract.contractId})}"
+           th:text="${contract.contractId}">contract-id</a>
+      </h2>
+      <p class="muted" style="margin:0;">Owner: <span th:text="${contract.ownerTeam}">team</span></p>
+      <p class="muted" style="margin:0;">Domain: <span th:text="${contract.domain}">domain</span></p>
+      <p class="muted" style="margin:0;">Mode: <span th:text="${contract.compatibilityMode}">mode</span></p>
+      <p class="muted" style="margin:0;">Latest: <span th:text="${contract.latestVersion}">v1</span></p>
+    </article>
+  </section>
+</main>
+</body>
+</html>

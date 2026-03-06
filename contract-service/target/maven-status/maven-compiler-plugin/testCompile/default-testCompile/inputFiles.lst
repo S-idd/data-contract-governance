@@ -1,3 +1,12 @@
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerDbFailureIntegrationTest.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerPostgresAuthFailureIntegrationTest.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerPostgresNetworkFailureIntegrationTest.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerPostgresSchemaMismatchIntegrationTest.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerPostgresSuccessIntegrationTest.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerSecurityIntegrationTest.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckRunQueryTest.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckRunStorePostgresPathTest.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckRunStoreTest.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/ContractServiceApiIntegrationTest.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/PostgresTestSupport.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/UiControllerIntegrationTest.java
