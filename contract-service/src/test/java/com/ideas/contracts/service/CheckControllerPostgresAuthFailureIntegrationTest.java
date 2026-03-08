@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,13 +47,10 @@ class CheckControllerPostgresAuthFailureIntegrationTest {
     registry.add("checks.db.pool.connection-timeout", () -> "500ms");
   }
 
-  @BeforeAll
-  void setUpPrerequisites() {
-    PostgresTestSupport.assumeLocalPostgresAvailable();
-  }
-
   @Test
   void checksEndpointReturnsStructured503WhenPostgresCredentialsAreInvalid() throws Exception {
+    PostgresTestSupport.assumeLocalPostgresAvailable();
+
     MvcResult response = mockMvc.perform(get("/checks"))
         .andExpect(status().isServiceUnavailable())
         .andReturn();

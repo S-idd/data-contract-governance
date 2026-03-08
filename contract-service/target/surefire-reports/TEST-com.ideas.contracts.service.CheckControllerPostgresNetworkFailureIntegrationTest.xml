@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.ideas.contracts.service.CheckControllerPostgresNetworkFailureIntegrationTest" time="3.239" tests="1" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.ideas.contracts.service.CheckControllerPostgresNetworkFailureIntegrationTest" time="3.244" tests="1" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="25"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -13,7 +13,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="IN"/>
     <property name="sun.boot.library.path" value="/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home/lib"/>
-    <property name="sun.java.command" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260306192206161_3.jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire 2026-03-06T19-22-05_991-jvmRun1 surefire-20260306192206161_1tmp surefire_0-20260306192206161_2tmp"/>
+    <property name="sun.java.command" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260308001222986_3.jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire 2026-03-08T00-12-22_855-jvmRun1 surefire-20260308001222986_1tmp surefire_0-20260308001222986_2tmp"/>
     <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="jdk.debug" value="release"/>
     <property name="test" value="CheckRunStorePostgresPathTest,CheckControllerPostgresSuccessIntegrationTest,CheckControllerPostgresAuthFailureIntegrationTest,CheckControllerPostgresNetworkFailureIntegrationTest,CheckControllerPostgresSchemaMismatchIntegrationTest"/>
@@ -26,14 +26,14 @@
     <property name="java.home" value="/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home"/>
     <property name="file.separator" value="/"/>
     <property name="basedir" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service"/>
-    <property name="java.vm.compressedOopsMode" value="Non-zero based"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
     <property name="line.separator" value="&#10;"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="FILE_LOG_CHARSET" value="UTF-8"/>
     <property name="java.awt.headless" value="true"/>
     <property name="apple.awt.application.name" value="ForkedBooter"/>
-    <property name="surefire.real.class.path" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260306192206161_3.jar"/>
+    <property name="surefire.real.class.path" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260308001222986_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.runtime.version" value="25.0.2"/>
@@ -53,7 +53,7 @@
     <property name="user.dir" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service"/>
     <property name="os.arch" value="aarch64"/>
     <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
-    <property name="PID" value="43243"/>
+    <property name="PID" value="19072"/>
     <property name="CONSOLE_LOG_CHARSET" value="UTF-8"/>
     <property name="native.encoding" value="UTF-8"/>
     <property name="java.library.path" value="/Users/siddarthkanamadi/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:."/>
@@ -66,9 +66,9 @@
     <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.class.version" value="69.0"/>
   </properties>
-  <testcase name="checksEndpointReturnsStructured503WhenPostgresNetworkIsUnavailable" classname="com.ideas.contracts.service.CheckControllerPostgresNetworkFailureIntegrationTest" time="1.533">
-    <system-out><![CDATA[2026-03-06T19:22:16.000+05:30  INFO 43243 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.ideas.contracts.service.CheckControllerPostgresNetworkFailureIntegrationTest]: CheckControllerPostgresNetworkFailureIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-03-06T19:22:16.004+05:30  INFO 43243 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.ideas.contracts.service.ContractServiceApplication for test class com.ideas.contracts.service.CheckControllerPostgresNetworkFailureIntegrationTest
+  <testcase name="checksEndpointReturnsStructured503WhenPostgresNetworkIsUnavailable" classname="com.ideas.contracts.service.CheckControllerPostgresNetworkFailureIntegrationTest" time="1.532">
+    <system-out><![CDATA[2026-03-08T00:12:32.767+05:30  INFO 19072 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.ideas.contracts.service.CheckControllerPostgresNetworkFailureIntegrationTest]: CheckControllerPostgresNetworkFailureIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-08T00:12:32.770+05:30  INFO 19072 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.ideas.contracts.service.ContractServiceApplication for test class com.ideas.contracts.service.CheckControllerPostgresNetworkFailureIntegrationTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -79,30 +79,30 @@
 
  :: Spring Boot ::                (v3.3.5)
 
-2026-03-06T19:22:16.018+05:30  INFO 43243 --- [           main] lerPostgresNetworkFailureIntegrationTest : Starting CheckControllerPostgresNetworkFailureIntegrationTest using Java 25.0.2 with PID 43243 (started by siddarthkanamadi in /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service)
-2026-03-06T19:22:16.018+05:30  INFO 43243 --- [           main] lerPostgresNetworkFailureIntegrationTest : No active profile set, falling back to 1 default profile: "default"
-2026-03-06T19:22:16.106+05:30  INFO 43243 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
-2026-03-06T19:22:16.106+05:30  INFO 43243 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
-2026-03-06T19:22:17.619+05:30 ERROR 43243 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 505ms (total=0, active=0, idle=0, waiting=0)
+2026-03-08T00:12:32.784+05:30  INFO 19072 --- [           main] lerPostgresNetworkFailureIntegrationTest : Starting CheckControllerPostgresNetworkFailureIntegrationTest using Java 25.0.2 with PID 19072 (started by siddarthkanamadi in /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service)
+2026-03-08T00:12:32.784+05:30  INFO 19072 --- [           main] lerPostgresNetworkFailureIntegrationTest : No active profile set, falling back to 1 default profile: "default"
+2026-03-08T00:12:32.872+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
+2026-03-08T00:12:32.872+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
+2026-03-08T00:12:34.391+05:30 ERROR 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 504ms (total=0, active=0, idle=0, waiting=0)
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 SQL State  : 08001
 Error Code : 0
 Message    : Connection to 127.0.0.1:1 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
 
-2026-03-06T19:22:17.619+05:30  WARN 43243 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_init_deferred component=check_run_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 message=Will retry on first checks request
-2026-03-06T19:22:17.649+05:30  INFO 43243 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name userDetailsService
-2026-03-06T19:22:17.692+05:30  INFO 43243 --- [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoints beneath base path '/actuator'
-2026-03-06T19:22:17.695+05:30  INFO 43243 --- [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
-2026-03-06T19:22:17.695+05:30  INFO 43243 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
-2026-03-06T19:22:17.695+05:30  INFO 43243 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
-2026-03-06T19:22:17.701+05:30  INFO 43243 --- [           main] lerPostgresNetworkFailureIntegrationTest : Started CheckControllerPostgresNetworkFailureIntegrationTest in 1.694 seconds (process running for 11.509)
-2026-03-06T19:22:19.221+05:30 ERROR 43243 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 501ms (total=0, active=0, idle=0, waiting=0)
+2026-03-08T00:12:34.391+05:30  WARN 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_init_deferred component=check_run_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 message=Will retry on first checks request
+2026-03-08T00:12:34.422+05:30  INFO 19072 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name userDetailsService
+2026-03-08T00:12:34.466+05:30  INFO 19072 --- [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoints beneath base path '/actuator'
+2026-03-08T00:12:34.469+05:30  INFO 19072 --- [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-08T00:12:34.469+05:30  INFO 19072 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-08T00:12:34.469+05:30  INFO 19072 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-08T00:12:34.475+05:30  INFO 19072 --- [           main] lerPostgresNetworkFailureIntegrationTest : Started CheckControllerPostgresNetworkFailureIntegrationTest in 1.703 seconds (process running for 11.459)
+2026-03-08T00:12:35.996+05:30 ERROR 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 505ms (total=0, active=0, idle=0, waiting=0)
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 SQL State  : 08001
 Error Code : 0
 Message    : Connection to 127.0.0.1:1 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
 
-2026-03-06T19:22:19.224+05:30  WARN 43243 --- [           main] c.i.c.service.ApiExceptionHandler        : event=request_failed component=api_exception_handler error_code=CHECK_STORE_UNAVAILABLE path=/checks request_id=ebd73aeb-d6bb-4095-9976-71455ea97baa error_type=CheckRunStoreException error_message=Check history store is currently unavailable.
+2026-03-08T00:12:35.999+05:30  WARN 19072 --- [           main] c.i.c.service.ApiExceptionHandler        : event=request_failed component=api_exception_handler error_code=CHECK_STORE_UNAVAILABLE path=/checks request_id=587f4bc0-893e-4d62-a057-a55f5a9210ef error_type=CheckRunStoreException error_message=Check history store is currently unavailable.
 ]]></system-out>
   </testcase>
 </testsuite>

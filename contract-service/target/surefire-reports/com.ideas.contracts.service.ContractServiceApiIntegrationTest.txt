@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.ideas.contracts.service.ContractServiceApiIntegrationTest
 -------------------------------------------------------------------------------
-Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.204 s -- in com.ideas.contracts.service.ContractServiceApiIntegrationTest
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.185 s -- in com.ideas.contracts.service.ContractServiceApiIntegrationTest

@@ -2,6 +2,17 @@
 
 This project runs fully local. Docker/Testcontainers are not required.
 
+## Fastest Path
+
+If your local PostgreSQL credentials are already set, use the one-command demo runner:
+
+```bash
+cd /path/to/data-contract-governance
+bash scripts/demo/run-local-demo.sh
+```
+
+For the full manual setup, continue below.
+
 ## 1. Prerequisites
 
 - Java 21+
@@ -18,7 +29,7 @@ createdb -h localhost -p 5432 -U <your_pg_user> contracts
 ## 2. Build CLI
 
 ```bash
-cd /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance
+cd /path/to/data-contract-governance
 mvn -pl contract-cli -am package -DskipTests
 ```
 
@@ -87,7 +98,7 @@ Open check detail:
 ## 7. Run Postgres-Path Test Suite
 
 ```bash
-cd /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance
+cd /path/to/data-contract-governance
 mvn -pl contract-service -am \
   -Dtest=CheckRunStorePostgresPathTest,CheckControllerPostgresSuccessIntegrationTest,CheckControllerPostgresAuthFailureIntegrationTest,CheckControllerPostgresNetworkFailureIntegrationTest,CheckControllerPostgresSchemaMismatchIntegrationTest \
   -Dsurefire.failIfNoSpecifiedTests=false \
@@ -99,3 +110,6 @@ Success criteria:
 - `Failures: 0`
 - `Errors: 0`
 - `BUILD SUCCESS`
+- `Skipped: 0` for the Postgres availability-dependent tests (`CheckControllerPostgresSuccessIntegrationTest`, `CheckControllerPostgresAuthFailureIntegrationTest`, `CheckControllerPostgresSchemaMismatchIntegrationTest`)
+
+If those Postgres tests are skipped, your local PostgreSQL path was not actually exercised. Re-check `TEST_POSTGRES_JDBC_URL`, `TEST_POSTGRES_USERNAME`, `TEST_POSTGRES_PASSWORD`, and direct `psql` connectivity before treating the run as production-ready.

@@ -186,6 +186,29 @@ This script:
 - prints Swagger URL and sample API outputs
 - stops service automatically
 
+## Local Demo (macOS/Linux)
+One-command local demo against local PostgreSQL:
+
+```bash
+cd /path/to/data-contract-governance
+bash scripts/demo/run-local-demo.sh
+```
+
+Required env vars:
+
+```bash
+export TEST_POSTGRES_JDBC_URL="jdbc:postgresql://localhost:5432/contracts"
+export TEST_POSTGRES_USERNAME="<your_pg_user>"
+export TEST_POSTGRES_PASSWORD="<your_pg_password>"
+```
+
+Helpful docs:
+
+- [Local Quickstart](quickstart-local.md)
+- [Demo Walkthrough](docs/demo-walkthrough.md)
+- [Week 7 Exit Checklist](docs/week7-exit-checklist.md)
+- [Week 8 Stabilization Checklist](docs/week8-stabilization-checklist.md)
+
 ## Sample Contracts
 - [orders.created metadata](contracts/orders.created/metadata.yaml)
 - [orders.created v1](contracts/orders.created/v1.json)
@@ -195,3 +218,7 @@ This script:
 - [Requirements](docs/Requirements.md)
 - [System Design](docs/SystemDesign.md)
 - [Architecture Decisions](adr/ArchitectureDecisionRecord.md)
+- [Local Quickstart](quickstart-local.md)
+- [Demo Walkthrough](docs/demo-walkthrough.md)
+- [Week 7 Exit Checklist](docs/week7-exit-checklist.md)
+- [Week 8 Stabilization Checklist](docs/week8-stabilization-checklist.md)

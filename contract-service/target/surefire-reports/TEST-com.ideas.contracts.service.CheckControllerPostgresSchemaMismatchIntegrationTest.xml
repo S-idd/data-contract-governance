@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.ideas.contracts.service.CheckControllerPostgresSchemaMismatchIntegrationTest" time="0.229" tests="1" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.ideas.contracts.service.CheckControllerPostgresSchemaMismatchIntegrationTest" time="0.224" tests="1" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="25"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -13,7 +13,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="IN"/>
     <property name="sun.boot.library.path" value="/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home/lib"/>
-    <property name="sun.java.command" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260306192206161_3.jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire 2026-03-06T19-22-05_991-jvmRun1 surefire-20260306192206161_1tmp surefire_0-20260306192206161_2tmp"/>
+    <property name="sun.java.command" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260308001222986_3.jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire 2026-03-08T00-12-22_855-jvmRun1 surefire-20260308001222986_1tmp surefire_0-20260308001222986_2tmp"/>
     <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="jdk.debug" value="release"/>
     <property name="test" value="CheckRunStorePostgresPathTest,CheckControllerPostgresSuccessIntegrationTest,CheckControllerPostgresAuthFailureIntegrationTest,CheckControllerPostgresNetworkFailureIntegrationTest,CheckControllerPostgresSchemaMismatchIntegrationTest"/>
@@ -26,14 +26,14 @@
     <property name="java.home" value="/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home"/>
     <property name="file.separator" value="/"/>
     <property name="basedir" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service"/>
-    <property name="java.vm.compressedOopsMode" value="Non-zero based"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
     <property name="line.separator" value="&#10;"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="FILE_LOG_CHARSET" value="UTF-8"/>
     <property name="java.awt.headless" value="true"/>
     <property name="apple.awt.application.name" value="ForkedBooter"/>
-    <property name="surefire.real.class.path" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260306192206161_3.jar"/>
+    <property name="surefire.real.class.path" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260308001222986_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.runtime.version" value="25.0.2"/>
@@ -53,7 +53,7 @@
     <property name="user.dir" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service"/>
     <property name="os.arch" value="aarch64"/>
     <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
-    <property name="PID" value="43243"/>
+    <property name="PID" value="19072"/>
     <property name="CONSOLE_LOG_CHARSET" value="UTF-8"/>
     <property name="native.encoding" value="UTF-8"/>
     <property name="java.library.path" value="/Users/siddarthkanamadi/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:."/>
@@ -66,9 +66,9 @@
     <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.class.version" value="69.0"/>
   </properties>
-  <testcase name="checksEndpointReturnsStructured503WhenPostgresSchemaMismatches" classname="com.ideas.contracts.service.CheckControllerPostgresSchemaMismatchIntegrationTest" time="0.005">
-    <system-out><![CDATA[2026-03-06T19:22:19.484+05:30  INFO 43243 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.ideas.contracts.service.CheckControllerPostgresSchemaMismatchIntegrationTest]: CheckControllerPostgresSchemaMismatchIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-03-06T19:22:19.485+05:30  INFO 43243 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.ideas.contracts.service.ContractServiceApplication for test class com.ideas.contracts.service.CheckControllerPostgresSchemaMismatchIntegrationTest
+  <testcase name="checksEndpointReturnsStructured503WhenPostgresSchemaMismatches" classname="com.ideas.contracts.service.CheckControllerPostgresSchemaMismatchIntegrationTest" time="0.043">
+    <system-out><![CDATA[2026-03-08T00:12:36.256+05:30  INFO 19072 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.ideas.contracts.service.CheckControllerPostgresSchemaMismatchIntegrationTest]: CheckControllerPostgresSchemaMismatchIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-08T00:12:36.257+05:30  INFO 19072 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.ideas.contracts.service.ContractServiceApplication for test class com.ideas.contracts.service.CheckControllerPostgresSchemaMismatchIntegrationTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -79,33 +79,33 @@
 
  :: Spring Boot ::                (v3.3.5)
 
-2026-03-06T19:22:19.491+05:30  INFO 43243 --- [           main] lerPostgresSchemaMismatchIntegrationTest : Starting CheckControllerPostgresSchemaMismatchIntegrationTest using Java 25.0.2 with PID 43243 (started by siddarthkanamadi in /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service)
-2026-03-06T19:22:19.491+05:30  INFO 43243 --- [           main] lerPostgresSchemaMismatchIntegrationTest : No active profile set, falling back to 1 default profile: "default"
-2026-03-06T19:22:19.549+05:30  INFO 43243 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
-2026-03-06T19:22:19.549+05:30  INFO 43243 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
-2026-03-06T19:22:19.559+05:30  INFO 43243 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/postgres (PostgreSQL 18.3)
-2026-03-06T19:22:19.561+05:30  WARN 43243 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
-2026-03-06T19:22:19.563+05:30  INFO 43243 --- [           main] o.f.core.internal.database.base.Schema   : Creating schema "it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20" ...
-2026-03-06T19:22:19.566+05:30  INFO 43243 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20"."flyway_schema_history" ...
-2026-03-06T19:22:19.602+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20": null
-2026-03-06T19:22:19.603+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20" to version "1 - create check runs"
-2026-03-06T19:22:19.616+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20" to version "2 - add check run indexes"
-2026-03-06T19:22:19.621+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20", now at version v2 (execution time 00:00.010s)
-2026-03-06T19:22:19.622+05:30  INFO 43243 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_initialized component=check_run_store db_target=jdbc:postgresql://localhost:5432/postgres?currentSchema=it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20 backend=postgresql
-2026-03-06T19:22:19.632+05:30  INFO 43243 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name userDetailsService
-2026-03-06T19:22:19.659+05:30  INFO 43243 --- [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoints beneath base path '/actuator'
-2026-03-06T19:22:19.661+05:30  INFO 43243 --- [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
-2026-03-06T19:22:19.661+05:30  INFO 43243 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
-2026-03-06T19:22:19.662+05:30  INFO 43243 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
-2026-03-06T19:22:19.666+05:30  INFO 43243 --- [           main] lerPostgresSchemaMismatchIntegrationTest : Started CheckControllerPostgresSchemaMismatchIntegrationTest in 0.18 seconds (process running for 13.474)
-2026-03-06T19:22:19.684+05:30  INFO 43243 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/postgres (PostgreSQL 18.3)
-2026-03-06T19:22:19.686+05:30  WARN 43243 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
-2026-03-06T19:22:19.691+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 3 migrations (execution time 00:00.003s)
-2026-03-06T19:22:19.700+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20": 2
-2026-03-06T19:22:19.700+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Schema "it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20" is up to date. No migration necessary.
-2026-03-06T19:22:19.711+05:30 ERROR 43243 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=list_check_runs db_target=jdbc:postgresql://localhost:5432/postgres?currentSchema=it_schema_mismatch_16f1ef605b4d4933b08b85ae00beea20 contract_id=- commit_sha=- sql_state=42703 sql_vendor_code=0 error_type=PSQLException error_message=ERROR: column "warnings" does not exist
+2026-03-08T00:12:36.263+05:30  INFO 19072 --- [           main] lerPostgresSchemaMismatchIntegrationTest : Starting CheckControllerPostgresSchemaMismatchIntegrationTest using Java 25.0.2 with PID 19072 (started by siddarthkanamadi in /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service)
+2026-03-08T00:12:36.263+05:30  INFO 19072 --- [           main] lerPostgresSchemaMismatchIntegrationTest : No active profile set, falling back to 1 default profile: "default"
+2026-03-08T00:12:36.321+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
+2026-03-08T00:12:36.322+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
+2026-03-08T00:12:36.330+05:30  INFO 19072 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
+2026-03-08T00:12:36.332+05:30  WARN 19072 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
+2026-03-08T00:12:36.334+05:30  INFO 19072 --- [           main] o.f.core.internal.database.base.Schema   : Creating schema "it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011" ...
+2026-03-08T00:12:36.336+05:30  INFO 19072 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011"."flyway_schema_history" ...
+2026-03-08T00:12:36.372+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011": null
+2026-03-08T00:12:36.373+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011" to version "1 - create check runs"
+2026-03-08T00:12:36.382+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011" to version "2 - add check run indexes"
+2026-03-08T00:12:36.387+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011", now at version v2 (execution time 00:00.008s)
+2026-03-08T00:12:36.388+05:30  INFO 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_initialized component=check_run_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011 backend=postgresql
+2026-03-08T00:12:36.398+05:30  INFO 19072 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name userDetailsService
+2026-03-08T00:12:36.424+05:30  INFO 19072 --- [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoints beneath base path '/actuator'
+2026-03-08T00:12:36.427+05:30  INFO 19072 --- [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-08T00:12:36.427+05:30  INFO 19072 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-08T00:12:36.427+05:30  INFO 19072 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-08T00:12:36.436+05:30  INFO 19072 --- [           main] lerPostgresSchemaMismatchIntegrationTest : Started CheckControllerPostgresSchemaMismatchIntegrationTest in 0.178 seconds (process running for 13.42)
+2026-03-08T00:12:36.455+05:30  INFO 19072 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
+2026-03-08T00:12:36.456+05:30  WARN 19072 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
+2026-03-08T00:12:36.460+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 3 migrations (execution time 00:00.003s)
+2026-03-08T00:12:36.468+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011": 2
+2026-03-08T00:12:36.469+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Schema "it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011" is up to date. No migration necessary.
+2026-03-08T00:12:36.478+05:30 ERROR 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=list_check_runs db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=it_schema_mismatch_20a8cbcb71ae48b4acc00eb38a3e4011 contract_id=- commit_sha=- sql_state=42703 sql_vendor_code=0 error_type=PSQLException error_message=ERROR: column "warnings" does not exist
   Position: 95
-2026-03-06T19:22:19.711+05:30  WARN 43243 --- [           main] c.i.c.service.ApiExceptionHandler        : event=request_failed component=api_exception_handler error_code=CHECK_STORE_UNAVAILABLE path=/checks request_id=ff941453-a660-411d-ad9d-6d3b9a39a219 error_type=CheckRunStoreException error_message=Failed to query check runs from configured database.
+2026-03-08T00:12:36.478+05:30  WARN 19072 --- [           main] c.i.c.service.ApiExceptionHandler        : event=request_failed component=api_exception_handler error_code=CHECK_STORE_UNAVAILABLE path=/checks request_id=f24e561e-1080-4a64-8f06-e2249127da03 error_type=CheckRunStoreException error_message=Failed to query check runs from configured database.
 ]]></system-out>
   </testcase>
 </testsuite>

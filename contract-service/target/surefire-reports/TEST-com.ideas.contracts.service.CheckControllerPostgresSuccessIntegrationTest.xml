@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.ideas.contracts.service.CheckControllerPostgresSuccessIntegrationTest" time="0.246" tests="1" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.ideas.contracts.service.CheckControllerPostgresSuccessIntegrationTest" time="0.245" tests="1" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="25"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -13,7 +13,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="IN"/>
     <property name="sun.boot.library.path" value="/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home/lib"/>
-    <property name="sun.java.command" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260306192206161_3.jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire 2026-03-06T19-22-05_991-jvmRun1 surefire-20260306192206161_1tmp surefire_0-20260306192206161_2tmp"/>
+    <property name="sun.java.command" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260308001222986_3.jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire 2026-03-08T00-12-22_855-jvmRun1 surefire-20260308001222986_1tmp surefire_0-20260308001222986_2tmp"/>
     <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="jdk.debug" value="release"/>
     <property name="test" value="CheckRunStorePostgresPathTest,CheckControllerPostgresSuccessIntegrationTest,CheckControllerPostgresAuthFailureIntegrationTest,CheckControllerPostgresNetworkFailureIntegrationTest,CheckControllerPostgresSchemaMismatchIntegrationTest"/>
@@ -26,14 +26,14 @@
     <property name="java.home" value="/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home"/>
     <property name="file.separator" value="/"/>
     <property name="basedir" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service"/>
-    <property name="java.vm.compressedOopsMode" value="Non-zero based"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
     <property name="line.separator" value="&#10;"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="FILE_LOG_CHARSET" value="UTF-8"/>
     <property name="java.awt.headless" value="true"/>
     <property name="apple.awt.application.name" value="ForkedBooter"/>
-    <property name="surefire.real.class.path" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260306192206161_3.jar"/>
+    <property name="surefire.real.class.path" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260308001222986_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.runtime.version" value="25.0.2"/>
@@ -53,7 +53,7 @@
     <property name="user.dir" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service"/>
     <property name="os.arch" value="aarch64"/>
     <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
-    <property name="PID" value="43243"/>
+    <property name="PID" value="19072"/>
     <property name="CONSOLE_LOG_CHARSET" value="UTF-8"/>
     <property name="native.encoding" value="UTF-8"/>
     <property name="java.library.path" value="/Users/siddarthkanamadi/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:."/>
@@ -66,9 +66,9 @@
     <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.class.version" value="69.0"/>
   </properties>
-  <testcase name="checksEndpointReturnsRowsFromPostgresStore" classname="com.ideas.contracts.service.CheckControllerPostgresSuccessIntegrationTest" time="0.007">
-    <system-out><![CDATA[2026-03-06T19:22:19.238+05:30  INFO 43243 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.ideas.contracts.service.CheckControllerPostgresSuccessIntegrationTest]: CheckControllerPostgresSuccessIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-03-06T19:22:19.240+05:30  INFO 43243 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.ideas.contracts.service.ContractServiceApplication for test class com.ideas.contracts.service.CheckControllerPostgresSuccessIntegrationTest
+  <testcase name="checksEndpointReturnsRowsFromPostgresStore" classname="com.ideas.contracts.service.CheckControllerPostgresSuccessIntegrationTest" time="0.042">
+    <system-out><![CDATA[2026-03-08T00:12:36.011+05:30  INFO 19072 --- [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.ideas.contracts.service.CheckControllerPostgresSuccessIntegrationTest]: CheckControllerPostgresSuccessIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-08T00:12:36.013+05:30  INFO 19072 --- [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.ideas.contracts.service.ContractServiceApplication for test class com.ideas.contracts.service.CheckControllerPostgresSuccessIntegrationTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -79,30 +79,30 @@
 
  :: Spring Boot ::                (v3.3.5)
 
-2026-03-06T19:22:19.251+05:30  INFO 43243 --- [           main] ControllerPostgresSuccessIntegrationTest : Starting CheckControllerPostgresSuccessIntegrationTest using Java 25.0.2 with PID 43243 (started by siddarthkanamadi in /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service)
-2026-03-06T19:22:19.251+05:30  INFO 43243 --- [           main] ControllerPostgresSuccessIntegrationTest : No active profile set, falling back to 1 default profile: "default"
-2026-03-06T19:22:19.322+05:30  INFO 43243 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
-2026-03-06T19:22:19.322+05:30  INFO 43243 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
-2026-03-06T19:22:19.331+05:30  INFO 43243 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/postgres (PostgreSQL 18.3)
-2026-03-06T19:22:19.332+05:30  WARN 43243 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
-2026-03-06T19:22:19.335+05:30  INFO 43243 --- [           main] o.f.core.internal.database.base.Schema   : Creating schema "it_success_6e472386506d4ba09110baff69fb988b" ...
-2026-03-06T19:22:19.337+05:30  INFO 43243 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "it_success_6e472386506d4ba09110baff69fb988b"."flyway_schema_history" ...
-2026-03-06T19:22:19.373+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "it_success_6e472386506d4ba09110baff69fb988b": null
-2026-03-06T19:22:19.373+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "it_success_6e472386506d4ba09110baff69fb988b" to version "1 - create check runs"
-2026-03-06T19:22:19.383+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "it_success_6e472386506d4ba09110baff69fb988b" to version "2 - add check run indexes"
-2026-03-06T19:22:19.388+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "it_success_6e472386506d4ba09110baff69fb988b", now at version v2 (execution time 00:00.008s)
-2026-03-06T19:22:19.389+05:30  INFO 43243 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_initialized component=check_run_store db_target=jdbc:postgresql://localhost:5432/postgres?currentSchema=it_success_6e472386506d4ba09110baff69fb988b backend=postgresql
-2026-03-06T19:22:19.400+05:30  INFO 43243 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name userDetailsService
-2026-03-06T19:22:19.427+05:30  INFO 43243 --- [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoints beneath base path '/actuator'
-2026-03-06T19:22:19.430+05:30  INFO 43243 --- [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
-2026-03-06T19:22:19.430+05:30  INFO 43243 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
-2026-03-06T19:22:19.430+05:30  INFO 43243 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
-2026-03-06T19:22:19.434+05:30  INFO 43243 --- [           main] ControllerPostgresSuccessIntegrationTest : Started CheckControllerPostgresSuccessIntegrationTest in 0.192 seconds (process running for 13.242)
-2026-03-06T19:22:19.453+05:30  INFO 43243 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/postgres (PostgreSQL 18.3)
-2026-03-06T19:22:19.455+05:30  WARN 43243 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
-2026-03-06T19:22:19.460+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 3 migrations (execution time 00:00.003s)
-2026-03-06T19:22:19.468+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "it_success_6e472386506d4ba09110baff69fb988b": 2
-2026-03-06T19:22:19.468+05:30  INFO 43243 --- [           main] o.f.core.internal.command.DbMigrate      : Schema "it_success_6e472386506d4ba09110baff69fb988b" is up to date. No migration necessary.
+2026-03-08T00:12:36.024+05:30  INFO 19072 --- [           main] ControllerPostgresSuccessIntegrationTest : Starting CheckControllerPostgresSuccessIntegrationTest using Java 25.0.2 with PID 19072 (started by siddarthkanamadi in /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service)
+2026-03-08T00:12:36.024+05:30  INFO 19072 --- [           main] ControllerPostgresSuccessIntegrationTest : No active profile set, falling back to 1 default profile: "default"
+2026-03-08T00:12:36.101+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
+2026-03-08T00:12:36.101+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
+2026-03-08T00:12:36.110+05:30  INFO 19072 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
+2026-03-08T00:12:36.111+05:30  WARN 19072 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
+2026-03-08T00:12:36.113+05:30  INFO 19072 --- [           main] o.f.core.internal.database.base.Schema   : Creating schema "it_success_503b5483a1d440d1b7d0a3d72bfae547" ...
+2026-03-08T00:12:36.116+05:30  INFO 19072 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "it_success_503b5483a1d440d1b7d0a3d72bfae547"."flyway_schema_history" ...
+2026-03-08T00:12:36.147+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "it_success_503b5483a1d440d1b7d0a3d72bfae547": null
+2026-03-08T00:12:36.148+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "it_success_503b5483a1d440d1b7d0a3d72bfae547" to version "1 - create check runs"
+2026-03-08T00:12:36.157+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "it_success_503b5483a1d440d1b7d0a3d72bfae547" to version "2 - add check run indexes"
+2026-03-08T00:12:36.163+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "it_success_503b5483a1d440d1b7d0a3d72bfae547", now at version v2 (execution time 00:00.007s)
+2026-03-08T00:12:36.164+05:30  INFO 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_initialized component=check_run_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=it_success_503b5483a1d440d1b7d0a3d72bfae547 backend=postgresql
+2026-03-08T00:12:36.174+05:30  INFO 19072 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name userDetailsService
+2026-03-08T00:12:36.205+05:30  INFO 19072 --- [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoints beneath base path '/actuator'
+2026-03-08T00:12:36.207+05:30  INFO 19072 --- [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-08T00:12:36.207+05:30  INFO 19072 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-08T00:12:36.207+05:30  INFO 19072 --- [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-08T00:12:36.212+05:30  INFO 19072 --- [           main] ControllerPostgresSuccessIntegrationTest : Started CheckControllerPostgresSuccessIntegrationTest in 0.197 seconds (process running for 13.197)
+2026-03-08T00:12:36.230+05:30  INFO 19072 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
+2026-03-08T00:12:36.231+05:30  WARN 19072 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
+2026-03-08T00:12:36.235+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 3 migrations (execution time 00:00.003s)
+2026-03-08T00:12:36.242+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "it_success_503b5483a1d440d1b7d0a3d72bfae547": 2
+2026-03-08T00:12:36.242+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Schema "it_success_503b5483a1d440d1b7d0a3d72bfae547" is up to date. No migration necessary.
 ]]></system-out>
   </testcase>
 </testsuite>

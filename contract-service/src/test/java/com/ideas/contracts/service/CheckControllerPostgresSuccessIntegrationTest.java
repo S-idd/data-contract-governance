@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,8 +48,23 @@ class CheckControllerPostgresSuccessIntegrationTest {
     registry.add("checks.db.pool.connection-timeout", () -> "500ms");
   }
 
-  @BeforeAll
-  void setUpData() throws Exception {
+  @Test
+  void checksEndpointReturnsRowsFromPostgresStore() throws Exception {
+    preparePostgresData();
+
+    MvcResult response = mockMvc.perform(get("/checks").queryParam("contractId", "orders.created"))
+        .andExpect(status().isOk())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertTrue(body.isArray());
+    assertEquals(1, body.size());
+    JsonNode first = body.get(0);
+    assertEquals("orders.created", first.get("contractId").asText());
+    assertEquals("pg-run-1", first.get("runId").asText());
+    assertEquals("Enum value added: status.SHIPPED", first.get("warnings").get(0).asText());
+  }
+
+  private void preparePostgresData() throws Exception {
     PostgresTestSupport.assumeLocalPostgresAvailable();
     Path contractDir = contractsRoot.resolve("orders.created");
     Files.createDirectories(contractDir);
@@ -74,20 +88,6 @@ class CheckControllerPostgresSuccessIntegrationTest {
         "orders.created",
         "PASS",
         "[\"Enum value added: status.SHIPPED\"]");
-  }
-
-  @Test
-  void checksEndpointReturnsRowsFromPostgresStore() throws Exception {
-    MvcResult response = mockMvc.perform(get("/checks").queryParam("contractId", "orders.created"))
-        .andExpect(status().isOk())
-        .andReturn();
-    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
-    assertTrue(body.isArray());
-    assertEquals(1, body.size());
-    JsonNode first = body.get(0);
-    assertEquals("orders.created", first.get("contractId").asText());
-    assertEquals("pg-run-1", first.get("runId").asText());
-    assertEquals("Enum value added: status.SHIPPED", first.get("warnings").get(0).asText());
   }
 
   private static synchronized void ensureTestPaths() {

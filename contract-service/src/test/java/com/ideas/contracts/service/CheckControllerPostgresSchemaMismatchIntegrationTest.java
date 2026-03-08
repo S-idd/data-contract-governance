@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,16 +48,10 @@ class CheckControllerPostgresSchemaMismatchIntegrationTest {
     registry.add("checks.db.pool.connection-timeout", () -> "500ms");
   }
 
-  @BeforeAll
-  void setUpSchemaMismatch() throws Exception {
-    PostgresTestSupport.assumeLocalPostgresAvailable();
-    PostgresTestSupport.createSchema(BASE_JDBC_URL, USERNAME, PASSWORD, SCHEMA);
-    PostgresTestSupport.migrateSchema(schemaJdbcUrl, USERNAME, PASSWORD);
-    PostgresTestSupport.dropWarningsColumn(schemaJdbcUrl, USERNAME, PASSWORD);
-  }
-
   @Test
   void checksEndpointReturnsStructured503WhenPostgresSchemaMismatches() throws Exception {
+    prepareSchemaMismatch();
+
     MvcResult response = mockMvc.perform(get("/checks"))
         .andExpect(status().isServiceUnavailable())
         .andReturn();
@@ -71,6 +64,13 @@ class CheckControllerPostgresSchemaMismatchIntegrationTest {
     assertEquals("CHECK_STORE_UNAVAILABLE", payload.get("code").asText());
     assertEquals("Check history store is currently unavailable.", payload.get("message").asText());
     assertEquals("/checks", payload.get("path").asText());
+  }
+
+  private void prepareSchemaMismatch() throws Exception {
+    PostgresTestSupport.assumeLocalPostgresAvailable();
+    PostgresTestSupport.createSchema(BASE_JDBC_URL, USERNAME, PASSWORD, SCHEMA);
+    PostgresTestSupport.migrateSchema(schemaJdbcUrl, USERNAME, PASSWORD);
+    PostgresTestSupport.dropWarningsColumn(schemaJdbcUrl, USERNAME, PASSWORD);
   }
 
   private static synchronized void ensureTestPaths() {

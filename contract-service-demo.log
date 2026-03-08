@@ -1,0 +1,90 @@
+[INFO] Scanning for projects...
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-metadata.xml
+Downloading from central: https://repo.maven.apache.org/maven2/org/springframework/boot/maven-metadata.xml
+Downloading from central: https://repo.maven.apache.org/maven2/org/codehaus/mojo/maven-metadata.xml
+Progress (1): 3.1 kBProgress (1): 7.7 kBProgress (1): 12 kB Progress (1): 17 kBProgress (2): 17 kB | 249 BProgress (2): 20 kB | 249 BProgress (2): 21 kB | 249 B                           Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/boot/maven-metadata.xml (249 B at 549 B/s)
+Progress (2): 21 kB | 4.6 kBProgress (2): 21 kB | 9.7 kBProgress (2): 21 kB | 14 kB                            Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-metadata.xml (14 kB at 31 kB/s)
+Downloaded from central: https://repo.maven.apache.org/maven2/org/codehaus/mojo/maven-metadata.xml (21 kB at 43 kB/s)
+[INFO] 
+[INFO] ----------------< com.ideas.contracts:contract-service >----------------
+[INFO] Building contract-service 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.3.5:run (default-cli) > test-compile @ contract-service >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ contract-service ---
+[INFO] Copying 8 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ contract-service ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ contract-service ---
+[INFO] Copying 1 resource from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ contract-service ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:3.3.5:run (default-cli) < test-compile @ contract-service <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.3.5:run (default-cli) @ contract-service ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.5)
+
+2026-03-08T00:13:06.467+05:30  INFO 19363 --- [           main] c.i.c.s.ContractServiceApplication       : Starting ContractServiceApplication using Java 25.0.2 with PID 19363 (/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/classes started by siddarthkanamadi in /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service)
+2026-03-08T00:13:06.468+05:30  INFO 19363 --- [           main] c.i.c.s.ContractServiceApplication       : The following 1 profile is active: "local"
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.apache.tomcat.jni.Library in an unnamed module (file:/Users/siddarthkanamadi/.m2/repository/org/apache/tomcat/embed/tomcat-embed-core/10.1.31/tomcat-embed-core-10.1.31.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+2026-03-08T00:13:06.796+05:30  INFO 19363 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-03-08T00:13:06.801+05:30  INFO 19363 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-08T00:13:06.801+05:30  INFO 19363 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.31]
+2026-03-08T00:13:06.817+05:30  INFO 19363 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-03-08T00:13:06.817+05:30  INFO 19363 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 336 ms
+2026-03-08T00:13:06.866+05:30  INFO 19363 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
+2026-03-08T00:13:06.871+05:30  INFO 19363 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
+2026-03-08T00:13:06.938+05:30  INFO 19363 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
+2026-03-08T00:13:06.941+05:30  WARN 19363 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
+2026-03-08T00:13:06.950+05:30  INFO 19363 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 3 migrations (execution time 00:00.006s)
+2026-03-08T00:13:06.974+05:30  INFO 19363 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 2
+2026-03-08T00:13:06.975+05:30  WARN 19363 --- [           main] o.f.core.internal.command.DbMigrate      : Schema "public" has a version (2) that is newer than the latest available migration (0) !
+2026-03-08T00:13:06.975+05:30  INFO 19363 --- [           main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-03-08T00:13:06.978+05:30  INFO 19363 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_initialized component=check_run_store db_target=jdbc:postgresql://localhost:5432/contracts backend=postgresql
+2026-03-08T00:13:07.019+05:30  INFO 19363 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name userDetailsService
+2026-03-08T00:13:07.162+05:30  INFO 19363 --- [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoints beneath base path '/actuator'
+2026-03-08T00:13:07.182+05:30  INFO 19363 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2026-03-08T00:13:07.187+05:30  INFO 19363 --- [           main] c.i.c.s.ContractServiceApplication       : Started ContractServiceApplication in 0.811 seconds (process running for 0.891)
+2026-03-08T00:13:07.849+05:30  INFO 19363 --- [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-08T00:13:07.849+05:30  INFO 19363 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-03-08T00:13:07.850+05:30  INFO 19363 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-03-08T00:13:35.258+05:30  INFO 19363 --- [nio-8080-exec-4] c.ideas.contracts.service.UiController   : event=ui_route_access component=ui_controller route=check_detail request_id=bcde3f89-0d7b-4462-9f08-6f1c7d835fb5 arg1=1b20f229-5bcc-44cf-a31c-c50fd3b1e451 arg2=-
+2026-03-08T00:13:39.301+05:30  INFO 19363 --- [nio-8080-exec-6] c.ideas.contracts.service.UiController   : event=ui_route_access component=ui_controller route=check_detail request_id=9b1f7bd3-91f7-4a22-8e85-c2b3b67ad76b arg1=e2a771cf-c042-421b-af75-3bd43c493892 arg2=-
+2026-03-08T00:13:43.134+05:30  INFO 19363 --- [nio-8080-exec-8] c.ideas.contracts.service.UiController   : event=ui_route_access component=ui_controller route=contract_detail request_id=0e81e82b-d967-4910-b062-c6366a924f20 arg1=orders.created arg2=-
+2026-03-08T00:13:46.793+05:30  INFO 19363 --- [io-8080-exec-10] c.ideas.contracts.service.UiController   : event=ui_route_access component=ui_controller route=contracts request_id=9cdf4f18-354d-4b80-b446-09854b14180d arg1=- arg2=-
+2026-03-08T00:13:51.547+05:30  INFO 19363 --- [nio-8080-exec-2] c.ideas.contracts.service.UiController   : event=ui_route_access component=ui_controller route=dashboard request_id=3159381a-f14f-4ec5-9ad1-562ac31dd454 arg1=- arg2=-
+2026-03-08T00:16:22.968+05:30  INFO 19363 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown initiated...
+2026-03-08T00:16:22.970+05:30  INFO 19363 --- [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown completed.
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  03:17 min
+[INFO] Finished at: 2026-03-08T00:16:22+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.3.5:run (default-cli) on project contract-service: Process terminated with exit code: 143 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
