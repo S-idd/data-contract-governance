@@ -1,6 +1,6 @@
 # Release Notes Draft: Week 8 RC
 
-Date: 2026-03-08
+Date: 2026-03-10
 Candidate: `0.1.0-rc1` (draft)
 
 ## Summary
@@ -22,16 +22,17 @@ This release-candidate pass focused on stabilization only: full local regression
   - Result: `BUILD SUCCESS`
 - `mvn -pl contract-service -am -Dtest=CheckRunStorePostgresPathTest,CheckControllerPostgresSuccessIntegrationTest,CheckControllerPostgresAuthFailureIntegrationTest,CheckControllerPostgresNetworkFailureIntegrationTest,CheckControllerPostgresSchemaMismatchIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false test`
   - Result: `BUILD SUCCESS`
-  - Observed summary: `Tests run: 8, Failures: 0, Errors: 0, Skipped: 6`
+  - Observed summary (2026-03-10): `Tests run: 8, Failures: 0, Errors: 0, Skipped: 0`
 - Local-only failure handling remains covered for:
   - structured `503` on unavailable stores
   - structured `404` on missing runs
   - structured `400` on invalid paging input
   - UI route coverage and security-enabled coverage
+- Local demo script (`bash scripts/demo/run-local-demo.sh`) executed successfully on 2026-03-10 with screenshots captured.
 
 ## Known Gate Before Final Sign-Off
 
-- A reachable local PostgreSQL instance was not available in this environment, so the PostgreSQL success/auth/schema-mismatch paths were skipped rather than fully exercised.
+- Postgres-path suite verified on 2026-03-10 with zero skips.
 - The local demo runner (`bash scripts/demo/run-local-demo.sh`) was not revalidated in this environment for the same reason.
 
 ## Release Recommendation

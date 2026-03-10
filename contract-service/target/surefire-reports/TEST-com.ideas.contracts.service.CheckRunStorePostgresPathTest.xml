@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="5.4" tests="4" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="5.416" tests="4" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="25"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -13,7 +13,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="IN"/>
     <property name="sun.boot.library.path" value="/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home/lib"/>
-    <property name="sun.java.command" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260308001222986_3.jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire 2026-03-08T00-12-22_855-jvmRun1 surefire-20260308001222986_1tmp surefire_0-20260308001222986_2tmp"/>
+    <property name="sun.java.command" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260310142456704_3.jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire 2026-03-10T14-24-56_524-jvmRun1 surefire-20260310142456704_1tmp surefire_0-20260310142456704_2tmp"/>
     <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="jdk.debug" value="release"/>
     <property name="test" value="CheckRunStorePostgresPathTest,CheckControllerPostgresSuccessIntegrationTest,CheckControllerPostgresAuthFailureIntegrationTest,CheckControllerPostgresNetworkFailureIntegrationTest,CheckControllerPostgresSchemaMismatchIntegrationTest"/>
@@ -33,7 +33,7 @@
     <property name="FILE_LOG_CHARSET" value="UTF-8"/>
     <property name="java.awt.headless" value="true"/>
     <property name="apple.awt.application.name" value="ForkedBooter"/>
-    <property name="surefire.real.class.path" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260308001222986_3.jar"/>
+    <property name="surefire.real.class.path" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/target/surefire/surefirebooter-20260310142456704_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.runtime.version" value="25.0.2"/>
@@ -53,7 +53,7 @@
     <property name="user.dir" value="/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service"/>
     <property name="os.arch" value="aarch64"/>
     <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
-    <property name="PID" value="19072"/>
+    <property name="PID" value="14878"/>
     <property name="CONSOLE_LOG_CHARSET" value="UTF-8"/>
     <property name="native.encoding" value="UTF-8"/>
     <property name="java.library.path" value="/Users/siddarthkanamadi/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:."/>
@@ -66,87 +66,87 @@
     <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.class.version" value="69.0"/>
   </properties>
-  <testcase name="postgresPathAuthFailureReturnsUnavailableStoreException" classname="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="2.567">
-    <system-out><![CDATA[2026-03-08T00:12:27.376+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
-2026-03-08T00:12:27.377+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
-2026-03-08T00:12:28.142+05:30 ERROR 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_auth_failure_c4f95b45cc1a48539b90ac7bd1b30ac3 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 252ms (total=0, active=0, idle=0, waiting=0)
+  <testcase name="postgresPathAuthFailureReturnsUnavailableStoreException" classname="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="2.566">
+    <system-out><![CDATA[2026-03-10T14:25:01.167+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
+2026-03-10T14:25:01.168+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
+2026-03-10T14:25:01.936+05:30 ERROR 14878 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_auth_failure_b469cbc489b0432289acc3a5e5c1c81b contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 255ms (total=0, active=0, idle=0, waiting=0)
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 SQL State  : 28000
 Error Code : 0
-Message    : FATAL: role "dcg_missing_user_7cad127fc58e49cf9b138832758b8f33" does not exist
+Message    : FATAL: role "dcg_missing_user_9c262dc67cc8461380cf6894d74eaac4" does not exist
 
-2026-03-08T00:12:28.143+05:30  WARN 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_init_deferred component=check_run_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_auth_failure_c4f95b45cc1a48539b90ac7bd1b30ac3 message=Will retry on first checks request
-2026-03-08T00:12:28.918+05:30 ERROR 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_auth_failure_c4f95b45cc1a48539b90ac7bd1b30ac3 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 255ms (total=0, active=0, idle=0, waiting=0)
+2026-03-10T14:25:01.937+05:30  WARN 14878 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_init_deferred component=check_run_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_auth_failure_b469cbc489b0432289acc3a5e5c1c81b message=Will retry on first checks request
+2026-03-10T14:25:02.711+05:30 ERROR 14878 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_auth_failure_b469cbc489b0432289acc3a5e5c1c81b contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 255ms (total=0, active=0, idle=0, waiting=0)
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 SQL State  : 28000
 Error Code : 0
-Message    : FATAL: role "dcg_missing_user_7cad127fc58e49cf9b138832758b8f33" does not exist
+Message    : FATAL: role "dcg_missing_user_9c262dc67cc8461380cf6894d74eaac4" does not exist
 
-2026-03-08T00:12:28.918+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown initiated...
-2026-03-08T00:12:29.924+05:30  WARN 19072 --- [           main] com.zaxxer.hikari.pool.HikariPool        : Timed-out waiting for add connection executor to shutdown
-2026-03-08T00:12:29.925+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown completed.
+2026-03-10T14:25:02.712+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown initiated...
+2026-03-10T14:25:03.716+05:30  WARN 14878 --- [           main] com.zaxxer.hikari.pool.HikariPool        : Timed-out waiting for add connection executor to shutdown
+2026-03-10T14:25:03.717+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown completed.
 ]]></system-out>
   </testcase>
-  <testcase name="postgresPathSuccessReturnsStoredRows" classname="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="0.139">
-    <system-out><![CDATA[2026-03-08T00:12:29.950+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
-2026-03-08T00:12:29.951+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
-2026-03-08T00:12:29.984+05:30  INFO 19072 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
-2026-03-08T00:12:29.988+05:30  WARN 19072 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
-2026-03-08T00:12:30.001+05:30  INFO 19072 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "unit_success_a4914647c84f45b4ab5b076c7465ec28"."flyway_schema_history" does not exist yet
-2026-03-08T00:12:30.002+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 2 migrations (execution time 00:00.008s)
-2026-03-08T00:12:30.011+05:30  INFO 19072 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "unit_success_a4914647c84f45b4ab5b076c7465ec28"."flyway_schema_history" ...
-2026-03-08T00:12:30.034+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "unit_success_a4914647c84f45b4ab5b076c7465ec28": << Empty Schema >>
-2026-03-08T00:12:30.036+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "unit_success_a4914647c84f45b4ab5b076c7465ec28" to version "1 - create check runs"
-2026-03-08T00:12:30.049+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "unit_success_a4914647c84f45b4ab5b076c7465ec28" to version "2 - add check run indexes"
-2026-03-08T00:12:30.055+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "unit_success_a4914647c84f45b4ab5b076c7465ec28", now at version v2 (execution time 00:00.008s)
-2026-03-08T00:12:30.057+05:30  INFO 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_initialized component=check_run_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_success_a4914647c84f45b4ab5b076c7465ec28 backend=postgresql
-2026-03-08T00:12:30.066+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown initiated...
-2026-03-08T00:12:30.067+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown completed.
+  <testcase name="postgresPathSuccessReturnsStoredRows" classname="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="0.15">
+    <system-out><![CDATA[2026-03-10T14:25:03.740+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
+2026-03-10T14:25:03.740+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
+2026-03-10T14:25:03.769+05:30  INFO 14878 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
+2026-03-10T14:25:03.773+05:30  WARN 14878 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
+2026-03-10T14:25:03.783+05:30  INFO 14878 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "unit_success_6fc9bf7975414634b3758bb2a07961a6"."flyway_schema_history" does not exist yet
+2026-03-10T14:25:03.784+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 2 migrations (execution time 00:00.006s)
+2026-03-10T14:25:03.799+05:30  INFO 14878 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "unit_success_6fc9bf7975414634b3758bb2a07961a6"."flyway_schema_history" ...
+2026-03-10T14:25:03.832+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "unit_success_6fc9bf7975414634b3758bb2a07961a6": << Empty Schema >>
+2026-03-10T14:25:03.835+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "unit_success_6fc9bf7975414634b3758bb2a07961a6" to version "1 - create check runs"
+2026-03-10T14:25:03.850+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "unit_success_6fc9bf7975414634b3758bb2a07961a6" to version "2 - add check run indexes"
+2026-03-10T14:25:03.858+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "unit_success_6fc9bf7975414634b3758bb2a07961a6", now at version v2 (execution time 00:00.011s)
+2026-03-10T14:25:03.860+05:30  INFO 14878 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_initialized component=check_run_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_success_6fc9bf7975414634b3758bb2a07961a6 backend=postgresql
+2026-03-10T14:25:03.870+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown initiated...
+2026-03-10T14:25:03.871+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown completed.
 ]]></system-out>
   </testcase>
-  <testcase name="postgresPathSchemaMismatchThrowsQueryFailure" classname="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="0.147">
-    <system-out><![CDATA[2026-03-08T00:12:30.085+05:30  INFO 19072 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
-2026-03-08T00:12:30.086+05:30  WARN 19072 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
-2026-03-08T00:12:30.089+05:30  INFO 19072 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "unit_schema_mismatch_46baf1621ee346288da8670ed4be233d"."flyway_schema_history" does not exist yet
-2026-03-08T00:12:30.090+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 2 migrations (execution time 00:00.002s)
-2026-03-08T00:12:30.094+05:30  INFO 19072 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "unit_schema_mismatch_46baf1621ee346288da8670ed4be233d"."flyway_schema_history" ...
-2026-03-08T00:12:30.110+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "unit_schema_mismatch_46baf1621ee346288da8670ed4be233d": << Empty Schema >>
-2026-03-08T00:12:30.112+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "unit_schema_mismatch_46baf1621ee346288da8670ed4be233d" to version "1 - create check runs"
-2026-03-08T00:12:30.121+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "unit_schema_mismatch_46baf1621ee346288da8670ed4be233d" to version "2 - add check run indexes"
-2026-03-08T00:12:30.125+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "unit_schema_mismatch_46baf1621ee346288da8670ed4be233d", now at version v2 (execution time 00:00.006s)
-2026-03-08T00:12:30.132+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
-2026-03-08T00:12:30.132+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
-2026-03-08T00:12:30.139+05:30  INFO 19072 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
-2026-03-08T00:12:30.140+05:30  WARN 19072 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
-2026-03-08T00:12:30.144+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 2 migrations (execution time 00:00.002s)
-2026-03-08T00:12:30.182+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "unit_schema_mismatch_46baf1621ee346288da8670ed4be233d": 2
-2026-03-08T00:12:30.182+05:30  INFO 19072 --- [           main] o.f.core.internal.command.DbMigrate      : Schema "unit_schema_mismatch_46baf1621ee346288da8670ed4be233d" is up to date. No migration necessary.
-2026-03-08T00:12:30.183+05:30  INFO 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_initialized component=check_run_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_schema_mismatch_46baf1621ee346288da8670ed4be233d backend=postgresql
-2026-03-08T00:12:30.185+05:30 ERROR 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=list_check_runs db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_schema_mismatch_46baf1621ee346288da8670ed4be233d contract_id=orders.created commit_sha=- sql_state=42703 sql_vendor_code=0 error_type=PSQLException error_message=ERROR: column "warnings" does not exist
+  <testcase name="postgresPathSchemaMismatchThrowsQueryFailure" classname="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="0.151">
+    <system-out><![CDATA[2026-03-10T14:25:03.891+05:30  INFO 14878 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
+2026-03-10T14:25:03.892+05:30  WARN 14878 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
+2026-03-10T14:25:03.896+05:30  INFO 14878 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90"."flyway_schema_history" does not exist yet
+2026-03-10T14:25:03.896+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 2 migrations (execution time 00:00.002s)
+2026-03-10T14:25:03.902+05:30  INFO 14878 --- [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90"."flyway_schema_history" ...
+2026-03-10T14:25:03.915+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90": << Empty Schema >>
+2026-03-10T14:25:03.916+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90" to version "1 - create check runs"
+2026-03-10T14:25:03.926+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90" to version "2 - add check run indexes"
+2026-03-10T14:25:03.930+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90", now at version v2 (execution time 00:00.006s)
+2026-03-10T14:25:03.937+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
+2026-03-10T14:25:03.937+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
+2026-03-10T14:25:03.945+05:30  INFO 14878 --- [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/contracts (PostgreSQL 18.3)
+2026-03-10T14:25:03.946+05:30  WARN 14878 --- [           main] o.f.c.internal.database.base.Database    : Flyway upgrade recommended: PostgreSQL 18.3 is newer than this version of Flyway and support has not been tested. The latest supported version of PostgreSQL is 16.
+2026-03-10T14:25:03.951+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbValidate     : Successfully validated 2 migrations (execution time 00:00.003s)
+2026-03-10T14:25:03.990+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90": 2
+2026-03-10T14:25:03.990+05:30  INFO 14878 --- [           main] o.f.core.internal.command.DbMigrate      : Schema "unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90" is up to date. No migration necessary.
+2026-03-10T14:25:03.992+05:30  INFO 14878 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_initialized component=check_run_store db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90 backend=postgresql
+2026-03-10T14:25:03.993+05:30 ERROR 14878 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=list_check_runs db_target=jdbc:postgresql://localhost:5432/contracts?currentSchema=unit_schema_mismatch_714fe16da9a9461cb9feaaa72c8fcc90 contract_id=orders.created commit_sha=- sql_state=42703 sql_vendor_code=0 error_type=PSQLException error_message=ERROR: column "warnings" does not exist
   Position: 95
-2026-03-08T00:12:30.185+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown initiated...
-2026-03-08T00:12:30.214+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown completed.
+2026-03-10T14:25:03.993+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown initiated...
+2026-03-10T14:25:04.021+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown completed.
 ]]></system-out>
   </testcase>
-  <testcase name="postgresPathNetworkFailureReturnsUnavailableStoreException" classname="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="2.545">
-    <system-out><![CDATA[2026-03-08T00:12:30.215+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
-2026-03-08T00:12:30.215+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
-2026-03-08T00:12:30.984+05:30 ERROR 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 255ms (total=0, active=0, idle=0, waiting=0)
+  <testcase name="postgresPathNetworkFailureReturnsUnavailableStoreException" classname="com.ideas.contracts.service.CheckRunStorePostgresPathTest" time="2.546">
+    <system-out><![CDATA[2026-03-10T14:25:04.022+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Starting...
+2026-03-10T14:25:04.023+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Start completed.
+2026-03-10T14:25:04.788+05:30 ERROR 14878 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 255ms (total=0, active=0, idle=0, waiting=0)
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 SQL State  : 08001
 Error Code : 0
 Message    : Connection to 127.0.0.1:1 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
 
-2026-03-08T00:12:30.985+05:30  WARN 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_init_deferred component=check_run_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 message=Will retry on first checks request
-2026-03-08T00:12:31.752+05:30 ERROR 19072 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 255ms (total=0, active=0, idle=0, waiting=0)
+2026-03-10T14:25:04.789+05:30  WARN 14878 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=check_store_init_deferred component=check_run_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 message=Will retry on first checks request
+2026-03-10T14:25:05.564+05:30 ERROR 14878 --- [           main] c.ideas.contracts.service.CheckRunStore  : event=db_operation_failed component=check_run_store operation=initialize_check_store db_target=jdbc:postgresql://127.0.0.1:1/contracts?connectTimeout=1&socketTimeout=1 contract_id=- commit_sha=- sql_state=- sql_vendor_code=- error_type=FlywaySqlException error_message=Unable to obtain connection from database: check-run-store-pool - Connection is not available, request timed out after 255ms (total=0, active=0, idle=0, waiting=0)
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 SQL State  : 08001
 Error Code : 0
 Message    : Connection to 127.0.0.1:1 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
 
-2026-03-08T00:12:31.753+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown initiated...
-2026-03-08T00:12:32.758+05:30  WARN 19072 --- [           main] com.zaxxer.hikari.pool.HikariPool        : Timed-out waiting for add connection executor to shutdown
-2026-03-08T00:12:32.759+05:30  INFO 19072 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown completed.
+2026-03-10T14:25:05.565+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown initiated...
+2026-03-10T14:25:06.566+05:30  WARN 14878 --- [           main] com.zaxxer.hikari.pool.HikariPool        : Timed-out waiting for add connection executor to shutdown
+2026-03-10T14:25:06.567+05:30  INFO 14878 --- [           main] com.zaxxer.hikari.HikariDataSource       : check-run-store-pool - Shutdown completed.
 ]]></system-out>
   </testcase>
 </testsuite>

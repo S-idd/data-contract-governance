@@ -13,6 +13,55 @@ bash scripts/demo/run-local-demo.sh
 
 For the full manual setup, continue below.
 
+## Manual Runbook (Copy-Paste)
+
+Use this when you want the exact command sequence end to end. Replace placeholders with your local credentials.
+
+```bash
+cd /path/to/data-contract-governance
+mvn -pl contract-cli -am package -DskipTests
+
+export TEST_POSTGRES_JDBC_URL="jdbc:postgresql://localhost:5432/contracts"
+export TEST_POSTGRES_USERNAME="<your_pg_user>"
+export TEST_POSTGRES_PASSWORD="<your_pg_password>"
+
+java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar \
+  check-compat \
+  --base contracts/orders.created/v1.json \
+  --candidate contracts/orders.created/v2.json \
+  --mode BACKWARD \
+  --record-jdbc-url "$TEST_POSTGRES_JDBC_URL" \
+  --record-db-user "$TEST_POSTGRES_USERNAME" \
+  --record-db-password "$TEST_POSTGRES_PASSWORD" \
+  --contract-id orders.created \
+  --commit-sha demo-local
+
+cd contract-service
+SPRING_PROFILES_ACTIVE=local \
+CHECKS_DB_URL="$TEST_POSTGRES_JDBC_URL" \
+CHECKS_DB_USERNAME="$TEST_POSTGRES_USERNAME" \
+CHECKS_DB_PASSWORD="$TEST_POSTGRES_PASSWORD" \
+APP_UI_ENABLED=true \
+APP_SECURITY_ENABLED=false \
+mvn spring-boot:run
+```
+
+Open the UI:
+
+- `http://localhost:8080/ui`
+- `http://localhost:8080/ui/contracts`
+- `http://localhost:8080/ui/contracts/orders.created`
+
+Get run IDs:
+
+```bash
+curl "http://localhost:8080/checks?contractId=orders.created"
+```
+
+Open check detail:
+
+- `http://localhost:8080/ui/checks/<runId>`
+
 ## 1. Prerequisites
 
 - Java 21+
@@ -94,6 +143,15 @@ curl "http://localhost:8080/checks?contractId=orders.created"
 Open check detail:
 
 - `http://localhost:8080/ui/checks/<runId>`
+
+Notes:
+
+- The dashboard and contract detail pages default to the latest 20 runs.
+- If the UI looks "short", clear filters (Status should be `Any`) or use the API example below.
+
+```bash
+curl "http://localhost:8080/checks/page?contractId=orders.created&limit=50&offset=0"
+```
 
 ## 7. Run Postgres-Path Test Suite
 

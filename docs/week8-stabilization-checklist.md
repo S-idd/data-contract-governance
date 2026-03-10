@@ -2,7 +2,7 @@
 
 This checklist is the Week 8 execution plan for Apr 27-May 1.
 
-## Current Status (Updated: 2026-03-08)
+## Current Status (Updated: 2026-03-10)
 
 - [x] Full repo regression passes locally with `mvn test`
 - [x] Full service regression passes locally with `mvn -pl contract-service -am -Dsurefire.failIfNoSpecifiedTests=false test`
@@ -10,15 +10,15 @@ This checklist is the Week 8 execution plan for Apr 27-May 1.
 - [x] UI/security smoke remains covered by integration tests (`/ui`, `/ui/contracts`, `/ui/checks/<runId>`, auth-required `/checks`)
 - [x] Release-critical regression fixed: DB-failure integration test no longer depends on opening a random local port
 - [x] Postgres-path suite now reports explicit skips when local PostgreSQL is unavailable instead of a misleading `0 tests`
-- [ ] Live local PostgreSQL success/auth/schema-mismatch verification is still pending in this environment because no reachable `TEST_POSTGRES_*` target was available
-- [ ] Demo runner evidence (`bash scripts/demo/run-local-demo.sh`) is still pending the same local PostgreSQL prerequisite
+- [x] Live local PostgreSQL success/auth/schema-mismatch verification completed on 2026-03-10 with `Skipped: 0`
+- [x] Demo runner evidence (`bash scripts/demo/run-local-demo.sh`) completed on 2026-03-10
 - [x] Release notes draft added at `docs/release-notes-week8-rc.md`
 
 ## Week 8 Exit Criteria
 
 - [x] `BUILD SUCCESS` on full service test run
 - [x] No open P0/P1 issues
-- [ ] Demo flow and docs complete and verified
+- [x] Demo flow and docs complete and verified
 - [x] Non-critical changes frozen
 - [x] Release notes drafted
 

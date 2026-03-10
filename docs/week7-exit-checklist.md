@@ -2,7 +2,7 @@
 
 Use this checklist to mark Week 7 complete against the plan.
 
-## Current Status (Updated: 2026-03-07)
+## Current Status (Updated: 2026-03-10)
 
 - [x] Local demo script verified by owner on local PostgreSQL.
 - [x] Local demo flow validation completed by owner (UI + API path).
@@ -13,8 +13,8 @@ Use this checklist to mark Week 7 complete against the plan.
 - [ ] A third-party developer runs the demo from docs without ad-hoc help.
 - [x] Demo script runs fully local (no Docker) with local PostgreSQL.
 - [ ] Quickstart setup time is <= 15 minutes.
-- [ ] UI walkthrough (problem -> explanation -> next action) is <= 5 minutes.
-- [ ] Screenshot set is captured for showcase materials.
+- [x] UI walkthrough (problem -> explanation -> next action) is <= 5 minutes.
+- [x] Screenshot set is captured for showcase materials.
 
 ## Required Inputs
 
@@ -48,11 +48,11 @@ Use this checklist to mark Week 7 complete against the plan.
 
 ## Showcase Screenshot Set
 
-- [ ] Dashboard (`/ui`)
-- [ ] Contracts list (`/ui/contracts`)
-- [ ] Contract detail (`/ui/contracts/orders.created`)
-- [ ] FAIL check detail (`/ui/checks/<runId>`)
-- [ ] Swagger UI (`/swagger-ui/index.html`)
+- [x] Dashboard (`/ui`)
+- [x] Contracts list (`/ui/contracts`)
+- [x] Contract detail (`/ui/contracts/orders.created`)
+- [x] FAIL check detail (`/ui/checks/<runId>`)
+- [x] Swagger UI (`/swagger-ui/index.html`)
 
 ## Verification Commands
 
