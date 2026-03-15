@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Contract Governance Dashboard</title>
   <link rel="stylesheet" href="/ui.css">
+  <script src="/ui-checks.js" defer></script>
 </head>
 <body>
 <main class="shell">
@@ -48,6 +49,8 @@
         <span class="muted">Status</span>
         <select class="select" name="status">
           <option value="" th:selected="${filterStatus == ''}">Any</option>
+          <option value="QUEUED" th:selected="${filterStatus == 'QUEUED'}">QUEUED</option>
+          <option value="RUNNING" th:selected="${filterStatus == 'RUNNING'}">RUNNING</option>
           <option value="PASS" th:selected="${filterStatus == 'PASS'}">PASS</option>
           <option value="FAIL" th:selected="${filterStatus == 'FAIL'}">FAIL</option>
         </select>
@@ -83,8 +86,12 @@
         <td><a th:href="@{/ui/checks/{runId}(runId=${check.runId})}" th:text="${check.runId}">run-id</a></td>
         <td th:text="${check.contractId}">contract</td>
         <td>
-          <span class="pill pill-pass" th:if="${check.status == 'PASS'}" th:text="${check.status}">PASS</span>
-          <span class="pill pill-fail" th:if="${check.status != 'PASS'}" th:text="${check.status}">FAIL</span>
+          <span class="pill"
+                th:classappend="${check.status == 'PASS'} ? ' pill-pass' : (${check.status == 'FAIL'} ? ' pill-fail' : (${check.status == 'RUNNING'} ? ' pill-running' : (${check.status == 'QUEUED'} ? ' pill-queued' : ' pill-unknown')))"
+                th:text="${check.status != null ? check.status : 'UNKNOWN'}"
+                th:attr="data-check-run-id=${check.runId},data-check-status=${check.status}">
+            STATUS
+          </span>
         </td>
         <td th:text="${check.commitSha}">sha</td>
         <td th:text="${check.createdAt}">ts</td>

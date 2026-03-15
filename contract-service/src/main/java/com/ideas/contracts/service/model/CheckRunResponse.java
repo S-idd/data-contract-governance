@@ -9,5 +9,8 @@ public record CheckRunResponse(
     java.util.List<String> breakingChanges,
     java.util.List<String> warnings,
     String commitSha,
-    String createdAt
+    String createdAt,
+    String triggeredBy,
+    String startedAt,
+    String finishedAt
 ) {}

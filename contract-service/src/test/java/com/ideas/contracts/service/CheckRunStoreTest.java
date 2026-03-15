@@ -6,8 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.ideas.contracts.service.model.CheckRunResponse;
+import com.ideas.contracts.core.CheckStatus;
+import com.ideas.contracts.core.CompatibilityResult;
+import com.ideas.contracts.service.model.CheckRunCreateRequest;
+import com.ideas.contracts.service.model.CheckRunCreateResponse;
 import com.ideas.contracts.service.model.CheckRunPageResponse;
+import com.ideas.contracts.service.model.CheckRunResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -166,6 +170,41 @@ class CheckRunStoreTest {
     IllegalStateException exception =
         assertThrows(IllegalStateException.class, () -> new CheckRunStore(properties, key -> null));
     assertTrue(exception.getMessage().contains("MISSING_DB_USER"));
+  }
+
+  @Test
+  void queuedRunTransitionsThroughLifecycle() throws Exception {
+    Path dbPath = tempDir.resolve("checks-queue.db");
+    CheckStoreProperties properties = baseProperties();
+    properties.setPath(dbPath.toString());
+    CheckRunStore store = new CheckRunStore(properties);
+    store.initialize();
+
+    CheckRunCreateResponse created = store.createQueuedRun(new CheckRunCreateRequest(
+        "orders.created",
+        "v1",
+        "v2",
+        "BACKWARD",
+        "queue-test",
+        "unit-test"));
+
+    CheckRunStore.QueuedCheckRun claimed = store.claimNextQueuedRun().orElseThrow();
+    assertEquals(created.runId(), claimed.runId());
+
+    CheckRunResponse running = store.findByRunId(created.runId()).orElseThrow();
+    assertEquals("RUNNING", running.status());
+    assertTrue(running.startedAt() != null && !running.startedAt().isBlank());
+
+    CompatibilityResult result = new CompatibilityResult(
+        CheckStatus.PASS,
+        List.of(),
+        List.of("Example warning"));
+    assertTrue(store.completeRun(created.runId(), result.status().name(), result.breakingChanges(), result.warnings()));
+
+    CheckRunResponse completed = store.findByRunId(created.runId()).orElseThrow();
+    assertEquals("PASS", completed.status());
+    assertEquals("Example warning", completed.warnings().get(0));
+    assertTrue(completed.finishedAt() != null && !completed.finishedAt().isBlank());
   }
 
   @Test

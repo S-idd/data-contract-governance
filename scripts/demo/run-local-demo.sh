@@ -12,6 +12,17 @@ CONTRACT_ID="${DEMO_CONTRACT_ID:-orders.created}"
 JDBC_URL="${DEMO_JDBC_URL:-${TEST_POSTGRES_JDBC_URL:-${CHECKS_DB_URL:-}}}"
 DB_USER="${DEMO_DB_USER:-${TEST_POSTGRES_USERNAME:-${CHECKS_DB_USERNAME:-}}}"
 DB_PASSWORD="${DEMO_DB_PASSWORD:-${TEST_POSTGRES_PASSWORD:-${CHECKS_DB_PASSWORD:-}}}"
+DB_SCHEMA="${DEMO_DB_SCHEMA:-}"
+
+append_schema() {
+  local url="$1"
+  local schema="$2"
+  local delimiter="?"
+  if [[ "$url" == *"?"* ]]; then
+    delimiter="&"
+  fi
+  echo "${url}${delimiter}currentSchema=${schema}"
+}
 
 JDBC_NO_PREFIX="${JDBC_URL#jdbc:postgresql://}"
 JDBC_NO_QUERY="${JDBC_NO_PREFIX%%\?*}"
@@ -64,6 +75,19 @@ if [[ -z "$DB_NAME" || "$DB_NAME" == "$JDBC_NO_QUERY" ]]; then
   exit 1
 fi
 
+if [[ -z "$DB_SCHEMA" ]]; then
+  if [[ "$JDBC_URL" == *"currentSchema="* ]]; then
+    DB_SCHEMA="${JDBC_URL#*currentSchema=}"
+    DB_SCHEMA="${DB_SCHEMA%%&*}"
+  fi
+fi
+
+DB_SCHEMA="${DB_SCHEMA:-dcg_dev}"
+
+if [[ "$JDBC_URL" != *"currentSchema="* ]]; then
+  JDBC_URL="$(append_schema "$JDBC_URL" "$DB_SCHEMA")"
+fi
+
 if [[ "$DB_HOST" == "$JDBC_HOST_PORT" ]]; then
   DB_PORT="5432"
 fi
@@ -72,6 +96,14 @@ if lsof -tiTCP:"$APP_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   echo "Port $APP_PORT is already in use. Stop the existing service before running the local demo." >&2
   exit 1
 fi
+
+echo "Ensuring schema ${DB_SCHEMA} exists..."
+PGPASSWORD="$DB_PASSWORD" psql \
+  -h "$DB_HOST" \
+  -p "$DB_PORT" \
+  -U "$DB_USER" \
+  -d "$DB_NAME" \
+  -Atqc "create schema if not exists ${DB_SCHEMA};"
 
 echo "Building CLI fat jar..."
 cd "$ROOT_DIR"
@@ -153,7 +185,7 @@ PASS_RUN_ID="$(
     -p "$DB_PORT" \
     -U "$DB_USER" \
     -d "$DB_NAME" \
-    -Atqc "select run_id from public.check_runs where commit_sha = '${PASS_SHA}' order by created_at desc limit 1;"
+    -Atqc "select run_id from ${DB_SCHEMA}.check_runs where commit_sha = '${PASS_SHA}' order by created_at desc limit 1;"
 )"
 
 FAIL_RUN_ID="$(
@@ -162,7 +194,7 @@ FAIL_RUN_ID="$(
     -p "$DB_PORT" \
     -U "$DB_USER" \
     -d "$DB_NAME" \
-    -Atqc "select run_id from public.check_runs where commit_sha = '${FAIL_SHA}' order by created_at desc limit 1;"
+    -Atqc "select run_id from ${DB_SCHEMA}.check_runs where commit_sha = '${FAIL_SHA}' order by created_at desc limit 1;"
 )"
 
 echo

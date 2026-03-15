@@ -21,7 +21,7 @@ Use this when you want the exact command sequence end to end. Replace placeholde
 cd /path/to/data-contract-governance
 mvn -pl contract-cli -am package -DskipTests
 
-export TEST_POSTGRES_JDBC_URL="jdbc:postgresql://localhost:5432/contracts"
+export TEST_POSTGRES_JDBC_URL="jdbc:postgresql://localhost:5432/contracts?currentSchema=dcg_dev"
 export TEST_POSTGRES_USERNAME="<your_pg_user>"
 export TEST_POSTGRES_PASSWORD="<your_pg_password>"
 
@@ -73,6 +73,7 @@ Create DB once (if needed):
 
 ```bash
 createdb -h localhost -p 5432 -U <your_pg_user> contracts
+psql -h localhost -p 5432 -U <your_pg_user> -d contracts -c "create schema if not exists dcg_dev;"
 ```
 
 ## 2. Build CLI
@@ -87,7 +88,7 @@ mvn -pl contract-cli -am package -DskipTests
 Replace values with your local credentials:
 
 ```bash
-export TEST_POSTGRES_JDBC_URL="jdbc:postgresql://localhost:5432/contracts"
+export TEST_POSTGRES_JDBC_URL="jdbc:postgresql://localhost:5432/contracts?currentSchema=dcg_dev"
 export TEST_POSTGRES_USERNAME="<your_pg_user>"
 export TEST_POSTGRES_PASSWORD="<your_pg_password>"
 ```

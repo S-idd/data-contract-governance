@@ -150,6 +150,21 @@ th {
   color: #991b1b;
 }
 
+.pill-running {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.pill-queued {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pill-unknown {
+  background: #e5e7eb;
+  color: #374151;
+}
+
 .grid-two {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -195,4 +210,55 @@ th {
 .list {
   margin: 0;
   padding-left: 18px;
+}
+
+.log-view {
+  margin-top: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 10px;
+  border: 1px solid #1e293b;
+  padding: 12px;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: 160px 70px 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.log-row:last-child {
+  border-bottom: none;
+}
+
+.log-time {
+  color: #cbd5f5;
+}
+
+.log-level {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.log-level-info {
+  color: #7dd3fc;
+}
+
+.log-level-warn {
+  color: #fbbf24;
+}
+
+.log-level-error {
+  color: #f87171;
+}
+
+.log-message {
+  color: #e2e8f0;
 }

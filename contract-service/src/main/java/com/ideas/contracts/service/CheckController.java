@@ -1,19 +1,26 @@
 package com.ideas.contracts.service;
 
-import com.ideas.contracts.service.model.CheckRunResponse;
-import com.ideas.contracts.service.model.CheckRunPageResponse;
 import com.ideas.contracts.service.model.ApiErrorResponse;
+import com.ideas.contracts.service.model.CheckRunCreateRequest;
+import com.ideas.contracts.service.model.CheckRunCreateResponse;
+import com.ideas.contracts.service.model.CheckRunLogResponse;
+import com.ideas.contracts.service.model.CheckRunPageResponse;
+import com.ideas.contracts.service.model.CheckRunResponse;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -76,6 +83,52 @@ public class CheckController {
     return checkRunStore.list(contractId, commitSha);
   }
 
+  @PostMapping
+  @Operation(summary = "Submit check run", description = "Queues a compatibility check run for asynchronous execution.")
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "202",
+          description = "Check run accepted",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = CheckRunCreateResponse.class),
+              examples = @ExampleObject(value = """
+                  {
+                    "runId": "8b1e6af2-0f45-4b3c-a5a9-6f6f2f2a5a70",
+                    "status": "QUEUED"
+                  }
+                  """))),
+      @ApiResponse(
+          responseCode = "400",
+          description = "Invalid request payload",
+          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class))),
+      @ApiResponse(
+          responseCode = "503",
+          description = "Check history store unavailable",
+          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class)))
+  })
+  public ResponseEntity<CheckRunCreateResponse> createCheckRun(
+      @RequestBody(
+          required = true,
+          description = "Check run request payload",
+          content = @Content(
+              mediaType = "application/json",
+              schema = @Schema(implementation = CheckRunCreateRequest.class),
+              examples = @ExampleObject(value = """
+                  {
+                    "contractId": "orders.created",
+                    "baseVersion": "v1",
+                    "candidateVersion": "v2",
+                    "mode": "BACKWARD",
+                    "commitSha": "local-dev",
+                    "triggeredBy": "ui"
+                  }
+                  """)))
+      @org.springframework.web.bind.annotation.RequestBody CheckRunCreateRequest request) {
+    CheckRunCreateResponse response = checkRunStore.createQueuedRun(request);
+    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+  }
+
   @GetMapping("/page")
   @Operation(summary = "List checks page", description = "Returns a paginated checks response filtered by optional contractId, commitSha, and status.")
   @ApiResponses({
@@ -123,5 +176,40 @@ public class CheckController {
   public CheckRunResponse getCheckRun(@PathVariable("runId") String runId) {
     return checkRunStore.findByRunId(runId)
         .orElseThrow(() -> new CheckRunNotFoundException(runId));
+  }
+
+  @GetMapping("/{runId}/logs")
+  @Operation(summary = "Get check run logs", description = "Returns execution logs for a single check run.")
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "Check run logs fetched successfully",
+          content = @Content(
+              mediaType = "application/json",
+              array = @ArraySchema(schema = @Schema(implementation = CheckRunLogResponse.class)),
+              examples = @ExampleObject(value = """
+                  [
+                    {
+                      "logId": "f86e1d93-12b4-42f4-a6a9-2bf1b8df4b6e",
+                      "runId": "cccf0cac-0bff-499b-b02c-d3e024dd5a03",
+                      "level": "INFO",
+                      "message": "Check run claimed for execution.",
+                      "createdAt": "2026-03-03T09:41:14.120Z"
+                    }
+                  ]
+                  """))),
+      @ApiResponse(
+          responseCode = "404",
+          description = "Check run not found",
+          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class))),
+      @ApiResponse(
+          responseCode = "503",
+          description = "Check history store unavailable",
+          content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class)))
+  })
+  public List<CheckRunLogResponse> getCheckRunLogs(@PathVariable("runId") String runId) {
+    checkRunStore.findByRunId(runId)
+        .orElseThrow(() -> new CheckRunNotFoundException(runId));
+    return checkRunStore.listLogs(runId);
   }
 }

@@ -2,6 +2,8 @@
 
 Open-source Java/Spring Boot tooling to prevent breaking schema changes before merge/deploy.
 
+Quick start: `docs/how-to-run.md`.
+
 ## Prerequisites
 - Java 21
 - Maven 3.9+
@@ -75,8 +77,9 @@ mvn spring-boot:run
 Run service with PostgreSQL in local profile (SSL disabled by default):
 ```bash
 cd /path/to/data-contract-governance/contract-service
+psql -h localhost -U contracts_user -d contracts -c "create schema if not exists dcg_dev;"
 SPRING_PROFILES_ACTIVE="local" \
-CHECKS_DB_URL="jdbc:postgresql://localhost:5432/contracts" \
+CHECKS_DB_URL="jdbc:postgresql://localhost:5432/contracts?currentSchema=dcg_dev" \
 CHECKS_DB_USERNAME="contracts_user" \
 CHECKS_DB_PASSWORD="change-me" \
 mvn spring-boot:run
@@ -109,7 +112,7 @@ Production observability:
 
 PostgreSQL smoke-test for migrations:
 ```bash
-export CHECKS_DB_URL="jdbc:postgresql://localhost:5432/contracts"
+export CHECKS_DB_URL="jdbc:postgresql://localhost:5432/contracts?currentSchema=dcg_dev"
 export CHECKS_DB_USERNAME="contracts_user"
 export CHECKS_DB_PASSWORD="change-me"
 export PSQL_URL="postgresql://contracts_user:change-me@localhost:5432/contracts"
@@ -127,8 +130,8 @@ java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar \
 ```
 Then validate:
 ```bash
-psql "$PSQL_URL" -c "select version, description, success from flyway_schema_history order by installed_rank;"
-psql "$PSQL_URL" -c "select run_id, contract_id, status, created_at from check_runs order by created_at desc limit 5;"
+psql "$PSQL_URL" -c "select version, description, success from dcg_dev.flyway_schema_history order by installed_rank;"
+psql "$PSQL_URL" -c "select run_id, contract_id, status, created_at from dcg_dev.check_runs order by created_at desc limit 5;"
 ```
 
 Endpoints:

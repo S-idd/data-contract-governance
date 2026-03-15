@@ -3,6 +3,7 @@ package com.ideas.contracts.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -76,6 +78,11 @@ class ContractServiceApiIntegrationTest {
                run_id, contract_id, base_version, candidate_version, status,
                breaking_changes, warnings, commit_sha, created_at
              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             """);
+         PreparedStatement insertLog = connection.prepareStatement("""
+             INSERT OR REPLACE INTO check_run_logs (
+               log_id, run_id, level, message, created_at
+             ) VALUES (?, ?, ?, ?, ?)
              """)) {
       insert.setString(1, "run-1");
       insert.setString(2, "orders.created");
@@ -87,6 +94,13 @@ class ContractServiceApiIntegrationTest {
       insert.setString(8, "integration-test");
       insert.setString(9, "2026-02-27T12:00:00Z");
       insert.executeUpdate();
+
+      insertLog.setString(1, "log-1");
+      insertLog.setString(2, "run-1");
+      insertLog.setString(3, "INFO");
+      insertLog.setString(4, "Check run completed with status PASS.");
+      insertLog.setString(5, "2026-02-27T12:01:00Z");
+      insertLog.executeUpdate();
     }
   }
 
@@ -104,7 +118,10 @@ class ContractServiceApiIntegrationTest {
 
   @Test
   void checksEndpointReturnsStructuredArrays() throws Exception {
-    MvcResult response = mockMvc.perform(get("/checks").queryParam("contractId", "orders.created"))
+    MvcResult response = mockMvc.perform(
+            get("/checks")
+                .queryParam("contractId", "orders.created")
+                .queryParam("commitSha", "integration-test"))
         .andExpect(status().isOk())
         .andReturn();
     JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
@@ -122,6 +139,7 @@ class ContractServiceApiIntegrationTest {
     MvcResult response = mockMvc.perform(
             get("/checks/page")
                 .queryParam("contractId", "orders.created")
+                .queryParam("commitSha", "integration-test")
                 .queryParam("limit", "1")
                 .queryParam("offset", "0"))
         .andExpect(status().isOk())
@@ -132,6 +150,63 @@ class ContractServiceApiIntegrationTest {
     assertEquals(1, body.get("limit").asInt());
     assertEquals(0, body.get("offset").asInt());
     assertEquals(false, body.get("hasMore").asBoolean());
+  }
+
+  @Test
+  void checksCreateEndpointQueuesRunAndPersists() throws Exception {
+    String payload = """
+        {
+          "contractId": "orders.created",
+          "baseVersion": "v1",
+          "candidateVersion": "v2",
+          "mode": "BACKWARD",
+          "commitSha": "create-test",
+          "triggeredBy": "integration-suite"
+        }
+        """;
+
+    MvcResult response = mockMvc.perform(
+            post("/checks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isAccepted())
+        .andReturn();
+
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    String runId = body.get("runId").asText();
+    assertEquals("QUEUED", body.get("status").asText());
+
+    MvcResult getResponse = mockMvc.perform(get("/checks/" + runId))
+        .andExpect(status().isOk())
+        .andReturn();
+    JsonNode checkBody = objectMapper.readTree(getResponse.getResponse().getContentAsString());
+    assertEquals("orders.created", checkBody.get("contractId").asText());
+    assertEquals("v1", checkBody.get("baseVersion").asText());
+    assertEquals("v2", checkBody.get("candidateVersion").asText());
+    assertEquals("QUEUED", checkBody.get("status").asText());
+  }
+
+  @Test
+  void checksCreateEndpointRejectsInvalidMode() throws Exception {
+    String payload = """
+        {
+          "contractId": "orders.created",
+          "baseVersion": "v1",
+          "candidateVersion": "v2",
+          "mode": "SIDEWAYS",
+          "triggeredBy": "integration-suite"
+        }
+        """;
+
+    MvcResult response = mockMvc.perform(
+            post("/checks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isBadRequest())
+        .andReturn();
+
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertEquals("INVALID_REQUEST", body.get("code").asText());
   }
 
   @Test
@@ -147,6 +222,27 @@ class ContractServiceApiIntegrationTest {
   @Test
   void checkRunEndpointReturns404ForUnknownRunId() throws Exception {
     MvcResult response = mockMvc.perform(get("/checks/unknown-run"))
+        .andExpect(status().isNotFound())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertEquals("CHECK_RUN_NOT_FOUND", body.get("code").asText());
+  }
+
+  @Test
+  void checkRunLogsEndpointReturnsLogsForRun() throws Exception {
+    MvcResult response = mockMvc.perform(get("/checks/run-1/logs"))
+        .andExpect(status().isOk())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertTrue(body.isArray());
+    assertEquals(1, body.size());
+    assertEquals("run-1", body.get(0).get("runId").asText());
+    assertEquals("INFO", body.get(0).get("level").asText());
+  }
+
+  @Test
+  void checkRunLogsEndpointReturns404ForUnknownRunId() throws Exception {
+    MvcResult response = mockMvc.perform(get("/checks/unknown-run/logs"))
         .andExpect(status().isNotFound())
         .andReturn();
     JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());

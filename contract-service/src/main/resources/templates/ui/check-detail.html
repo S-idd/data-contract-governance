@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Check Detail</title>
   <link rel="stylesheet" href="/ui.css">
+  <script src="/ui-checks.js" defer></script>
 </head>
 <body>
 <main class="shell">
@@ -28,8 +29,12 @@
     <div class="row">
       <div><span class="muted">Contract:</span> <a th:href="@{/ui/contracts/{contractId}(contractId=${checkRun.contractId})}" th:text="${checkRun.contractId}">contract</a></div>
       <div><span class="muted">Status:</span>
-        <span class="pill pill-pass" th:if="${checkRun.status == 'PASS'}" th:text="${checkRun.status}">PASS</span>
-        <span class="pill pill-fail" th:if="${checkRun.status != 'PASS'}" th:text="${checkRun.status}">FAIL</span>
+        <span class="pill"
+              th:classappend="${checkRun.status == 'PASS'} ? ' pill-pass' : (${checkRun.status == 'FAIL'} ? ' pill-fail' : (${checkRun.status == 'RUNNING'} ? ' pill-running' : (${checkRun.status == 'QUEUED'} ? ' pill-queued' : ' pill-unknown')))"
+              th:text="${checkRun.status != null ? checkRun.status : 'UNKNOWN'}"
+              th:attr="data-check-run-id=${checkRun.runId},data-check-status=${checkRun.status}">
+          STATUS
+        </span>
       </div>
       <div><span class="muted">Base Version:</span> <span th:text="${checkRun.baseVersion}">v1</span></div>
       <div><span class="muted">Candidate Version:</span> <span th:text="${checkRun.candidateVersion}">v2</span></div>
@@ -41,15 +46,25 @@
   <section class="grid-two" th:if="${checkRun != null}">
     <article class="card">
       <h2 class="title" style="font-size:20px;">Breaking Changes</h2>
-      <p class="muted" th:if="${#lists.isEmpty(checkRun.breakingChanges)}">No breaking changes recorded.</p>
-      <ul class="list" th:if="${!#lists.isEmpty(checkRun.breakingChanges)}">
+      <p class="muted" th:if="${checkRun.status == 'QUEUED' or checkRun.status == 'RUNNING'}">
+        Results will appear once the run completes.
+      </p>
+      <p class="muted" th:if="${checkRun.status != 'QUEUED' and checkRun.status != 'RUNNING' and #lists.isEmpty(checkRun.breakingChanges)}">
+        No breaking changes recorded.
+      </p>
+      <ul class="list" th:if="${checkRun.status != 'QUEUED' and checkRun.status != 'RUNNING' and !#lists.isEmpty(checkRun.breakingChanges)}">
         <li th:each="item : ${checkRun.breakingChanges}" th:text="${item}">change</li>
       </ul>
     </article>
     <article class="card">
       <h2 class="title" style="font-size:20px;">Warnings</h2>
-      <p class="muted" th:if="${#lists.isEmpty(checkRun.warnings)}">No warnings recorded.</p>
-      <ul class="list" th:if="${!#lists.isEmpty(checkRun.warnings)}">
+      <p class="muted" th:if="${checkRun.status == 'QUEUED' or checkRun.status == 'RUNNING'}">
+        Results will appear once the run completes.
+      </p>
+      <p class="muted" th:if="${checkRun.status != 'QUEUED' and checkRun.status != 'RUNNING' and #lists.isEmpty(checkRun.warnings)}">
+        No warnings recorded.
+      </p>
+      <ul class="list" th:if="${checkRun.status != 'QUEUED' and checkRun.status != 'RUNNING' and !#lists.isEmpty(checkRun.warnings)}">
         <li th:each="item : ${checkRun.warnings}" th:text="${item}">warning</li>
       </ul>
     </article>
@@ -60,6 +75,21 @@
     <ul class="list">
       <li th:each="item : ${guidance}" th:text="${item}">guidance</li>
     </ul>
+  </section>
+
+  <section class="card" th:if="${checkRun != null}">
+    <h2 class="title" style="font-size:20px;">Execution Logs</h2>
+    <p class="subtitle">Latest events from the check runner.</p>
+    <div class="log-view" th:attr="data-check-log-run-id=${checkRun.runId}">
+      <div class="muted" th:if="${#lists.isEmpty(checkLogs)}">No logs yet.</div>
+      <div class="log-row" th:each="log : ${checkLogs}">
+        <span class="log-time" th:text="${log.createdAt}">time</span>
+        <span class="log-level"
+              th:classappend="${log.level != null} ? ' log-level-' + #strings.toLowerCase(log.level) : ''"
+              th:text="${log.level}">INFO</span>
+        <span class="log-message" th:text="${log.message}">message</span>
+      </div>
+    </div>
   </section>
 
   <section class="grid-two" th:if="${checkRun != null}">

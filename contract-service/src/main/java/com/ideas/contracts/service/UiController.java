@@ -1,6 +1,9 @@
 package com.ideas.contracts.service;
 
 import com.ideas.contracts.service.model.CheckRunResponse;
+import com.ideas.contracts.service.model.CheckRunLogResponse;
+import com.ideas.contracts.service.model.CheckRunCreateRequest;
+import com.ideas.contracts.service.model.CheckRunCreateResponse;
 import com.ideas.contracts.service.model.ContractDetailResponse;
 import com.ideas.contracts.service.model.ContractSummaryResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
@@ -106,21 +110,58 @@ public class UiController {
     ContractDetailResponse detail = contractCatalogService.getContract(contractId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found: " + contractId));
 
-    model.addAttribute("requestId", requestId);
-    model.addAttribute("contract", detail);
-    model.addAttribute("checks", List.of());
-    model.addAttribute("checkStoreUnavailable", false);
-    model.addAttribute("uiErrorMessage", "");
+    return renderContractDetail(
+        detail,
+        requestId,
+        model,
+        null,
+        null,
+        null,
+        null);
+  }
+
+  @PostMapping("/contracts/{contractId}/checks")
+  public String runCheck(
+      @PathVariable("contractId") String contractId,
+      @RequestParam("baseVersion") String baseVersion,
+      @RequestParam("candidateVersion") String candidateVersion,
+      @RequestParam(name = "commitSha", required = false) String commitSha,
+      HttpServletRequest request,
+      Model model) {
+    String requestId = requestId(request);
+    logUiRequest("contract_check_run", requestId, contractId, baseVersion + "->" + candidateVersion);
+
+    ContractDetailResponse detail = contractCatalogService.getContract(contractId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found: " + contractId));
+
     try {
-      var page = checkRunStore.listPage(CheckRunQuery.from(contractId, null, null, 20, 0));
-      model.addAttribute("checks", page.items());
-      model.addAttribute("checksHasMore", page.hasMore());
+      CheckRunCreateResponse response = checkRunStore.createQueuedRun(new CheckRunCreateRequest(
+          contractId,
+          baseVersion,
+          candidateVersion,
+          detail.compatibilityMode(),
+          commitSha,
+          "ui"));
+      return "redirect:/ui/checks/" + response.runId();
+    } catch (IllegalArgumentException ex) {
+      return renderContractDetail(
+          detail,
+          requestId,
+          model,
+          ex.getMessage(),
+          baseVersion,
+          candidateVersion,
+          commitSha);
     } catch (CheckRunStoreException ex) {
-      model.addAttribute("checkStoreUnavailable", true);
-      model.addAttribute("uiErrorMessage", "Check history store is currently unavailable.");
-      model.addAttribute("checksHasMore", false);
+      return renderContractDetail(
+          detail,
+          requestId,
+          model,
+          "Check history store is currently unavailable.",
+          baseVersion,
+          candidateVersion,
+          commitSha);
     }
-    return "ui/contract-detail";
   }
 
   @GetMapping("/checks/{runId}")
@@ -136,10 +177,12 @@ public class UiController {
     try {
       CheckRunResponse checkRun = checkRunStore.findByRunId(runId)
           .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Check run not found: " + runId));
+      List<CheckRunLogResponse> checkLogs = checkRunStore.listLogs(runId);
       model.addAttribute("checkRun", checkRun);
       model.addAttribute("guidance", buildGuidance(checkRun));
       model.addAttribute("curlSnippet", "curl \"http://localhost:8080/checks/" + checkRun.runId() + "\"");
       model.addAttribute("cliSnippet", buildCliSnippet(checkRun));
+      model.addAttribute("checkLogs", checkLogs);
       model.addAttribute("checkStoreUnavailable", false);
       model.addAttribute("uiErrorMessage", "");
     } catch (CheckRunStoreException ex) {
@@ -148,10 +191,75 @@ public class UiController {
       model.addAttribute("guidance", List.of());
       model.addAttribute("curlSnippet", "");
       model.addAttribute("cliSnippet", "");
+      model.addAttribute("checkLogs", List.of());
       model.addAttribute("checkStoreUnavailable", true);
       model.addAttribute("uiErrorMessage", "Check history store is currently unavailable.");
     }
     return "ui/check-detail";
+  }
+
+  private String renderContractDetail(
+      ContractDetailResponse detail,
+      String requestId,
+      Model model,
+      String runCheckError,
+      String selectedBaseVersion,
+      String selectedCandidateVersion,
+      String commitSha) {
+    model.addAttribute("requestId", requestId);
+    model.addAttribute("contract", detail);
+
+    List<String> versions = detail.versions() == null ? List.of() : detail.versions();
+    boolean canRunCheck = versions.size() >= 2;
+    String defaultCandidate = resolveCandidateVersion(versions, selectedCandidateVersion);
+    String defaultBase = resolveBaseVersion(versions, selectedBaseVersion, defaultCandidate);
+
+    model.addAttribute("canRunCheck", canRunCheck);
+    model.addAttribute("runCheckBase", defaultBase);
+    model.addAttribute("runCheckCandidate", defaultCandidate);
+    model.addAttribute("runCheckCommitSha", safe(commitSha));
+    model.addAttribute("runCheckError", safe(runCheckError));
+    model.addAttribute(
+        "runCheckDisabledReason",
+        canRunCheck ? "" : "At least two versions are required to run a compatibility check.");
+
+    model.addAttribute("checks", List.of());
+    model.addAttribute("checkStoreUnavailable", false);
+    model.addAttribute("uiErrorMessage", "");
+    try {
+      var page = checkRunStore.listPage(CheckRunQuery.from(detail.contractId(), null, null, 20, 0));
+      model.addAttribute("checks", page.items());
+      model.addAttribute("checksHasMore", page.hasMore());
+    } catch (CheckRunStoreException ex) {
+      model.addAttribute("checkStoreUnavailable", true);
+      model.addAttribute("uiErrorMessage", "Check history store is currently unavailable.");
+      model.addAttribute("checksHasMore", false);
+    }
+    return "ui/contract-detail";
+  }
+
+  private String resolveCandidateVersion(List<String> versions, String selectedCandidate) {
+    if (selectedCandidate != null && !selectedCandidate.isBlank()) {
+      return selectedCandidate.trim();
+    }
+    if (versions.isEmpty()) {
+      return "";
+    }
+    return versions.get(versions.size() - 1);
+  }
+
+  private String resolveBaseVersion(List<String> versions, String selectedBase, String candidateVersion) {
+    if (selectedBase != null && !selectedBase.isBlank()) {
+      return selectedBase.trim();
+    }
+    if (versions.size() < 2) {
+      return "";
+    }
+    int candidateIndex = versions.indexOf(candidateVersion);
+    if (candidateIndex > 0) {
+      return versions.get(candidateIndex - 1);
+    }
+    return versions.get(versions.size() - 2);
   }
 
   private String buildCliSnippet(CheckRunResponse checkRun) {

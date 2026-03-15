@@ -1,32 +1,41 @@
 package com.ideas.contracts.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariConfigMXBean;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
-import com.ideas.contracts.service.model.CheckRunResponse;
+import com.ideas.contracts.service.model.CheckRunCreateRequest;
+import com.ideas.contracts.service.model.CheckRunCreateResponse;
+import com.ideas.contracts.service.model.CheckRunLogResponse;
 import com.ideas.contracts.service.model.CheckRunPageResponse;
+import com.ideas.contracts.service.model.CheckRunResponse;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -39,6 +48,9 @@ import org.springframework.stereotype.Service;
 public class CheckRunStore {
   private static final String SQLITE_JDBC_PREFIX = "jdbc:sqlite:";
   private static final Set<String> ALLOWED_STRICT_SSL_MODES = Set.of("verify-ca", "verify-full");
+  private static final String STATUS_QUEUED = "QUEUED";
+  private static final String STATUS_RUNNING = "RUNNING";
+  private static final String LATEST_MIGRATION_RESOURCE = "db/migration/V4__create_check_run_logs.sql";
   private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunStore.class);
 
@@ -51,6 +63,14 @@ public class CheckRunStore {
       int maximumPoolSize,
       int minimumIdle,
       long connectionTimeoutMs) {}
+  public record QueuedCheckRun(
+      String runId,
+      String contractId,
+      String baseVersion,
+      String candidateVersion,
+      String mode,
+      String commitSha,
+      String triggeredBy) {}
 
   private final String jdbcUrl;
   private final Path sqlitePath;
@@ -110,7 +130,8 @@ public class CheckRunStore {
 
     StringBuilder sql = new StringBuilder("""
         SELECT run_id, contract_id, base_version, candidate_version, status,
-               breaking_changes, warnings, commit_sha, created_at
+               breaking_changes, warnings, commit_sha, created_at,
+               triggered_by, started_at, finished_at
         FROM check_runs
         WHERE 1=1
         """);
@@ -153,7 +174,8 @@ public class CheckRunStore {
 
     StringBuilder sql = new StringBuilder("""
         SELECT run_id, contract_id, base_version, candidate_version, status,
-               breaking_changes, warnings, commit_sha, created_at
+               breaking_changes, warnings, commit_sha, created_at,
+               triggered_by, started_at, finished_at
         FROM check_runs
         WHERE 1=1
         """);
@@ -207,7 +229,8 @@ public class CheckRunStore {
 
     String sql = """
         SELECT run_id, contract_id, base_version, candidate_version, status,
-               breaking_changes, warnings, commit_sha, created_at
+               breaking_changes, warnings, commit_sha, created_at,
+               triggered_by, started_at, finished_at
         FROM check_runs
         WHERE run_id = ?
         LIMIT 1
@@ -226,6 +249,250 @@ public class CheckRunStore {
       logDbFailure("find_check_run_by_id", e, null, null);
       throw new CheckRunStoreException("Failed to query check run from configured database.", e);
     }
+  }
+
+  public List<CheckRunLogResponse> listLogs(String runId) {
+    ensureInitialized();
+    String normalizedRunId = trimToEmpty(runId);
+    if (normalizedRunId.isBlank()) {
+      throw new IllegalArgumentException("runId must not be blank.");
+    }
+
+    String sql = """
+        SELECT log_id, run_id, level, message, created_at
+        FROM check_run_logs
+        WHERE run_id = ?
+        ORDER BY created_at ASC
+        """;
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, normalizedRunId);
+      try (ResultSet rs = statement.executeQuery()) {
+        List<CheckRunLogResponse> rows = new ArrayList<>();
+        while (rs.next()) {
+          rows.add(new CheckRunLogResponse(
+              rs.getString("log_id"),
+              rs.getString("run_id"),
+              rs.getString("level"),
+              rs.getString("message"),
+              rs.getString("created_at")));
+        }
+        return rows;
+      }
+    } catch (SQLException e) {
+      logDbFailure("list_check_run_logs", e, null, null);
+      throw new CheckRunStoreException("Failed to query check run logs from configured database.", e);
+    }
+  }
+
+  public Optional<QueuedCheckRun> claimNextQueuedRun() {
+    ensureInitialized();
+
+    String selectSql = """
+        SELECT run_id, contract_id, base_version, candidate_version, compatibility_mode,
+               commit_sha, triggered_by
+        FROM check_runs
+        WHERE status = ?
+        ORDER BY created_at ASC
+        LIMIT 1
+        """;
+    String updateSql = """
+        UPDATE check_runs
+        SET status = ?, started_at = ?
+        WHERE run_id = ? AND status = ?
+        """;
+
+    for (int attempt = 0; attempt < 3; attempt++) {
+      try (Connection connection = openConnection()) {
+        connection.setAutoCommit(false);
+        QueuedCheckRun queuedRun = null;
+        try (PreparedStatement select = connection.prepareStatement(selectSql)) {
+          applyQueryTimeout(select);
+          select.setString(1, STATUS_QUEUED);
+          try (ResultSet rs = select.executeQuery()) {
+            if (rs.next()) {
+              queuedRun = new QueuedCheckRun(
+                  rs.getString("run_id"),
+                  rs.getString("contract_id"),
+                  rs.getString("base_version"),
+                  rs.getString("candidate_version"),
+                  rs.getString("compatibility_mode"),
+                  rs.getString("commit_sha"),
+                  rs.getString("triggered_by"));
+            }
+          }
+        }
+
+        if (queuedRun == null) {
+          connection.commit();
+          return Optional.empty();
+        }
+
+        try (PreparedStatement update = connection.prepareStatement(updateSql)) {
+          applyQueryTimeout(update);
+          update.setString(1, STATUS_RUNNING);
+          update.setString(2, Instant.now().toString());
+          update.setString(3, queuedRun.runId());
+          update.setString(4, STATUS_QUEUED);
+          int updated = update.executeUpdate();
+          if (updated == 0) {
+            connection.rollback();
+            continue;
+          }
+        }
+        connection.commit();
+        return Optional.of(queuedRun);
+      } catch (SQLException e) {
+        logDbFailure("claim_check_run", e, null, null);
+        throw new CheckRunStoreException("Failed to claim queued check run.", e);
+      }
+    }
+
+    return Optional.empty();
+  }
+
+  public boolean completeRun(String runId, String status, List<String> breakingChanges, List<String> warnings) {
+    return updateRunResult(runId, status, breakingChanges, warnings, Instant.now().toString());
+  }
+
+  public boolean requeueRun(String runId) {
+    ensureInitialized();
+    String normalizedRunId = trimToEmpty(runId);
+    if (normalizedRunId.isBlank()) {
+      throw new IllegalArgumentException("runId must not be blank.");
+    }
+    String sql = """
+        UPDATE check_runs
+        SET status = ?, started_at = NULL, finished_at = NULL
+        WHERE run_id = ? AND status = ?
+        """;
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, STATUS_QUEUED);
+      statement.setString(2, normalizedRunId);
+      statement.setString(3, STATUS_RUNNING);
+      return statement.executeUpdate() > 0;
+    } catch (SQLException e) {
+      logDbFailure("requeue_check_run", e, null, null);
+      throw new CheckRunStoreException("Failed to requeue check run.", e);
+    }
+  }
+
+  public void appendLog(String runId, String level, String message) {
+    ensureInitialized();
+    String normalizedRunId = trimToEmpty(runId);
+    if (normalizedRunId.isBlank()) {
+      throw new IllegalArgumentException("runId must not be blank.");
+    }
+    String normalizedLevel = trimToEmpty(level);
+    String normalizedMessage = trimToEmpty(message);
+    if (normalizedLevel.isBlank() || normalizedMessage.isBlank()) {
+      throw new IllegalArgumentException("log level and message must not be blank.");
+    }
+
+    String sql = """
+        INSERT INTO check_run_logs (
+          log_id, run_id, level, message, created_at
+        ) VALUES (?, ?, ?, ?, ?)
+        """;
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, UUID.randomUUID().toString());
+      statement.setString(2, normalizedRunId);
+      statement.setString(3, normalizedLevel);
+      statement.setString(4, normalizedMessage);
+      statement.setString(5, Instant.now().toString());
+      statement.executeUpdate();
+    } catch (SQLException e) {
+      logDbFailure("append_check_run_log", e, null, null);
+      throw new CheckRunStoreException("Failed to append check run log.", e);
+    }
+  }
+
+  private boolean updateRunResult(
+      String runId,
+      String status,
+      List<String> breakingChanges,
+      List<String> warnings,
+      String finishedAt) {
+    ensureInitialized();
+    String normalizedRunId = trimToEmpty(runId);
+    if (normalizedRunId.isBlank()) {
+      throw new IllegalArgumentException("runId must not be blank.");
+    }
+    String normalizedStatus = trimToEmpty(status).toUpperCase(Locale.ROOT);
+    if (normalizedStatus.isBlank()) {
+      throw new IllegalArgumentException("status must not be blank.");
+    }
+
+    String sql = """
+        UPDATE check_runs
+        SET status = ?, breaking_changes = ?, warnings = ?, finished_at = ?
+        WHERE run_id = ? AND status = ?
+        """;
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, normalizedStatus);
+      statement.setString(2, toJsonArray(breakingChanges));
+      statement.setString(3, toJsonArray(warnings));
+      statement.setString(4, finishedAt);
+      statement.setString(5, normalizedRunId);
+      statement.setString(6, STATUS_RUNNING);
+      return statement.executeUpdate() > 0;
+    } catch (SQLException e) {
+      logDbFailure("complete_check_run", e, null, null);
+      throw new CheckRunStoreException("Failed to update check run result.", e);
+    }
+  }
+
+  public CheckRunCreateResponse createQueuedRun(CheckRunCreateRequest request) {
+    ensureInitialized();
+    if (request == null) {
+      throw new IllegalArgumentException("request must not be null.");
+    }
+
+    String runId = UUID.randomUUID().toString();
+    String status = STATUS_QUEUED;
+    String createdAt = Instant.now().toString();
+    String inputHash = computeInputHash(request);
+
+    String sql = """
+        INSERT INTO check_runs (
+          run_id, contract_id, base_version, candidate_version, status,
+          breaking_changes, warnings, commit_sha, created_at,
+          triggered_by, compatibility_mode, input_hash, started_at, finished_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """;
+
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      int index = 1;
+      statement.setString(index++, runId);
+      statement.setString(index++, request.contractId());
+      statement.setString(index++, request.baseVersion());
+      statement.setString(index++, request.candidateVersion());
+      statement.setString(index++, status);
+      statement.setString(index++, "[]");
+      statement.setString(index++, "[]");
+      statement.setString(index++, request.commitSha());
+      statement.setString(index++, createdAt);
+      statement.setString(index++, request.triggeredBy());
+      statement.setString(index++, request.mode());
+      statement.setString(index++, inputHash);
+      statement.setString(index++, null);
+      statement.setString(index, null);
+      statement.executeUpdate();
+    } catch (SQLException e) {
+      logDbFailure("create_check_run", e, request.contractId(), request.commitSha());
+      throw new CheckRunStoreException("Failed to create check run in configured database.", e);
+    }
+
+    return new CheckRunCreateResponse(runId, status);
   }
 
   private void ensureInitialized() {
@@ -310,13 +577,51 @@ public class CheckRunStore {
   }
 
   private void migrateSchema() {
+    String[] locations = resolveMigrationLocations();
     Flyway.configure()
         .dataSource(dataSource)
-        .locations("classpath:db/migration")
+        .locations(locations)
         .baselineOnMigrate(true)
         .baselineVersion(MigrationVersion.fromVersion("0"))
         .load()
         .migrate();
+  }
+
+  private String[] resolveMigrationLocations() {
+    if (classpathMigrationAvailable()) {
+      return new String[] {"classpath:db/migration"};
+    }
+
+    Path fallback = resolveFilesystemMigrationPath();
+    if (fallback != null) {
+      LOGGER.warn(
+          "event=check_store_migrations_fallback component=check_run_store path={} message=Using filesystem migrations",
+          fallback.toAbsolutePath());
+      return new String[] {"filesystem:" + fallback.toAbsolutePath()};
+    }
+
+    throw new IllegalStateException(
+        "No Flyway migrations found for check history store. Ensure db/migration resources are packaged.");
+  }
+
+  private boolean classpathMigrationAvailable() {
+    ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    if (loader == null) {
+      loader = CheckRunStore.class.getClassLoader();
+    }
+    return loader != null && loader.getResource(LATEST_MIGRATION_RESOURCE) != null;
+  }
+
+  private Path resolveFilesystemMigrationPath() {
+    Path rootRelative = Paths.get("contract-core", "src", "main", "resources", "db", "migration");
+    if (Files.isDirectory(rootRelative)) {
+      return rootRelative;
+    }
+    Path moduleRelative = Paths.get("..", "contract-core", "src", "main", "resources", "db", "migration");
+    if (Files.isDirectory(moduleRelative)) {
+      return moduleRelative;
+    }
+    return null;
   }
 
   private void logDbFailure(String operation, Exception error, String contractId, String commitSha) {
@@ -592,6 +897,25 @@ public class CheckRunStore {
     return sanitized.substring(0, credentialsStart) + "***:***" + sanitized.substring(credentialsEnd);
   }
 
+  private String computeInputHash(CheckRunCreateRequest request) {
+    String commitSha = request.commitSha() == null ? "-" : request.commitSha();
+    String payload = String.join(
+        "|",
+        request.contractId(),
+        request.baseVersion(),
+        request.candidateVersion(),
+        request.mode(),
+        commitSha,
+        request.triggeredBy());
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hash = digest.digest(payload.getBytes(StandardCharsets.UTF_8));
+      return HexFormat.of().formatHex(hash);
+    } catch (Exception ex) {
+      throw new IllegalStateException("Failed to compute input hash for check run.", ex);
+    }
+  }
+
   private List<String> parseDetails(String raw) {
     if (raw == null || raw.isBlank()) {
       return List.of();
@@ -613,6 +937,17 @@ public class CheckRunStore {
         .collect(Collectors.toList());
   }
 
+  private String toJsonArray(List<String> values) {
+    if (values == null || values.isEmpty()) {
+      return "[]";
+    }
+    try {
+      return objectMapper.writeValueAsString(values);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Failed to serialize check run details.", e);
+    }
+  }
+
   private CheckRunResponse mapRow(ResultSet rs) throws SQLException {
     return new CheckRunResponse(
         rs.getString("run_id"),
@@ -623,6 +958,9 @@ public class CheckRunStore {
         parseDetails(rs.getString("breaking_changes")),
         parseDetails(rs.getString("warnings")),
         rs.getString("commit_sha"),
-        rs.getString("created_at"));
+        rs.getString("created_at"),
+        rs.getString("triggered_by"),
+        rs.getString("started_at"),
+        rs.getString("finished_at"));
   }
 }
