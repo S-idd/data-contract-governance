@@ -17,6 +17,7 @@ import org.flywaydb.core.api.MigrationVersion;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.net.URLEncoder;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -48,9 +50,11 @@ import org.springframework.stereotype.Service;
 public class CheckRunStore {
   private static final String SQLITE_JDBC_PREFIX = "jdbc:sqlite:";
   private static final Set<String> ALLOWED_STRICT_SSL_MODES = Set.of("verify-ca", "verify-full");
+  private static final Set<String> ALLOWED_COMPATIBILITY_MODES =
+      Set.of("BACKWARD", "FORWARD", "FULL");
   private static final String STATUS_QUEUED = "QUEUED";
   private static final String STATUS_RUNNING = "RUNNING";
-  private static final String LATEST_MIGRATION_RESOURCE = "db/migration/V4__create_check_run_logs.sql";
+  private static final String LATEST_MIGRATION_RESOURCE = "db/migration/V5__create_audit_logs.sql";
   private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunStore.class);
 
@@ -103,6 +107,7 @@ public class CheckRunStore {
       this.sqlitePath = resolveSqlitePath(jdbcUrl);
       this.dbTarget = sanitizeJdbcUrl(jdbcUrl);
     }
+    validateExpectedSchema(this.jdbcUrl, properties.getExpectedSchema());
     validatePoolAndTimeoutSettings(properties);
     String dbUsername = resolveUsername(properties);
     String dbPassword = resolvePassword(properties);
@@ -495,6 +500,173 @@ public class CheckRunStore {
     return new CheckRunCreateResponse(runId, status);
   }
 
+  public void recordAuditLog(AuditLogEntry entry) {
+    if (entry == null) {
+      return;
+    }
+    try {
+      ensureInitialized();
+    } catch (RuntimeException ex) {
+      logDbFailure("record_audit_log_init", ex, null, null);
+      return;
+    }
+    String sql = """
+        INSERT INTO audit_logs (
+          audit_id, action, actor, actor_roles, source, request_id, http_method, path,
+          resource_type, resource_id, status, detail, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """;
+
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      int index = 1;
+      statement.setString(index++, UUID.randomUUID().toString());
+      statement.setString(index++, safeValue(entry.action()));
+      statement.setString(index++, safeValue(entry.actor()));
+      statement.setString(index++, safeValue(entry.actorRoles()));
+      statement.setString(index++, safeValue(entry.source()));
+      statement.setString(index++, nullIfBlank(entry.requestId()));
+      statement.setString(index++, safeValue(entry.httpMethod()));
+      statement.setString(index++, safeValue(entry.path()));
+      statement.setString(index++, safeValue(entry.resourceType()));
+      statement.setString(index++, nullIfBlank(entry.resourceId()));
+      statement.setString(index++, safeValue(entry.status()));
+      statement.setString(index++, serializeAuditDetail(entry.detail()));
+      statement.setString(index, Instant.now().toString());
+      statement.executeUpdate();
+    } catch (Exception e) {
+      logDbFailure("record_audit_log", e, null, null);
+    }
+  }
+
+  public int backfillLegacyRuns(
+      Function<String, String> modeResolver,
+      String defaultTriggeredBy,
+      String defaultMode) {
+    ensureInitialized();
+    Function<String, String> resolver = modeResolver == null ? id -> null : modeResolver;
+    String fallbackTriggeredBy = defaultIfBlank(defaultTriggeredBy, "legacy");
+    String fallbackMode = normalizeCompatibilityMode(defaultMode, "BACKWARD");
+
+    String selectSql = """
+        SELECT run_id, contract_id, base_version, candidate_version, commit_sha, created_at, status,
+               triggered_by, compatibility_mode, input_hash, started_at, finished_at
+        FROM check_runs
+        WHERE triggered_by IS NULL
+           OR compatibility_mode IS NULL
+           OR input_hash IS NULL
+           OR started_at IS NULL
+           OR finished_at IS NULL
+        """;
+    String updateSql = """
+        UPDATE check_runs
+        SET triggered_by = ?, compatibility_mode = ?, input_hash = ?, started_at = ?, finished_at = ?
+        WHERE run_id = ?
+        """;
+    String logExistsSql = """
+        SELECT 1
+        FROM check_run_logs
+        WHERE run_id = ?
+        LIMIT 1
+        """;
+    String insertLogSql = """
+        INSERT INTO check_run_logs (
+          log_id, run_id, level, message, created_at
+        ) VALUES (?, ?, ?, ?, ?)
+        """;
+
+    int updated = 0;
+    try (Connection connection = openConnection();
+         PreparedStatement select = connection.prepareStatement(selectSql);
+         PreparedStatement update = connection.prepareStatement(updateSql);
+         PreparedStatement logExists = connection.prepareStatement(logExistsSql);
+         PreparedStatement insertLog = connection.prepareStatement(insertLogSql)) {
+      applyQueryTimeout(select);
+      applyQueryTimeout(update);
+      applyQueryTimeout(logExists);
+      applyQueryTimeout(insertLog);
+
+      boolean logTableAvailable = true;
+      try (ResultSet rs = select.executeQuery()) {
+        while (rs.next()) {
+          String runId = rs.getString("run_id");
+          String contractId = rs.getString("contract_id");
+          String baseVersion = rs.getString("base_version");
+          String candidateVersion = rs.getString("candidate_version");
+          String commitSha = rs.getString("commit_sha");
+          String createdAt = trimToEmpty(rs.getString("created_at"));
+          String status = trimToEmpty(rs.getString("status")).toUpperCase(Locale.ROOT);
+          String triggeredBy = trimToEmpty(rs.getString("triggered_by"));
+          String compatibilityMode = trimToEmpty(rs.getString("compatibility_mode"));
+          String inputHash = trimToEmpty(rs.getString("input_hash"));
+          String startedAt = trimToEmpty(rs.getString("started_at"));
+          String finishedAt = trimToEmpty(rs.getString("finished_at"));
+
+          String resolvedTriggeredBy = triggeredBy.isBlank() ? fallbackTriggeredBy : triggeredBy;
+          String resolvedMode = normalizeCompatibilityMode(compatibilityMode, "");
+          if (resolvedMode.isBlank()) {
+            resolvedMode = normalizeCompatibilityMode(resolver.apply(contractId), fallbackMode);
+          }
+          if (resolvedMode.isBlank()) {
+            resolvedMode = fallbackMode;
+          }
+
+          String resolvedInputHash = inputHash.isBlank()
+              ? computeInputHash(contractId, baseVersion, candidateVersion, resolvedMode, commitSha, resolvedTriggeredBy)
+              : inputHash;
+
+          String effectiveCreatedAt = createdAt.isBlank() ? Instant.now().toString() : createdAt;
+          String resolvedStartedAt = startedAt;
+          if (resolvedStartedAt.isBlank() && !STATUS_QUEUED.equals(status)) {
+            resolvedStartedAt = effectiveCreatedAt;
+          }
+          String resolvedFinishedAt = finishedAt;
+          if (resolvedFinishedAt.isBlank()
+              && !STATUS_QUEUED.equals(status)
+              && !STATUS_RUNNING.equals(status)) {
+            resolvedFinishedAt = effectiveCreatedAt;
+          }
+
+          update.setString(1, resolvedTriggeredBy);
+          update.setString(2, resolvedMode);
+          update.setString(3, resolvedInputHash);
+          update.setString(4, resolvedStartedAt.isBlank() ? null : resolvedStartedAt);
+          update.setString(5, resolvedFinishedAt.isBlank() ? null : resolvedFinishedAt);
+          update.setString(6, runId);
+          updated += update.executeUpdate();
+
+          if (logTableAvailable && !STATUS_QUEUED.equals(status) && !STATUS_RUNNING.equals(status)) {
+            try {
+              boolean hasLog = false;
+              logExists.setString(1, runId);
+              try (ResultSet logRs = logExists.executeQuery()) {
+                hasLog = logRs.next();
+              }
+              if (!hasLog) {
+                String logTimestamp = resolvedFinishedAt.isBlank() ? effectiveCreatedAt : resolvedFinishedAt;
+                insertLog.setString(1, UUID.randomUUID().toString());
+                insertLog.setString(2, runId);
+                insertLog.setString(3, "INFO");
+                insertLog.setString(4, "Legacy check run backfilled without original execution logs.");
+                insertLog.setString(5, logTimestamp);
+                insertLog.executeUpdate();
+              }
+            } catch (SQLException logError) {
+              logTableAvailable = false;
+              logDbFailure("backfill_check_run_logs", logError, contractId, commitSha);
+            }
+          }
+        }
+      }
+    } catch (SQLException e) {
+      logDbFailure("backfill_check_runs", e, null, null);
+      throw new CheckRunStoreException("Failed to backfill legacy check run fields.", e);
+    }
+
+    return updated;
+  }
+
   private void ensureInitialized() {
     if (initialized || tryInitialize(true)) {
       return;
@@ -648,6 +820,21 @@ public class CheckRunStore {
     return value == null || value.isBlank() ? "-" : value;
   }
 
+  private String nullIfBlank(String value) {
+    return value == null || value.isBlank() ? null : value.trim();
+  }
+
+  private String serializeAuditDetail(Map<String, Object> detail) {
+    if (detail == null || detail.isEmpty()) {
+      return null;
+    }
+    try {
+      return objectMapper.writeValueAsString(detail);
+    } catch (JsonProcessingException e) {
+      return detail.toString();
+    }
+  }
+
   private String normalizeCredential(String value) {
     if (value == null || value.isBlank()) {
       return null;
@@ -741,6 +928,56 @@ public class CheckRunStore {
     }
   }
 
+  private void validateExpectedSchema(String jdbcUrl, String expectedSchema) {
+    String expected = normalizeCredential(expectedSchema);
+    if (expected == null || expected.isBlank()) {
+      return;
+    }
+    if (!isPostgresUrl(jdbcUrl)) {
+      return;
+    }
+
+    String rawSchema = queryParamValue(jdbcUrl, "currentSchema");
+    if (rawSchema == null || rawSchema.isBlank()) {
+      throw new IllegalStateException(
+          "checks.db.expected-schema is set, but checks.db.url is missing currentSchema=.");
+    }
+    String decoded = URLDecoder.decode(rawSchema, StandardCharsets.UTF_8);
+    boolean matches = false;
+    for (String item : decoded.split(",")) {
+      if (expected.equals(item.trim())) {
+        matches = true;
+        break;
+      }
+    }
+    if (!matches) {
+      throw new IllegalStateException(
+          "checks.db.expected-schema is set to '" + expected + "', but currentSchema is '" + decoded + "'.");
+    }
+  }
+
+  private String queryParamValue(String url, String key) {
+    if (url == null || key == null || key.isBlank()) {
+      return null;
+    }
+    int queryIndex = url.indexOf('?');
+    if (queryIndex < 0 || queryIndex == url.length() - 1) {
+      return null;
+    }
+    String query = url.substring(queryIndex + 1);
+    for (String part : query.split("&")) {
+      if (part.isBlank()) {
+        continue;
+      }
+      int eqIndex = part.indexOf('=');
+      String name = eqIndex >= 0 ? part.substring(0, eqIndex) : part;
+      if (name.equalsIgnoreCase(key)) {
+        return eqIndex >= 0 ? part.substring(eqIndex + 1) : "";
+      }
+    }
+    return null;
+  }
+
   private void requirePositiveDuration(String propertyName, Duration value) {
     if (value == null || value.isZero() || value.isNegative()) {
       throw new IllegalStateException(propertyName + " must be greater than 0.");
@@ -754,6 +991,18 @@ public class CheckRunStore {
   private String normalizeSslMode(String value) {
     String normalized = normalizeCredential(value);
     return normalized == null ? "" : normalized.toLowerCase(Locale.ROOT);
+  }
+
+  private String normalizeCompatibilityMode(String value, String fallback) {
+    String normalized = normalizeCredential(value);
+    if (normalized == null) {
+      return defaultIfBlank(fallback, "");
+    }
+    String upper = normalized.toUpperCase(Locale.ROOT);
+    if (!ALLOWED_COMPATIBILITY_MODES.contains(upper)) {
+      return defaultIfBlank(fallback, "");
+    }
+    return upper;
   }
 
   private HikariDataSource createDataSource(
@@ -898,15 +1147,36 @@ public class CheckRunStore {
   }
 
   private String computeInputHash(CheckRunCreateRequest request) {
-    String commitSha = request.commitSha() == null ? "-" : request.commitSha();
-    String payload = String.join(
-        "|",
+    return computeInputHash(
         request.contractId(),
         request.baseVersion(),
         request.candidateVersion(),
         request.mode(),
-        commitSha,
+        request.commitSha(),
         request.triggeredBy());
+  }
+
+  private String computeInputHash(
+      String contractId,
+      String baseVersion,
+      String candidateVersion,
+      String mode,
+      String commitSha,
+      String triggeredBy) {
+    String safeContractId = contractId == null || contractId.isBlank() ? "-" : contractId;
+    String safeBaseVersion = baseVersion == null || baseVersion.isBlank() ? "-" : baseVersion;
+    String safeCandidateVersion = candidateVersion == null || candidateVersion.isBlank() ? "-" : candidateVersion;
+    String safeMode = mode == null || mode.isBlank() ? "-" : mode;
+    String safeCommitSha = commitSha == null || commitSha.isBlank() ? "-" : commitSha;
+    String safeTriggeredBy = triggeredBy == null || triggeredBy.isBlank() ? "-" : triggeredBy;
+    String payload = String.join(
+        "|",
+        safeContractId,
+        safeBaseVersion,
+        safeCandidateVersion,
+        safeMode,
+        safeCommitSha,
+        safeTriggeredBy);
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
       byte[] hash = digest.digest(payload.getBytes(StandardCharsets.UTF_8));

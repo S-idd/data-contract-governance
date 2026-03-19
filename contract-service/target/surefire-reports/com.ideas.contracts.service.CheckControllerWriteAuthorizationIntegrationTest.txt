@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.ideas.contracts.service.CheckControllerWriteAuthorizationIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.252 s -- in com.ideas.contracts.service.CheckControllerWriteAuthorizationIntegrationTest

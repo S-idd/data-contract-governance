@@ -164,9 +164,13 @@ UI/security toggles (local-first defaults):
 - `APP_UI_ENABLED=true` enables embedded UI routes.
 - `APP_SECURITY_ENABLED=false` keeps local workflow frictionless.
 - When `APP_SECURITY_ENABLED=true`, `/ui/**` and `/checks/**` require HTTP Basic auth.
+- Write routes (POST/PUT/PATCH/DELETE) require the `WRITER` role by default.
 - Configure basic auth credentials with:
   - `APP_SECURITY_USERNAME`
   - `APP_SECURITY_PASSWORD`
+- Configure roles with:
+  - `APP_SECURITY_ROLES` (comma-separated, default `USER,WRITER`)
+  - `APP_SECURITY_WRITE_ROLE` (default `WRITER`)
 
 Example secure run:
 ```bash
@@ -174,6 +178,7 @@ cd contract-service
 APP_SECURITY_ENABLED=true \
 APP_SECURITY_USERNAME=demo \
 APP_SECURITY_PASSWORD=demo-secret \
+APP_SECURITY_ROLES=USER,WRITER \
 mvn spring-boot:run
 ```
 

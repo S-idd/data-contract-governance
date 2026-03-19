@@ -2,17 +2,20 @@ package com.ideas.contracts.cli;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ideas.contracts.core.CompatibilityMode;
 import com.ideas.contracts.core.CompatibilityResult;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -20,6 +23,8 @@ import java.util.UUID;
 
 public class CheckRunRecorder {
   private static final String SQLITE_JDBC_PREFIX = "jdbc:sqlite:";
+  private static final String DEFAULT_TRIGGERED_BY = "cli";
+  private static final String DEFAULT_COMPATIBILITY_MODE = "BACKWARD";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   public void record(
@@ -29,6 +34,17 @@ public class CheckRunRecorder {
       String candidateVersion,
       CompatibilityResult result,
       String commitSha) {
+    record(dbPath, contractId, baseVersion, candidateVersion, result, commitSha, CompatibilityMode.BACKWARD);
+  }
+
+  public void record(
+      Path dbPath,
+      String contractId,
+      String baseVersion,
+      String candidateVersion,
+      CompatibilityResult result,
+      String commitSha,
+      CompatibilityMode mode) {
     String sqliteJdbcUrl = SQLITE_JDBC_PREFIX + dbPath;
     record(
         sqliteJdbcUrl,
@@ -39,7 +55,8 @@ public class CheckRunRecorder {
         baseVersion,
         candidateVersion,
         result,
-        commitSha);
+        commitSha,
+        mode);
   }
 
   public void record(
@@ -51,8 +68,31 @@ public class CheckRunRecorder {
       String candidateVersion,
       CompatibilityResult result,
       String commitSha) {
+    record(jdbcUrl, username, password, contractId, baseVersion, candidateVersion, result, commitSha, null);
+  }
+
+  public void record(
+      String jdbcUrl,
+      String username,
+      String password,
+      String contractId,
+      String baseVersion,
+      String candidateVersion,
+      CompatibilityResult result,
+      String commitSha,
+      CompatibilityMode mode) {
     String dbTarget = sanitizeJdbcUrl(jdbcUrl);
-    record(jdbcUrl, username, password, dbTarget, contractId, baseVersion, candidateVersion, result, commitSha);
+    record(
+        jdbcUrl,
+        username,
+        password,
+        dbTarget,
+        contractId,
+        baseVersion,
+        candidateVersion,
+        result,
+        commitSha,
+        mode);
   }
 
   private void record(
@@ -64,7 +104,8 @@ public class CheckRunRecorder {
       String baseVersion,
       String candidateVersion,
       CompatibilityResult result,
-      String commitSha) {
+      String commitSha,
+      CompatibilityMode mode) {
     try {
       Path sqlitePath = resolveSqlitePath(jdbcUrl);
       if (sqlitePath != null) {
@@ -75,7 +116,7 @@ public class CheckRunRecorder {
       }
       migrateSchema(jdbcUrl, username, password);
       try (Connection connection = openConnection(jdbcUrl, username, password)) {
-        insertRow(connection, contractId, baseVersion, candidateVersion, result, commitSha);
+        insertRow(connection, dbTarget, contractId, baseVersion, candidateVersion, result, commitSha, mode);
       }
     } catch (SQLException e) {
       logDbFailure("record_check_run", dbTarget, contractId, baseVersion, candidateVersion, commitSha, e);
@@ -98,18 +139,27 @@ public class CheckRunRecorder {
 
   private void insertRow(
       Connection connection,
+      String dbTarget,
       String contractId,
       String baseVersion,
       String candidateVersion,
       CompatibilityResult result,
-      String commitSha) throws SQLException {
+      String commitSha,
+      CompatibilityMode mode) throws SQLException {
+    String runId = UUID.randomUUID().toString();
+    String createdAt = Instant.now().toString();
+    String resolvedMode = normalizeCompatibilityMode(mode);
+    String triggeredBy = DEFAULT_TRIGGERED_BY;
+    String inputHash =
+        computeInputHash(contractId, baseVersion, candidateVersion, resolvedMode, commitSha, triggeredBy);
     try (PreparedStatement statement = connection.prepareStatement("""
         INSERT INTO check_runs (
           run_id, contract_id, base_version, candidate_version, status,
-          breaking_changes, warnings, commit_sha, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          breaking_changes, warnings, commit_sha, created_at,
+          triggered_by, compatibility_mode, input_hash, started_at, finished_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)) {
-      statement.setString(1, UUID.randomUUID().toString());
+      statement.setString(1, runId);
       statement.setString(2, contractId);
       statement.setString(3, baseVersion);
       statement.setString(4, candidateVersion);
@@ -117,8 +167,35 @@ public class CheckRunRecorder {
       statement.setString(6, toJsonArray(result.breakingChanges()));
       statement.setString(7, toJsonArray(result.warnings()));
       statement.setString(8, commitSha);
-      statement.setString(9, Instant.now().toString());
+      statement.setString(9, createdAt);
+      statement.setString(10, triggeredBy);
+      statement.setString(11, resolvedMode);
+      statement.setString(12, inputHash);
+      statement.setString(13, createdAt);
+      statement.setString(14, createdAt);
       statement.executeUpdate();
+    }
+
+    try (PreparedStatement statement = connection.prepareStatement("""
+        INSERT INTO check_run_logs (
+          log_id, run_id, level, message, created_at
+        ) VALUES (?, ?, ?, ?, ?)
+        """)) {
+      statement.setString(1, UUID.randomUUID().toString());
+      statement.setString(2, runId);
+      statement.setString(3, "INFO");
+      statement.setString(4, "Check run recorded by CLI with status " + result.status().name() + ".");
+      statement.setString(5, createdAt);
+      statement.executeUpdate();
+    } catch (SQLException logError) {
+      logDbFailure(
+          "record_check_run_log",
+          dbTarget,
+          contractId,
+          baseVersion,
+          candidateVersion,
+          commitSha,
+          logError);
     }
   }
 
@@ -230,5 +307,39 @@ public class CheckRunRecorder {
       return sanitized;
     }
     return sanitized.substring(0, credentialsStart) + "***:***" + sanitized.substring(credentialsEnd);
+  }
+
+  private String normalizeCompatibilityMode(CompatibilityMode mode) {
+    return mode == null ? DEFAULT_COMPATIBILITY_MODE : mode.name();
+  }
+
+  private String computeInputHash(
+      String contractId,
+      String baseVersion,
+      String candidateVersion,
+      String mode,
+      String commitSha,
+      String triggeredBy) {
+    String safeContractId = contractId == null || contractId.isBlank() ? "-" : contractId;
+    String safeBaseVersion = baseVersion == null || baseVersion.isBlank() ? "-" : baseVersion;
+    String safeCandidateVersion = candidateVersion == null || candidateVersion.isBlank() ? "-" : candidateVersion;
+    String safeMode = mode == null || mode.isBlank() ? DEFAULT_COMPATIBILITY_MODE : mode;
+    String safeCommitSha = commitSha == null || commitSha.isBlank() ? "-" : commitSha;
+    String safeTriggeredBy = triggeredBy == null || triggeredBy.isBlank() ? "-" : triggeredBy;
+    String payload = String.join(
+        "|",
+        safeContractId,
+        safeBaseVersion,
+        safeCandidateVersion,
+        safeMode,
+        safeCommitSha,
+        safeTriggeredBy);
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hash = digest.digest(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      return HexFormat.of().formatHex(hash);
+    } catch (Exception ex) {
+      throw new IllegalStateException("Failed to compute input hash for check run.", ex);
+    }
   }
 }

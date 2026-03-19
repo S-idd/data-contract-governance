@@ -85,7 +85,7 @@
       <div class="log-row" th:each="log : ${checkLogs}">
         <span class="log-time" th:text="${log.createdAt}">time</span>
         <span class="log-level"
-              th:classappend="${log.level != null} ? ' log-level-' + #strings.toLowerCase(log.level) : ''"
+              th:classappend="${log.level != null ? ' log-level-' + #strings.toLowerCase(log.level) : ''}"
               th:text="${log.level}">INFO</span>
         <span class="log-message" th:text="${log.message}">message</span>
       </div>

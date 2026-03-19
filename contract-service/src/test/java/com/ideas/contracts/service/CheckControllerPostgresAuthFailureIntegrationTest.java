@@ -9,8 +9,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,6 +24,7 @@ import org.springframework.test.web.servlet.MvcResult;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(PostgresSchemaCleanupExtension.class)
 class CheckControllerPostgresAuthFailureIntegrationTest {
   private static final String BASE_JDBC_URL = PostgresTestSupport.localJdbcUrl();
   private static final String MISSING_USERNAME = PostgresTestSupport.missingUsername();
@@ -34,6 +37,12 @@ class CheckControllerPostgresAuthFailureIntegrationTest {
   private MockMvc mockMvc;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
+
+  @AfterAll
+  void cleanupSchema() {
+    PostgresTestSupport.dropSchemaQuietly(BASE_JDBC_URL, PostgresTestSupport.localUsername(),
+        PostgresTestSupport.localPassword(), SCHEMA);
+  }
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {

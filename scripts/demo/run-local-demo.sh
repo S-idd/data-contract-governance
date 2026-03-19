@@ -152,14 +152,14 @@ fi
 
 echo "Starting contract-service on port $APP_PORT..."
 (
-  cd "$SERVICE_DIR"
+  cd "$ROOT_DIR"
   SPRING_PROFILES_ACTIVE=local \
   CHECKS_DB_URL="$JDBC_URL" \
   CHECKS_DB_USERNAME="$DB_USER" \
   CHECKS_DB_PASSWORD="$DB_PASSWORD" \
   APP_UI_ENABLED=true \
   APP_SECURITY_ENABLED=false \
-  mvn spring-boot:run >"$SERVICE_LOG" 2>&1
+  mvn -pl contract-service -am org.springframework.boot:spring-boot-maven-plugin:run >"$SERVICE_LOG" 2>&1
 ) &
 SERVICE_PID=$!
 

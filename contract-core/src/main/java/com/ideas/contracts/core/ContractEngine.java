@@ -8,4 +8,12 @@ public interface ContractEngine {
   String diff(Path baseSchema, Path candidateSchema);
 
   CompatibilityResult checkCompatibility(Path baseSchema, Path candidateSchema, CompatibilityMode mode);
+
+  default CompatibilityResult checkCompatibility(
+      Path baseSchema,
+      Path candidateSchema,
+      CompatibilityMode mode,
+      PolicyPack policyPack) {
+    return checkCompatibility(baseSchema, candidateSchema, mode);
+  }
 }

@@ -7,6 +7,7 @@ public record ContractDetailResponse(
     String ownerTeam,
     String domain,
     String compatibilityMode,
+    String policyPack,
     List<String> versions,
     String status
 ) {}

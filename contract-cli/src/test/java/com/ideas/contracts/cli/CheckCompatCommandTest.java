@@ -156,7 +156,8 @@ class CheckCompatCommandTest {
         String baseVersion,
         String candidateVersion,
         CompatibilityResult result,
-        String commitSha) {
+        String commitSha,
+        com.ideas.contracts.core.CompatibilityMode mode) {
       this.invoked = true;
       this.username = username;
       this.password = password;

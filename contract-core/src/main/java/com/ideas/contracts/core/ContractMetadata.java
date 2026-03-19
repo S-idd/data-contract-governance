@@ -4,5 +4,6 @@ public record ContractMetadata(
     String contractId,
     String ownerTeam,
     String domain,
-    CompatibilityMode compatibilityMode
+    CompatibilityMode compatibilityMode,
+    String policyPack
 ) {}

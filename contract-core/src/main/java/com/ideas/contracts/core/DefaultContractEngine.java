@@ -90,18 +90,28 @@ public class DefaultContractEngine implements ContractEngine {
 
   @Override
   public CompatibilityResult checkCompatibility(Path baseSchema, Path candidateSchema, CompatibilityMode mode) {
+    return checkCompatibility(baseSchema, candidateSchema, mode, PolicyPackDefaults.baselinePack());
+  }
+
+  @Override
+  public CompatibilityResult checkCompatibility(
+      Path baseSchema,
+      Path candidateSchema,
+      CompatibilityMode mode,
+      PolicyPack policyPack) {
+    PolicyPack effectivePack = policyPack == null ? PolicyPackDefaults.baselinePack() : policyPack;
     SchemaSnapshot base = loadSchemaSnapshot(baseSchema);
     SchemaSnapshot candidate = loadSchemaSnapshot(candidateSchema);
     List<String> breakingChanges = new ArrayList<>();
     List<String> warnings = new ArrayList<>();
 
     if (mode == CompatibilityMode.BACKWARD || mode == CompatibilityMode.FULL) {
-      applyBackwardRules(base, candidate, breakingChanges, warnings);
+      applyBackwardRules(base, candidate, breakingChanges, warnings, effectivePack);
     }
     if (mode == CompatibilityMode.FORWARD || mode == CompatibilityMode.FULL) {
       List<String> forwardBreaking = new ArrayList<>();
       List<String> forwardWarnings = new ArrayList<>();
-      applyBackwardRules(candidate, base, forwardBreaking, forwardWarnings);
+      applyBackwardRules(candidate, base, forwardBreaking, forwardWarnings, effectivePack);
       forwardBreaking.forEach(item -> breakingChanges.add("[FORWARD] " + item));
       forwardWarnings.forEach(item -> warnings.add("[FORWARD] " + item));
     }
@@ -287,13 +297,40 @@ public class DefaultContractEngine implements ContractEngine {
       SchemaSnapshot base,
       SchemaSnapshot candidate,
       List<String> breakingChanges,
-      List<String> warnings) {
+      List<String> warnings,
+      PolicyPack policyPack) {
     Comparison c = compare(base, candidate);
-    c.fieldRemoved().forEach(field -> breakingChanges.add("Field removed: " + field));
-    c.typeChanged().forEach(change -> breakingChanges.add("Field type changed: " + change));
-    c.requiredAdded().forEach(field -> breakingChanges.add("Required field added: " + field));
-    c.enumRemoved().forEach(change -> breakingChanges.add("Enum value removed: " + change));
-    c.enumAdded().forEach(change -> warnings.add("Enum value added: " + change));
+    applyRule(policyPack, RuleId.FIELD_REMOVED, c.fieldRemoved(), "Field removed: ", breakingChanges, warnings);
+    applyRule(policyPack, RuleId.FIELD_TYPE_CHANGED, c.typeChanged(), "Field type changed: ", breakingChanges, warnings);
+    applyRule(policyPack, RuleId.REQUIRED_FIELD_ADDED, c.requiredAdded(), "Required field added: ", breakingChanges, warnings);
+    applyRule(policyPack, RuleId.ENUM_VALUE_REMOVED, c.enumRemoved(), "Enum value removed: ", breakingChanges, warnings);
+    applyRule(policyPack, RuleId.ENUM_VALUE_ADDED, c.enumAdded(), "Enum value added: ", breakingChanges, warnings);
+  }
+
+  private void applyRule(
+      PolicyPack policyPack,
+      RuleId ruleId,
+      List<String> changes,
+      String label,
+      List<String> breakingChanges,
+      List<String> warnings) {
+    if (changes == null || changes.isEmpty()) {
+      return;
+    }
+    RuleSeverity severity = policyPack == null
+        ? RuleSeverity.BREAKING
+        : policyPack.severityFor(ruleId);
+    if (severity == RuleSeverity.IGNORE) {
+      return;
+    }
+    for (String change : changes) {
+      String message = label + change;
+      if (severity == RuleSeverity.BREAKING) {
+        breakingChanges.add(message);
+      } else {
+        warnings.add(message);
+      }
+    }
   }
 
   private record SchemaSnapshot(Map<String, FieldInfo> fields) {}

@@ -1,0 +1,27 @@
+{
+  "defaultPack": "baseline",
+  "packs": {
+    "baseline": {
+      "description": "Baseline compatibility rules",
+      "rules": {
+        "FIELD_REMOVED": "BREAKING",
+        "FIELD_TYPE_CHANGED": "BREAKING",
+        "REQUIRED_FIELD_ADDED": "BREAKING",
+        "ENUM_VALUE_REMOVED": "BREAKING",
+        "ENUM_VALUE_ADDED": "WARNING"
+      }
+    },
+    "strict": {
+      "description": "Treat enum additions as breaking",
+      "rules": {
+        "ENUM_VALUE_ADDED": "BREAKING"
+      }
+    },
+    "relaxed": {
+      "description": "Ignore enum additions",
+      "rules": {
+        "ENUM_VALUE_ADDED": "IGNORE"
+      }
+    }
+  }
+}

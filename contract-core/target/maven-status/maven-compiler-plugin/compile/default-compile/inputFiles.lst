@@ -4,3 +4,8 @@
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-core/src/main/java/com/ideas/contracts/core/ContractEngine.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-core/src/main/java/com/ideas/contracts/core/ContractMetadata.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-core/src/main/java/com/ideas/contracts/core/DefaultContractEngine.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-core/src/main/java/com/ideas/contracts/core/PolicyPack.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-core/src/main/java/com/ideas/contracts/core/PolicyPackConfig.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-core/src/main/java/com/ideas/contracts/core/PolicyPackDefaults.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-core/src/main/java/com/ideas/contracts/core/RuleId.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-core/src/main/java/com/ideas/contracts/core/RuleSeverity.java

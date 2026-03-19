@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -124,9 +125,18 @@ public class CheckController {
                     "triggeredBy": "ui"
                   }
                   """)))
-      @org.springframework.web.bind.annotation.RequestBody CheckRunCreateRequest request) {
-    CheckRunCreateResponse response = checkRunStore.createQueuedRun(request);
-    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+      @org.springframework.web.bind.annotation.RequestBody CheckRunCreateRequest request,
+      HttpServletRequest httpRequest) {
+    try {
+      CheckRunCreateResponse response = checkRunStore.createQueuedRun(request);
+      checkRunStore.recordAuditLog(
+          AuditLogSupport.checkRunCreateSuccess(httpRequest, request, response));
+      return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    } catch (RuntimeException ex) {
+      checkRunStore.recordAuditLog(
+          AuditLogSupport.checkRunCreateFailure(httpRequest, request, ex));
+      throw ex;
+    }
   }
 
   @GetMapping("/page")

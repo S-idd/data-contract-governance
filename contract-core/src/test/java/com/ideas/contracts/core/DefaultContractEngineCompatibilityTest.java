@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.EnumMap;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -82,6 +83,41 @@ class DefaultContractEngineCompatibilityTest {
 
     assertEquals(CheckStatus.PASS, result.status());
     assertTrue(result.warnings().stream().anyMatch(m -> m.contains("Enum value added: status.DONE")));
+  }
+
+  @Test
+  void checkCompatibilityRespectsPolicyPackOverrides() throws IOException {
+    Path base = writeSchema(
+        "base.json",
+        """
+        {
+          "type": "object",
+          "properties": {
+            "status": {"type": "string", "enum": ["NEW"]}
+          }
+        }
+        """
+    );
+    Path candidate = writeSchema(
+        "candidate.json",
+        """
+        {
+          "type": "object",
+          "properties": {
+            "status": {"type": "string", "enum": ["NEW", "DONE"]}
+          }
+        }
+        """
+    );
+
+    EnumMap<RuleId, RuleSeverity> rules = new EnumMap<>(PolicyPackDefaults.baselineRules());
+    rules.put(RuleId.ENUM_VALUE_ADDED, RuleSeverity.BREAKING);
+    PolicyPack strictPack = new PolicyPack("strict", rules);
+
+    CompatibilityResult result = engine.checkCompatibility(base, candidate, CompatibilityMode.BACKWARD, strictPack);
+
+    assertEquals(CheckStatus.FAIL, result.status());
+    assertTrue(result.breakingChanges().stream().anyMatch(m -> m.contains("Enum value added: status.DONE")));
   }
 
   @Test

@@ -1,3 +1,4 @@
 ownerTeam: platform
 domain: commerce
 compatibilityMode: BACKWARD
+policyPack: baseline

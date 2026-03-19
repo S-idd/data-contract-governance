@@ -8,7 +8,9 @@ import com.ideas.contracts.service.model.CheckRunResponse;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(PostgresSchemaCleanupExtension.class)
 class CheckRunStorePostgresPathTest {
   private static final String BASE_JDBC_URL = PostgresTestSupport.localJdbcUrl();
   private static final String USERNAME = PostgresTestSupport.localUsername();
@@ -40,6 +42,7 @@ class CheckRunStorePostgresPathTest {
       assertEquals(List.of("Enum value added: status.SHIPPED"), rows.get(0).warnings());
     } finally {
       store.shutdown();
+      PostgresTestSupport.dropSchemaQuietly(BASE_JDBC_URL, USERNAME, PASSWORD, schema);
     }
   }
 
@@ -63,6 +66,7 @@ class CheckRunStorePostgresPathTest {
       assertTrue(exception.getMessage().contains("currently unavailable"));
     } finally {
       store.shutdown();
+      PostgresTestSupport.dropSchemaQuietly(BASE_JDBC_URL, USERNAME, PASSWORD, schema);
     }
   }
 
@@ -98,6 +102,7 @@ class CheckRunStorePostgresPathTest {
       assertTrue(exception.getMessage().contains("Failed to query check runs"));
     } finally {
       store.shutdown();
+      PostgresTestSupport.dropSchemaQuietly(BASE_JDBC_URL, USERNAME, PASSWORD, schema);
     }
   }
 

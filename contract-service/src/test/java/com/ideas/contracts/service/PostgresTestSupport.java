@@ -9,7 +9,10 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 final class PostgresTestSupport {
   private static final String JDBC_URL_PROPERTY = "test.postgres.jdbc-url";
@@ -21,12 +24,51 @@ final class PostgresTestSupport {
   private static final String DEFAULT_JDBC_URL = "jdbc:postgresql://localhost:5432/postgres";
   private static final String DEFAULT_USERNAME = "postgres";
   private static final String DEFAULT_PASSWORD = "postgres";
+  private static final Set<String> CREATED_SCHEMAS = ConcurrentHashMap.newKeySet();
+  private static final AtomicBoolean SHUTDOWN_HOOK_REGISTERED = new AtomicBoolean(false);
 
   private PostgresTestSupport() {}
 
   static String randomSchema(String prefix) {
     String normalizedPrefix = prefix == null || prefix.isBlank() ? "checks_it" : prefix;
-    return normalizedPrefix + "_" + UUID.randomUUID().toString().replace("-", "");
+    String schema = normalizedPrefix + "_" + UUID.randomUUID().toString().replace("-", "");
+    registerSchema(schema);
+    return schema;
+  }
+
+  private static void registerSchema(String schema) {
+    if (schema == null || schema.isBlank()) {
+      return;
+    }
+    CREATED_SCHEMAS.add(schema);
+    registerShutdownHook();
+  }
+
+  private static void registerShutdownHook() {
+    if (!SHUTDOWN_HOOK_REGISTERED.compareAndSet(false, true)) {
+      return;
+    }
+    Runtime.getRuntime().addShutdownHook(new Thread(PostgresTestSupport::cleanupSchemas, "dcg-test-schema-cleanup"));
+  }
+
+  private static void cleanupSchemas() {
+    if (CREATED_SCHEMAS.isEmpty()) {
+      return;
+    }
+    String jdbcUrl = localJdbcUrl();
+    String username = localUsername();
+    String password = localPassword();
+    if (!canConnect(jdbcUrl, username, password)) {
+      return;
+    }
+    for (String schema : CREATED_SCHEMAS) {
+      dropSchemaQuietly(jdbcUrl, username, password, schema);
+    }
+  }
+
+  static void cleanupSchemasNow() {
+    cleanupSchemas();
+    CREATED_SCHEMAS.clear();
   }
 
   static String localJdbcUrl() {
@@ -131,6 +173,28 @@ final class PostgresTestSupport {
     try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password);
          Statement statement = connection.createStatement()) {
       statement.execute("ALTER TABLE check_runs DROP COLUMN warnings");
+    }
+  }
+
+  static void dropSchema(String adminJdbcUrl, String username, String password, String schema) throws Exception {
+    if (schema == null || schema.isBlank()) {
+      return;
+    }
+    try (Connection connection = DriverManager.getConnection(adminJdbcUrl, username, password);
+         Statement statement = connection.createStatement()) {
+      statement.execute("DROP SCHEMA IF EXISTS " + sanitizeIdentifier(schema) + " CASCADE");
+    }
+  }
+
+  static void dropSchemaQuietly(String adminJdbcUrl, String username, String password, String schema) {
+    if (!canConnect(adminJdbcUrl, username, password)) {
+      return;
+    }
+    try {
+      dropSchema(adminJdbcUrl, username, password, schema);
+    } catch (Exception ex) {
+      System.err.println(
+          "Warning: failed to drop test schema '" + schema + "': " + ex.getMessage());
     }
   }
 

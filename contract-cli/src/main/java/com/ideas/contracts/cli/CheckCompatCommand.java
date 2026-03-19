@@ -5,7 +5,12 @@ import com.ideas.contracts.core.CompatibilityMode;
 import com.ideas.contracts.core.CompatibilityResult;
 import com.ideas.contracts.core.ContractEngine;
 import com.ideas.contracts.core.DefaultContractEngine;
+import com.ideas.contracts.core.PolicyPack;
+import com.ideas.contracts.core.PolicyPackConfig;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.List;
 import java.util.concurrent.Callable;
 import picocli.CommandLine;
 
@@ -72,7 +77,8 @@ public class CheckCompatCommand implements Callable<Integer> {
     ContractEngine engine = new DefaultContractEngine();
     CompatibilityResult result;
     try {
-      result = engine.checkCompatibility(baseSchema, candidateSchema, mode);
+      PolicyPack policyPack = resolvePolicyPack();
+      result = engine.checkCompatibility(baseSchema, candidateSchema, mode, policyPack);
     } catch (IllegalStateException ex) {
       System.err.println("Schema compatibility check failed: " + ex.getMessage());
       return 2;
@@ -98,6 +104,65 @@ public class CheckCompatCommand implements Callable<Integer> {
     return result.status() == CheckStatus.PASS ? 0 : 1;
   }
 
+  private PolicyPack resolvePolicyPack() {
+    Path contractDir = resolveContractDir();
+    Path configPath = resolvePolicyPackConfigPath(contractDir);
+    PolicyPackConfig config = PolicyPackConfig.load(configPath);
+    String packName = readPolicyPackName(contractDir);
+    return config.resolve(packName);
+  }
+
+  private Path resolveContractDir() {
+    Path baseDir = baseSchema == null ? null : baseSchema.toAbsolutePath().getParent();
+    Path candidateDir = candidateSchema == null ? null : candidateSchema.toAbsolutePath().getParent();
+    if (baseDir != null && candidateDir != null && baseDir.equals(candidateDir)) {
+      return baseDir;
+    }
+    return baseDir != null ? baseDir : candidateDir;
+  }
+
+  private Path resolvePolicyPackConfigPath(Path contractDir) {
+    if (contractDir == null) {
+      return null;
+    }
+    Path root = contractDir.getParent();
+    if (root == null) {
+      return null;
+    }
+    return root.resolve("policy-packs.json");
+  }
+
+  private String readPolicyPackName(Path contractDir) {
+    if (contractDir == null) {
+      return null;
+    }
+    Path metadataPath = contractDir.resolve("metadata.yaml");
+    if (!Files.exists(metadataPath)) {
+      return null;
+    }
+    try {
+      List<String> lines = Files.readAllLines(metadataPath, StandardCharsets.UTF_8);
+      for (String rawLine : lines) {
+        String line = rawLine.trim();
+        if (line.isBlank() || line.startsWith("#")) {
+          continue;
+        }
+        int separator = line.indexOf(':');
+        if (separator <= 0) {
+          continue;
+        }
+        String key = line.substring(0, separator).trim();
+        String value = line.substring(separator + 1).trim();
+        if ("policyPack".equals(key) && !value.isBlank()) {
+          return value;
+        }
+      }
+      return null;
+    } catch (Exception ex) {
+      throw new IllegalStateException("Unable to read metadata.yaml for policy pack.", ex);
+    }
+  }
+
   private boolean persistIfRequested(CompatibilityResult result) {
     boolean persistToSqlite = recordDbPath != null;
     boolean persistToJdbc = recordJdbcUrl != null && !recordJdbcUrl.isBlank();
@@ -116,7 +181,7 @@ public class CheckCompatCommand implements Callable<Integer> {
     CheckRunRecorder recorder = createRecorder();
 
     if (persistToSqlite) {
-      recorder.record(recordDbPath, contractId, baseVersion, candidateVersion, result, commitSha);
+      recorder.record(recordDbPath, contractId, baseVersion, candidateVersion, result, commitSha, mode);
       return true;
     }
 
@@ -132,7 +197,8 @@ public class CheckCompatCommand implements Callable<Integer> {
         baseVersion,
         candidateVersion,
         result,
-        commitSha);
+        commitSha,
+        mode);
     return true;
   }
 

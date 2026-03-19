@@ -9,8 +9,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,6 +24,7 @@ import org.springframework.test.web.servlet.MvcResult;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(PostgresSchemaCleanupExtension.class)
 class CheckControllerPostgresSchemaMismatchIntegrationTest {
   private static final String BASE_JDBC_URL = PostgresTestSupport.localJdbcUrl();
   private static final String USERNAME = PostgresTestSupport.localUsername();
@@ -35,6 +38,14 @@ class CheckControllerPostgresSchemaMismatchIntegrationTest {
   private MockMvc mockMvc;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
+
+  @AfterAll
+  /**
+   * This Method is annotated with @AfterAll to ensure that the cleanup runs after all tests in this class have completed, regardless of their individual outcomes. This guarantees that the test schema is dropped and resources are cleaned up even if some tests fail, preventing leftover schemas from affecting subsequent test runs or consuming unnecessary resources.
+   */
+  void cleanupSchema() {
+    PostgresTestSupport.dropSchemaQuietly(BASE_JDBC_URL, USERNAME, PASSWORD, SCHEMA);
+  }
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {

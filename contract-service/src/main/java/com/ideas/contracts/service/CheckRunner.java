@@ -3,6 +3,8 @@ package com.ideas.contracts.service;
 import com.ideas.contracts.core.CompatibilityMode;
 import com.ideas.contracts.core.CompatibilityResult;
 import com.ideas.contracts.core.ContractEngine;
+import com.ideas.contracts.core.PolicyPack;
+import com.ideas.contracts.service.model.ContractDetailResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,6 +27,8 @@ public class CheckRunner {
 
   private final CheckRunStore checkRunStore;
   private final ContractEngine contractEngine;
+  private final ContractCatalogService contractCatalogService;
+  private final PolicyPackRegistry policyPackRegistry;
   private final Path contractsRoot;
   private final int maxPerPoll;
   private final int maxRetries;
@@ -33,11 +37,15 @@ public class CheckRunner {
   public CheckRunner(
       CheckRunStore checkRunStore,
       ContractEngine contractEngine,
+      ContractCatalogService contractCatalogService,
+      PolicyPackRegistry policyPackRegistry,
       @Value("${contracts.root:contracts}") String contractsRoot,
       @Value("${checks.runner.max-per-poll:3}") int maxPerPoll,
       @Value("${checks.runner.max-retries:2}") int maxRetries) {
     this.checkRunStore = checkRunStore;
     this.contractEngine = contractEngine;
+    this.contractCatalogService = contractCatalogService;
+    this.policyPackRegistry = policyPackRegistry;
     this.contractsRoot = Paths.get(contractsRoot);
     this.maxPerPoll = Math.max(1, maxPerPoll);
     this.maxRetries = Math.max(0, maxRetries);
@@ -60,9 +68,12 @@ public class CheckRunner {
     checkRunStore.appendLog(run.runId(), "INFO", "Check run claimed for execution.");
     try {
       CompatibilityMode mode = resolveMode(run.mode());
+      ContractDetailResponse contract = contractCatalogService.getContract(run.contractId())
+          .orElseThrow(() -> new IllegalStateException("Contract not found: " + run.contractId()));
+      PolicyPack policyPack = policyPackRegistry.resolve(contract.policyPack());
       Path baseSchema = resolveSchemaPath(run.contractId(), run.baseVersion());
       Path candidateSchema = resolveSchemaPath(run.contractId(), run.candidateVersion());
-      CompatibilityResult result = contractEngine.checkCompatibility(baseSchema, candidateSchema, mode);
+      CompatibilityResult result = contractEngine.checkCompatibility(baseSchema, candidateSchema, mode, policyPack);
 
       boolean updated = checkRunStore.completeRun(
           run.runId(),

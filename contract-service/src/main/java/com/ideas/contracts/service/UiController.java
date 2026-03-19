@@ -134,16 +134,18 @@ public class UiController {
     ContractDetailResponse detail = contractCatalogService.getContract(contractId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found: " + contractId));
 
+    CheckRunCreateRequest payload;
     try {
-      CheckRunCreateResponse response = checkRunStore.createQueuedRun(new CheckRunCreateRequest(
+      payload = new CheckRunCreateRequest(
           contractId,
           baseVersion,
           candidateVersion,
           detail.compatibilityMode(),
           commitSha,
-          "ui"));
-      return "redirect:/ui/checks/" + response.runId();
+          "ui");
     } catch (IllegalArgumentException ex) {
+      checkRunStore.recordAuditLog(
+          AuditLogSupport.checkRunCreateFailure(request, null, ex));
       return renderContractDetail(
           detail,
           requestId,
@@ -152,7 +154,16 @@ public class UiController {
           baseVersion,
           candidateVersion,
           commitSha);
+    }
+
+    try {
+      CheckRunCreateResponse response = checkRunStore.createQueuedRun(payload);
+      checkRunStore.recordAuditLog(
+          AuditLogSupport.checkRunCreateSuccess(request, payload, response));
+      return "redirect:/ui/checks/" + response.runId();
     } catch (CheckRunStoreException ex) {
+      checkRunStore.recordAuditLog(
+          AuditLogSupport.checkRunCreateFailure(request, payload, ex));
       return renderContractDetail(
           detail,
           requestId,

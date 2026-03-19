@@ -44,6 +44,7 @@ public class ContractController {
                   "ownerTeam": "platform",
                   "domain": "commerce",
                   "compatibilityMode": "BACKWARD",
+                  "policyPack": "baseline",
                   "latestVersion": "v2",
                   "status": "ACTIVE"
                 }
@@ -68,6 +69,7 @@ public class ContractController {
                     "ownerTeam": "platform",
                     "domain": "commerce",
                     "compatibilityMode": "BACKWARD",
+                    "policyPack": "baseline",
                     "versions": ["v1", "v2"],
                     "status": "ACTIVE"
                   }

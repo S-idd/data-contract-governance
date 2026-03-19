@@ -113,6 +113,7 @@ class ContractServiceApiIntegrationTest {
     assertTrue(body.isArray());
     assertEquals(1, body.size());
     assertEquals("orders.created", body.get(0).get("contractId").asText());
+    assertEquals("baseline", body.get(0).get("policyPack").asText());
     assertEquals("v2", body.get(0).get("latestVersion").asText());
   }
 

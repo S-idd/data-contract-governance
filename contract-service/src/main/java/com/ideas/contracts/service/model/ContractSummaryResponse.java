@@ -5,6 +5,7 @@ public record ContractSummaryResponse(
     String ownerTeam,
     String domain,
     String compatibilityMode,
+    String policyPack,
     String latestVersion,
     String status
 ) {}

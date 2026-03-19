@@ -13,6 +13,7 @@ public class CheckStoreProperties {
   private String password = "";
   private String usernameEnv = "";
   private String passwordEnv = "";
+  private String expectedSchema = "";
   private boolean failFastStartup;
   private boolean enforceSecurePostgres;
   private Duration queryTimeout = Duration.ofSeconds(5);
@@ -65,6 +66,14 @@ public class CheckStoreProperties {
 
   public void setPasswordEnv(String passwordEnv) {
     this.passwordEnv = passwordEnv;
+  }
+
+  public String getExpectedSchema() {
+    return expectedSchema;
+  }
+
+  public void setExpectedSchema(String expectedSchema) {
+    this.expectedSchema = expectedSchema;
   }
 
   public boolean isFailFastStartup() {

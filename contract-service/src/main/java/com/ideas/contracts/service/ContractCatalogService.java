@@ -27,10 +27,14 @@ public class ContractCatalogService {
 
   private final Path contractsRoot;
   private final ObjectMapper objectMapper;
+  private final PolicyPackRegistry policyPackRegistry;
 
-  public ContractCatalogService(@Value("${contracts.root:contracts}") String contractsRoot) {
+  public ContractCatalogService(
+      PolicyPackRegistry policyPackRegistry,
+      @Value("${contracts.root:contracts}") String contractsRoot) {
     this.contractsRoot = Paths.get(contractsRoot);
     this.objectMapper = new ObjectMapper();
+    this.policyPackRegistry = policyPackRegistry;
   }
 
   public List<ContractSummaryResponse> listContracts() {
@@ -91,11 +95,13 @@ public class ContractCatalogService {
     Map<String, String> metadata = readMetadata(contractDir.resolve("metadata.yaml"));
     List<String> versions = versionNames(contractDir);
     String latestVersion = versions.isEmpty() ? null : versions.get(versions.size() - 1);
+    String policyPack = policyPackRegistry.resolveName(metadata.get("policyPack"));
     return new ContractSummaryResponse(
         contractId,
         metadata.getOrDefault("ownerTeam", ""),
         metadata.getOrDefault("domain", ""),
         metadata.getOrDefault("compatibilityMode", ""),
+        policyPack,
         latestVersion,
         "ACTIVE");
   }
@@ -104,11 +110,13 @@ public class ContractCatalogService {
     String contractId = contractDir.getFileName().toString();
     Map<String, String> metadata = readMetadata(contractDir.resolve("metadata.yaml"));
     List<String> versions = versionNames(contractDir);
+    String policyPack = policyPackRegistry.resolveName(metadata.get("policyPack"));
     return new ContractDetailResponse(
         contractId,
         metadata.getOrDefault("ownerTeam", ""),
         metadata.getOrDefault("domain", ""),
         metadata.getOrDefault("compatibilityMode", ""),
+        policyPack,
         versions,
         "ACTIVE");
   }

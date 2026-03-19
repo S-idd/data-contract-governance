@@ -81,7 +81,7 @@ CHECKS_DB_USERNAME="$TEST_POSTGRES_USERNAME" \
 CHECKS_DB_PASSWORD="$TEST_POSTGRES_PASSWORD" \
 APP_UI_ENABLED=true \
 APP_SECURITY_ENABLED=false \
-./mvnw -pl contract-service spring-boot:run
+./mvnw -pl contract-service -am org.springframework.boot:spring-boot-maven-plugin:run
 ```
 
 ## 3) Open The UI
