@@ -6,9 +6,10 @@ This walkthrough is the fastest way to show the value of the project to another 
 
 Show a full local flow in under 5 minutes:
 
+- submit a compatibility check from the UI
+- watch it run asynchronously
+- explain a failing change with actionable guidance
 - contract catalog is browsable in the UI
-- compatibility history is visible without CLI-only digging
-- a failing change is explained with actionable guidance
 
 ## Prerequisites
 
@@ -38,42 +39,40 @@ The script does four things:
 
 Keep that terminal open while demoing. Use `Ctrl+C` in that terminal when you want to stop the service.
 
-## Demo Flow
+## Demo Flow (Submit -> Run -> Explain)
 
-### 1. Dashboard
-
-Open:
-
-- `http://localhost:8080/ui`
-
-What to show:
-
-- contract count
-- recent checks list
-- mixed PASS and FAIL history in one place
-
-What to say:
-
-- "A developer can immediately see whether recent contract changes are safe or risky."
-
-### 2. Contracts Page
+### 1. Submit (Queue a Check Run)
 
 Open:
 
-- `http://localhost:8080/ui/contracts`
 - `http://localhost:8080/ui/contracts/orders.created`
 
+What to do:
+
+- use the "Run Compatibility Check" form
+- Base Version: `v1`
+- Candidate Version: `v2`
+- Commit SHA: `demo-ui` (optional)
+- click "Run Check"
+
+What happens:
+
+- you are redirected to `/ui/checks/<runId>`
+- the status starts as `QUEUED` and auto-updates
+
+### 2. Run (Watch It Execute)
+
 What to show:
 
-- searchable contract inventory
-- versions for `orders.created`
-- recent checks tied to that contract
+- status transitions `QUEUED -> RUNNING -> PASS/FAIL`
+- execution logs appear as the runner works
+- results render as soon as the run completes
 
 What to say:
 
-- "This removes the need to jump between raw files, database rows, and CLI output."
+- "Checks run asynchronously, so the UI stays responsive while the runner works."
 
-### 3. Failing Check Detail
+### 3. Explain (Failing Check Detail)
 
 Open the FAIL run URL printed by the script, or use:
 
@@ -96,7 +95,27 @@ What to say:
 
 - "The app does not just say the check failed. It explains why and gives the next action."
 
-### 4. API Path
+### 4. Optional: Dashboard + Contracts Context
+
+Open:
+
+- `http://localhost:8080/ui`
+- `http://localhost:8080/ui/contracts`
+- `http://localhost:8080/ui/contracts/orders.created`
+
+What to show:
+
+- contract count and recent checks
+- searchable contract inventory
+- versions for `orders.created`
+- recent checks tied to that contract
+
+What to say:
+
+- "A developer can immediately see whether recent contract changes are safe or risky."
+- "This removes the need to jump between raw files, database rows, and CLI output."
+
+### 5. Optional: API Path
 
 Open:
 
@@ -117,8 +136,9 @@ What to say:
 
 By the end of the walkthrough, the audience should understand:
 
-- contracts are discoverable
-- compatibility history is visible
+- checks are submitted and executed asynchronously
+- contracts are discoverable and searchable
+- compatibility history is visible in the UI
 - failing changes are explainable
 - the system works fully local without Docker
 

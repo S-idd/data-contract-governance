@@ -214,6 +214,7 @@ Helpful docs:
 
 - [Local Quickstart](quickstart-local.md)
 - [Demo Walkthrough](docs/demo-walkthrough.md)
+- [CLI Walkthrough](docs/cli-walkthrough.md)
 - [Week 7 Exit Checklist](docs/week7-exit-checklist.md)
 - [Week 8 Stabilization Checklist](docs/week8-stabilization-checklist.md)
 

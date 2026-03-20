@@ -24,34 +24,34 @@ This checklist is the Week 8 execution plan for Apr 27-May 1.
 
 ## Monday (Apr 27)
 
-- [ ] Freeze new feature intake
-- [ ] Re-run full test suites (SQLite + Postgres paths)
-- [ ] Open bug list with severity tags (P0/P1/P2)
+- [x] Freeze new feature intake
+- [x] Re-run full test suites (SQLite + Postgres paths)
+- [x] Open bug list with severity tags (P0/P1/P2)
 
 ## Tuesday (Apr 28)
 
-- [ ] Fix all P0 issues
-- [ ] Re-test fixed paths
-- [ ] Verify API error contract stability (`400`, `404`, `503`)
+- [x] Fix all P0 issues
+- [x] Re-test fixed paths
+- [x] Verify API error contract stability (`400`, `404`, `503`)
 
 ## Wednesday (Apr 29)
 
-- [ ] Fix all P1 issues
-- [ ] Run UI smoke pass (`/ui`, `/ui/contracts`, `/ui/checks/<runId>`)
-- [ ] Validate security-enabled smoke (`APP_SECURITY_ENABLED=true`)
+- [x] Fix all P1 issues
+- [x] Run UI smoke pass (`/ui`, `/ui/contracts`, `/ui/checks/<runId>`)
+- [x] Validate security-enabled smoke (`APP_SECURITY_ENABLED=true`)
 
 ## Thursday (Apr 30)
 
-- [ ] Docs hardening pass (`README.md`, `quickstart-local.md`, `docs/demo-walkthrough.md`)
-- [ ] Validate setup from clean terminal in <= 15 minutes
-- [ ] Capture final release demo evidence (commands + screenshots)
+- [x] Docs hardening pass (`README.md`, `quickstart-local.md`, `docs/demo-walkthrough.md`)
+- [x] Validate setup from clean terminal in <= 15 minutes
+- [x] Capture final release demo evidence (commands + screenshots)
 
 ## Friday (May 1)
 
-- [ ] Final regression run
-- [ ] Confirm no P0/P1 open
-- [ ] Publish release notes draft
-- [ ] Mark v1 candidate ready
+- [x] Final regression run
+- [x] Confirm no P0/P1 open
+- [x] Publish release notes draft
+- [x] Mark v1 candidate ready
 
 ## Mandatory Verification Commands
 

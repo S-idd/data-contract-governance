@@ -9,16 +9,21 @@ cd "$ROOT_DIR"
 : "${APP_SECURITY_USERNAME:=admin}"
 : "${APP_SECURITY_PASSWORD:=change-me}"
 
-: "${TEST_POSTGRES_USERNAME:=siddarthkanamadi}"
-: "${TEST_POSTGRES_PASSWORD:=root}"
+: "${TEST_POSTGRES_USERNAME:=}"
+: "${TEST_POSTGRES_PASSWORD:=}"
 : "${PGHOST:=localhost}"
 : "${PGPORT:=5432}"
 : "${PGDATABASE:=contracts}"
 : "${PGSCHEMA:=dcg_dev}"
-: "${PGUSER:=$TEST_POSTGRES_USERNAME}"
-: "${PGPASSWORD:=$TEST_POSTGRES_PASSWORD}"
+: "${PGUSER:=${TEST_POSTGRES_USERNAME}}"
+: "${PGPASSWORD:=${TEST_POSTGRES_PASSWORD}}"
 
-payload='{"contractId":"orders.created","baseVersion":"v1","candidateVersion":"v2","mode":"BACKWARD","commitSha":"week6-audit","triggeredBy":"verify"}'
+if [[ -z "$PGUSER" || -z "$PGPASSWORD" ]]; then
+  echo "Set PGUSER/PGPASSWORD or TEST_POSTGRES_USERNAME/TEST_POSTGRES_PASSWORD before running this script." >&2
+  exit 1
+fi
+
+payload='{"contractId":"orders.created","baseVersion":"v1","candidateVersion":"v2","mode":"BACKWARD","commitSha":"week7-audit","triggeredBy":"verify"}'
 
 echo "Posting check run to ${SERVICE_BASE_URL}/checks"
 auth_args=()
@@ -41,6 +46,11 @@ echo "Response (${http_code}): ${body}"
 if [[ "$http_code" != "202" && "$http_code" != "200" ]]; then
   echo "ERROR: Expected HTTP 202 from /checks."
   exit 1
+fi
+
+run_id="$(echo "$body" | sed -n 's/.*"runId"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p')"
+if [[ -n "$run_id" ]]; then
+  echo "Run ID: ${run_id}"
 fi
 
 echo "Checking audit logs in ${PGSCHEMA}.audit_logs"

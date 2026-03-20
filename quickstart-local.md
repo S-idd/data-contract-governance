@@ -11,30 +11,30 @@ cd /path/to/data-contract-governance
 bash scripts/demo/run-local-demo.sh
 ```
 
+Once it starts, follow the submit -> run -> explain flow:
+
+- open `http://localhost:8080/ui/contracts/orders.created`
+- use "Run Check" to queue a run (`v1` -> `v2`)
+- you will land on `/ui/checks/<runId>` and watch `QUEUED -> RUNNING -> PASS/FAIL`
+- open the FAIL run URL printed by the script to show the explanation
+
 For the full manual setup, continue below.
 
 ## Manual Runbook (Copy-Paste)
 
 Use this when you want the exact command sequence end to end. Replace placeholders with your local credentials.
 
+### Terminal 1: Start the service
+
 ```bash
 cd /path/to/data-contract-governance
+
+# Optional: build the CLI jar for the rerun snippet in the UI
 mvn -pl contract-cli -am package -DskipTests
 
 export TEST_POSTGRES_JDBC_URL="jdbc:postgresql://localhost:5432/contracts?currentSchema=dcg_dev"
 export TEST_POSTGRES_USERNAME="<your_pg_user>"
 export TEST_POSTGRES_PASSWORD="<your_pg_password>"
-
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar \
-  check-compat \
-  --base contracts/orders.created/v1.json \
-  --candidate contracts/orders.created/v2.json \
-  --mode BACKWARD \
-  --record-jdbc-url "$TEST_POSTGRES_JDBC_URL" \
-  --record-db-user "$TEST_POSTGRES_USERNAME" \
-  --record-db-password "$TEST_POSTGRES_PASSWORD" \
-  --contract-id orders.created \
-  --commit-sha demo-local
 
 cd contract-service
 SPRING_PROFILES_ACTIVE=local \
@@ -46,19 +46,22 @@ APP_SECURITY_ENABLED=false \
 mvn spring-boot:run
 ```
 
-Open the UI:
-
-- `http://localhost:8080/ui`
-- `http://localhost:8080/ui/contracts`
-- `http://localhost:8080/ui/contracts/orders.created`
-
-Get run IDs:
+### Terminal 2: Submit a check run
 
 ```bash
-curl "http://localhost:8080/checks?contractId=orders.created"
+curl -X POST "http://localhost:8080/checks" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contractId": "orders.created",
+    "baseVersion": "v1",
+    "candidateVersion": "v2",
+    "mode": "BACKWARD",
+    "commitSha": "demo-local",
+    "triggeredBy": "quickstart"
+  }'
 ```
 
-Open check detail:
+Copy the `runId` from the response, then open:
 
 - `http://localhost:8080/ui/checks/<runId>`
 
@@ -76,7 +79,9 @@ createdb -h localhost -p 5432 -U <your_pg_user> contracts
 psql -h localhost -p 5432 -U <your_pg_user> -d contracts -c "create schema if not exists dcg_dev;"
 ```
 
-## 2. Build CLI
+## 2. (Optional) Build CLI
+
+Only needed if you want the CLI rerun command shown in the UI.
 
 ```bash
 cd /path/to/data-contract-governance
@@ -99,24 +104,7 @@ Optional connectivity check:
 psql -h localhost -p 5432 -U "$TEST_POSTGRES_USERNAME" -d contracts -c "select current_user, current_database();"
 ```
 
-## 4. Record a Check Run
-
-```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar \
-  check-compat \
-  --base contracts/orders.created/v1.json \
-  --candidate contracts/orders.created/v2.json \
-  --mode BACKWARD \
-  --record-jdbc-url "$TEST_POSTGRES_JDBC_URL" \
-  --record-db-user "$TEST_POSTGRES_USERNAME" \
-  --record-db-password "$TEST_POSTGRES_PASSWORD" \
-  --contract-id orders.created \
-  --commit-sha demo-local
-```
-
-Expected in output: `Persistence: RECORDED`
-
-## 5. Start Service + Embedded UI
+## 4. Start Service + Embedded UI
 
 ```bash
 cd contract-service
@@ -129,24 +117,41 @@ APP_SECURITY_ENABLED=false \
 mvn spring-boot:run
 ```
 
+## 5. Submit a Check Run
+
+Use the UI:
+
+- open `http://localhost:8080/ui/contracts/orders.created`
+- pick `v1` as base and `v2` as candidate
+- click "Run Check"
+
+Or submit via API:
+
+```bash
+curl -X POST "http://localhost:8080/checks" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contractId": "orders.created",
+    "baseVersion": "v1",
+    "candidateVersion": "v2",
+    "mode": "BACKWARD",
+    "commitSha": "demo-local",
+    "triggeredBy": "quickstart"
+  }'
+```
+
+Copy the `runId` from the response.
+
 ## 6. Open UI in Browser
 
 - `http://localhost:8080/ui`
 - `http://localhost:8080/ui/contracts`
 - `http://localhost:8080/ui/contracts/orders.created`
-
-Get run IDs:
-
-```bash
-curl "http://localhost:8080/checks?contractId=orders.created"
-```
-
-Open check detail:
-
 - `http://localhost:8080/ui/checks/<runId>`
 
 Notes:
 
+- The check detail page will move from `QUEUED` to `RUNNING` to `PASS/FAIL` and auto-refresh.
 - The dashboard and contract detail pages default to the latest 20 runs.
 - If the UI looks "short", clear filters (Status should be `Any`) or use the API example below.
 
