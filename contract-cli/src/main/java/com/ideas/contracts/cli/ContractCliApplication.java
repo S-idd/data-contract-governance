@@ -9,7 +9,10 @@ import picocli.CommandLine;
     subcommands = {
         LintCommand.class,
         DiffCommand.class,
-        CheckCompatCommand.class
+        CheckCompatCommand.class,
+        ExplainCommand.class,
+        ImpactAnalysisCommand.class,
+        InitCiCommand.class
     }
 )
 public class ContractCliApplication implements Runnable {

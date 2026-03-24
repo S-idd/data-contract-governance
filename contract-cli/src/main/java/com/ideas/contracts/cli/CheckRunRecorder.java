@@ -219,6 +219,8 @@ public class CheckRunRecorder {
     payload.put("event", "db_operation_failed");
     payload.put("component", "check_run_recorder");
     payload.put("operation", operation);
+    payload.put("messageKey", "error.check_run_recorder.db_operation_failed");
+    payload.put("locale", "en-US");
     payload.put("dbTarget", dbTarget);
     payload.put("dbPath", dbTarget);
     payload.put("contractId", safeValue(contractId));
@@ -235,6 +237,9 @@ public class CheckRunRecorder {
       payload.put("sqlVendorCode", "-");
     }
     payload.put("timestamp", Instant.now().toString());
+    payload.put(
+        "message",
+        "Database operation failed while recording check run. Refer to operation and SQL fields for diagnostics.");
 
     try {
       System.err.println(OBJECT_MAPPER.writeValueAsString(payload));

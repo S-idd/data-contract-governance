@@ -1,3 +1,16 @@
+com/ideas/contracts/service/UiControllerIntegrationTest.class
 com/ideas/contracts/service/ContractServiceApiIntegrationTest.class
+com/ideas/contracts/service/CheckControllerPostgresSuccessIntegrationTest.class
+com/ideas/contracts/service/CheckControllerPostgresNetworkFailureIntegrationTest.class
+com/ideas/contracts/service/CheckRunStorePostgresPathTest.class
+com/ideas/contracts/service/ContractCatalogPolicyPackTest.class
 com/ideas/contracts/service/CheckRunStoreTest.class
+com/ideas/contracts/service/CheckControllerPostgresSchemaMismatchIntegrationTest.class
+com/ideas/contracts/service/PostgresSchemaCleanupExtension.class
+com/ideas/contracts/service/PostgresTestSupport.class
+com/ideas/contracts/service/CheckControllerWriteAuthorizationIntegrationTest.class
+com/ideas/contracts/service/CheckControllerPostgresAuthFailureIntegrationTest.class
 com/ideas/contracts/service/CheckControllerDbFailureIntegrationTest.class
+com/ideas/contracts/service/CheckControllerSecurityIntegrationTest.class
+com/ideas/contracts/service/CheckRunQueryTest.class
+com/ideas/contracts/service/CheckRunnerIntegrationTest.class

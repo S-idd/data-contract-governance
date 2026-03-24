@@ -15,6 +15,8 @@
     <module>contract-core</module>
     <module>contract-cli</module>
     <module>contract-service</module>
+    <module>contract-validation-spring-boot-starter</module>
+    <module>contract-sdk</module>
   </modules>
 
   <properties>

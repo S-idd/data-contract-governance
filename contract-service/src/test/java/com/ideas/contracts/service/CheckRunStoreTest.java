@@ -188,7 +188,7 @@ class CheckRunStoreTest {
         "queue-test",
         "unit-test"));
 
-    CheckRunStore.QueuedCheckRun claimed = store.claimNextQueuedRun().orElseThrow();
+    CheckRunRepository.QueuedCheckRun claimed = store.claimNextQueuedRun().orElseThrow();
     assertEquals(created.runId(), claimed.runId());
 
     CheckRunResponse running = store.findByRunId(created.runId()).orElseThrow();

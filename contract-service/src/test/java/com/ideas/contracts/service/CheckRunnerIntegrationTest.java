@@ -49,6 +49,9 @@ class CheckRunnerIntegrationTest {
     Path contractDir = contractsRoot.resolve("orders.created");
     Files.createDirectories(contractDir);
     Files.writeString(
+        contractDir.resolve("metadata.yaml"),
+        "ownerTeam: platform\ndomain: commerce\ncompatibilityMode: BACKWARD\n");
+    Files.writeString(
         contractDir.resolve("v1.json"),
         "{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"string\"}}}");
     Files.writeString(

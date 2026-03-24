@@ -33,7 +33,7 @@ class DefaultContractEngineLintTest {
     Files.createDirectories(contractDir);
     Files.writeString(contractDir.resolve("v1.json"), "{\"type\":\"object\"}");
 
-    assertThrows(IllegalStateException.class, () -> engine.lint(contractDir));
+    assertThrows(SchemaValidationException.class, () -> engine.lint(contractDir));
   }
 
   @Test
@@ -45,7 +45,7 @@ class DefaultContractEngineLintTest {
         "ownerTeam: platform\ndomain: commerce\ncompatibilityMode: BACKWARD\n");
     Files.writeString(contractDir.resolve("schema.json"), "{\"type\":\"object\"}");
 
-    assertThrows(IllegalStateException.class, () -> engine.lint(contractDir));
+    assertThrows(SchemaValidationException.class, () -> engine.lint(contractDir));
   }
 
   @Test
@@ -57,7 +57,7 @@ class DefaultContractEngineLintTest {
         "ownerTeam: platform\ndomain: commerce\ncompatibilityMode: BACKWARD\n");
     Files.writeString(contractDir.resolve("v1.json"), "{invalid-json}");
 
-    assertThrows(IllegalStateException.class, () -> engine.lint(contractDir));
+    assertThrows(SchemaValidationException.class, () -> engine.lint(contractDir));
   }
 
   @Test
@@ -69,7 +69,7 @@ class DefaultContractEngineLintTest {
         "ownerTeam: platform\ndomain: commerce\ncompatibilityMode: BACKWARD\n");
     Files.writeString(contractDir.resolve("v1.json"), "{\"type\":\"object\"}");
 
-    assertThrows(IllegalStateException.class, () -> engine.lint(contractDir));
+    assertThrows(SchemaValidationException.class, () -> engine.lint(contractDir));
   }
 
   @Test
@@ -79,7 +79,7 @@ class DefaultContractEngineLintTest {
     Files.writeString(contractDir.resolve("metadata.yaml"), "ownerTeam: platform\ncompatibilityMode: BACKWARD\n");
     Files.writeString(contractDir.resolve("v1.json"), "{\"type\":\"object\",\"properties\":{}}");
 
-    assertThrows(IllegalStateException.class, () -> engine.lint(contractDir));
+    assertThrows(SchemaValidationException.class, () -> engine.lint(contractDir));
   }
 
   @Test
@@ -91,6 +91,6 @@ class DefaultContractEngineLintTest {
         "ownerTeam: platform\ndomain: commerce\ncompatibilityMode: SIDEWAYS\n");
     Files.writeString(contractDir.resolve("v1.json"), "{\"type\":\"object\",\"properties\":{}}");
 
-    assertThrows(IllegalStateException.class, () -> engine.lint(contractDir));
+    assertThrows(SchemaValidationException.class, () -> engine.lint(contractDir));
   }
 }

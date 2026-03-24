@@ -7,10 +7,10 @@ import com.ideas.contracts.core.ContractEngine;
 import com.ideas.contracts.core.DefaultContractEngine;
 import com.ideas.contracts.core.PolicyPack;
 import com.ideas.contracts.core.PolicyPackConfig;
-import java.nio.charset.StandardCharsets;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import java.nio.file.Path;
 import java.nio.file.Files;
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import picocli.CommandLine;
 
@@ -19,6 +19,8 @@ import picocli.CommandLine;
     description = "Check schema compatibility",
     mixinStandardHelpOptions = true)
 public class CheckCompatCommand implements Callable<Integer> {
+  private static final YAMLMapper YAML_MAPPER = new YAMLMapper();
+
   @CommandLine.Option(names = "--base", required = true, description = "Base schema file path")
   private Path baseSchema;
 
@@ -79,7 +81,7 @@ public class CheckCompatCommand implements Callable<Integer> {
     try {
       PolicyPack policyPack = resolvePolicyPack();
       result = engine.checkCompatibility(baseSchema, candidateSchema, mode, policyPack);
-    } catch (IllegalStateException ex) {
+    } catch (RuntimeException ex) {
       System.err.println("Schema compatibility check failed: " + ex.getMessage());
       return 2;
     }
@@ -96,7 +98,7 @@ public class CheckCompatCommand implements Callable<Integer> {
       if (persistIfRequested(result)) {
         System.out.println("Persistence: RECORDED");
       }
-    } catch (IllegalStateException ex) {
+    } catch (RuntimeException ex) {
       System.err.println("Persistence failed: " + ex.getMessage());
       return 2;
     }
@@ -141,23 +143,9 @@ public class CheckCompatCommand implements Callable<Integer> {
       return null;
     }
     try {
-      List<String> lines = Files.readAllLines(metadataPath, StandardCharsets.UTF_8);
-      for (String rawLine : lines) {
-        String line = rawLine.trim();
-        if (line.isBlank() || line.startsWith("#")) {
-          continue;
-        }
-        int separator = line.indexOf(':');
-        if (separator <= 0) {
-          continue;
-        }
-        String key = line.substring(0, separator).trim();
-        String value = line.substring(separator + 1).trim();
-        if ("policyPack".equals(key) && !value.isBlank()) {
-          return value;
-        }
-      }
-      return null;
+      Map<?, ?> yaml = YAML_MAPPER.readValue(metadataPath.toFile(), Map.class);
+      Object policyPack = yaml.get("policyPack");
+      return policyPack == null ? null : policyPack.toString().trim();
     } catch (Exception ex) {
       throw new IllegalStateException("Unable to read metadata.yaml for policy pack.", ex);
     }

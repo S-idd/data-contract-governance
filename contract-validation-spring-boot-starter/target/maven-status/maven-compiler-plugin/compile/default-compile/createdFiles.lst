@@ -1,0 +1,7 @@
+com/ideas/contracts/starter/ContractValidationAutoConfiguration.class
+com/ideas/contracts/starter/ContractPayloadValidationException.class
+com/ideas/contracts/starter/ValidateContract.class
+com/ideas/contracts/starter/ContractValidationProperties.class
+com/ideas/contracts/starter/ContractValidationExceptionHandler.class
+com/ideas/contracts/starter/ContractPayloadValidator.class
+com/ideas/contracts/starter/ContractValidationRequestBodyAdvice.class

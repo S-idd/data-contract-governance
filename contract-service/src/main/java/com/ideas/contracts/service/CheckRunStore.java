@@ -3,6 +3,9 @@ package com.ideas.contracts.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ideas.contracts.service.CheckRunRepository.HealthSnapshot;
+import com.ideas.contracts.service.CheckRunRepository.PoolSnapshot;
+import com.ideas.contracts.service.CheckRunRepository.QueuedCheckRun;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariConfigMXBean;
 import com.zaxxer.hikari.HikariDataSource;
@@ -47,7 +50,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-public class CheckRunStore {
+public class CheckRunStore implements CheckRunRepository {
   private static final String SQLITE_JDBC_PREFIX = "jdbc:sqlite:";
   private static final Set<String> ALLOWED_STRICT_SSL_MODES = Set.of("verify-ca", "verify-full");
   private static final Set<String> ALLOWED_COMPATIBILITY_MODES =
@@ -57,24 +60,6 @@ public class CheckRunStore {
   private static final String LATEST_MIGRATION_RESOURCE = "db/migration/V5__create_audit_logs.sql";
   private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunStore.class);
-
-  public record HealthSnapshot(boolean available, String reason) {}
-  public record PoolSnapshot(
-      int totalConnections,
-      int activeConnections,
-      int idleConnections,
-      int threadsAwaitingConnection,
-      int maximumPoolSize,
-      int minimumIdle,
-      long connectionTimeoutMs) {}
-  public record QueuedCheckRun(
-      String runId,
-      String contractId,
-      String baseVersion,
-      String candidateVersion,
-      String mode,
-      String commitSha,
-      String triggeredBy) {}
 
   private final String jdbcUrl;
   private final Path sqlitePath;
@@ -133,13 +118,7 @@ public class CheckRunStore {
   public List<CheckRunResponse> list(String contractId, String commitSha) {
     ensureInitialized();
 
-    StringBuilder sql = new StringBuilder("""
-        SELECT run_id, contract_id, base_version, candidate_version, status,
-               breaking_changes, warnings, commit_sha, created_at,
-               triggered_by, started_at, finished_at
-        FROM check_runs
-        WHERE 1=1
-        """);
+    StringBuilder sql = new StringBuilder(CheckRunSqlQueries.LIST_CHECK_RUNS_BASE);
 
     List<Object> params = new ArrayList<>();
     if (contractId != null && !contractId.isBlank()) {
@@ -177,13 +156,7 @@ public class CheckRunStore {
       throw new IllegalArgumentException("query must not be null.");
     }
 
-    StringBuilder sql = new StringBuilder("""
-        SELECT run_id, contract_id, base_version, candidate_version, status,
-               breaking_changes, warnings, commit_sha, created_at,
-               triggered_by, started_at, finished_at
-        FROM check_runs
-        WHERE 1=1
-        """);
+    StringBuilder sql = new StringBuilder(CheckRunSqlQueries.LIST_CHECK_RUNS_BASE);
     List<Object> params = new ArrayList<>();
 
     if (query.contractId() != null) {
@@ -232,14 +205,7 @@ public class CheckRunStore {
       throw new IllegalArgumentException("runId must not be blank.");
     }
 
-    String sql = """
-        SELECT run_id, contract_id, base_version, candidate_version, status,
-               breaking_changes, warnings, commit_sha, created_at,
-               triggered_by, started_at, finished_at
-        FROM check_runs
-        WHERE run_id = ?
-        LIMIT 1
-        """;
+    String sql = CheckRunSqlQueries.FIND_CHECK_RUN_BY_ID;
     try (Connection connection = openConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       applyQueryTimeout(statement);
@@ -263,12 +229,7 @@ public class CheckRunStore {
       throw new IllegalArgumentException("runId must not be blank.");
     }
 
-    String sql = """
-        SELECT log_id, run_id, level, message, created_at
-        FROM check_run_logs
-        WHERE run_id = ?
-        ORDER BY created_at ASC
-        """;
+    String sql = CheckRunSqlQueries.LIST_CHECK_RUN_LOGS;
     try (Connection connection = openConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       applyQueryTimeout(statement);
@@ -294,19 +255,8 @@ public class CheckRunStore {
   public Optional<QueuedCheckRun> claimNextQueuedRun() {
     ensureInitialized();
 
-    String selectSql = """
-        SELECT run_id, contract_id, base_version, candidate_version, compatibility_mode,
-               commit_sha, triggered_by
-        FROM check_runs
-        WHERE status = ?
-        ORDER BY created_at ASC
-        LIMIT 1
-        """;
-    String updateSql = """
-        UPDATE check_runs
-        SET status = ?, started_at = ?
-        WHERE run_id = ? AND status = ?
-        """;
+    String selectSql = CheckRunSqlQueries.SELECT_NEXT_QUEUED_RUN;
+    String updateSql = CheckRunSqlQueries.UPDATE_RUN_TO_RUNNING;
 
     for (int attempt = 0; attempt < 3; attempt++) {
       try (Connection connection = openConnection()) {
@@ -367,11 +317,7 @@ public class CheckRunStore {
     if (normalizedRunId.isBlank()) {
       throw new IllegalArgumentException("runId must not be blank.");
     }
-    String sql = """
-        UPDATE check_runs
-        SET status = ?, started_at = NULL, finished_at = NULL
-        WHERE run_id = ? AND status = ?
-        """;
+    String sql = CheckRunSqlQueries.REQUEUE_RUN;
     try (Connection connection = openConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       applyQueryTimeout(statement);
@@ -397,11 +343,7 @@ public class CheckRunStore {
       throw new IllegalArgumentException("log level and message must not be blank.");
     }
 
-    String sql = """
-        INSERT INTO check_run_logs (
-          log_id, run_id, level, message, created_at
-        ) VALUES (?, ?, ?, ?, ?)
-        """;
+    String sql = CheckRunSqlQueries.INSERT_CHECK_RUN_LOG;
     try (Connection connection = openConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       applyQueryTimeout(statement);
@@ -433,11 +375,7 @@ public class CheckRunStore {
       throw new IllegalArgumentException("status must not be blank.");
     }
 
-    String sql = """
-        UPDATE check_runs
-        SET status = ?, breaking_changes = ?, warnings = ?, finished_at = ?
-        WHERE run_id = ? AND status = ?
-        """;
+    String sql = CheckRunSqlQueries.UPDATE_RUN_RESULT;
     try (Connection connection = openConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
       applyQueryTimeout(statement);
@@ -465,13 +403,7 @@ public class CheckRunStore {
     String createdAt = Instant.now().toString();
     String inputHash = computeInputHash(request);
 
-    String sql = """
-        INSERT INTO check_runs (
-          run_id, contract_id, base_version, candidate_version, status,
-          breaking_changes, warnings, commit_sha, created_at,
-          triggered_by, compatibility_mode, input_hash, started_at, finished_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """;
+    String sql = CheckRunSqlQueries.INSERT_CHECK_RUN;
 
     try (Connection connection = openConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -510,12 +442,7 @@ public class CheckRunStore {
       logDbFailure("record_audit_log_init", ex, null, null);
       return;
     }
-    String sql = """
-        INSERT INTO audit_logs (
-          audit_id, action, actor, actor_roles, source, request_id, http_method, path,
-          resource_type, resource_id, status, detail, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """;
+    String sql = CheckRunSqlQueries.INSERT_AUDIT_LOG;
 
     try (Connection connection = openConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -549,32 +476,10 @@ public class CheckRunStore {
     String fallbackTriggeredBy = defaultIfBlank(defaultTriggeredBy, "legacy");
     String fallbackMode = normalizeCompatibilityMode(defaultMode, "BACKWARD");
 
-    String selectSql = """
-        SELECT run_id, contract_id, base_version, candidate_version, commit_sha, created_at, status,
-               triggered_by, compatibility_mode, input_hash, started_at, finished_at
-        FROM check_runs
-        WHERE triggered_by IS NULL
-           OR compatibility_mode IS NULL
-           OR input_hash IS NULL
-           OR started_at IS NULL
-           OR finished_at IS NULL
-        """;
-    String updateSql = """
-        UPDATE check_runs
-        SET triggered_by = ?, compatibility_mode = ?, input_hash = ?, started_at = ?, finished_at = ?
-        WHERE run_id = ?
-        """;
-    String logExistsSql = """
-        SELECT 1
-        FROM check_run_logs
-        WHERE run_id = ?
-        LIMIT 1
-        """;
-    String insertLogSql = """
-        INSERT INTO check_run_logs (
-          log_id, run_id, level, message, created_at
-        ) VALUES (?, ?, ?, ?, ?)
-        """;
+    String selectSql = CheckRunSqlQueries.SELECT_LEGACY_RUNS_FOR_BACKFILL;
+    String updateSql = CheckRunSqlQueries.UPDATE_LEGACY_RUN_BACKFILL;
+    String logExistsSql = CheckRunSqlQueries.CHECK_LOG_EXISTS;
+    String insertLogSql = CheckRunSqlQueries.INSERT_CHECK_RUN_LOG;
 
     int updated = 0;
     try (Connection connection = openConnection();
@@ -704,7 +609,7 @@ public class CheckRunStore {
       return new HealthSnapshot(false, "initialization_failed");
     }
     try (Connection connection = openConnection();
-         PreparedStatement statement = connection.prepareStatement("SELECT 1")) {
+         PreparedStatement statement = connection.prepareStatement(CheckRunSqlQueries.HEALTH_CHECK)) {
       applyQueryTimeout(statement);
       try (ResultSet resultSet = statement.executeQuery()) {
         return resultSet.next()

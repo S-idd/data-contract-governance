@@ -1,5 +1,7 @@
 package com.ideas.contracts.service.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public record CheckRunResponse(
     String runId,
     String contractId,
@@ -13,4 +15,16 @@ public record CheckRunResponse(
     String triggeredBy,
     String startedAt,
     String finishedAt
-) {}
+) {
+  @JsonProperty("executionState")
+  public String executionState() {
+    if (status == null) {
+      return "UNKNOWN";
+    }
+    return switch (status.toUpperCase()) {
+      case "PASS" -> "SUCCESS";
+      case "FAIL" -> "FAILED";
+      default -> status.toUpperCase();
+    };
+  }
+}

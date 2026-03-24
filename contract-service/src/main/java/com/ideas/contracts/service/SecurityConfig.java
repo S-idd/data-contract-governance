@@ -34,11 +34,15 @@ public class SecurityConfig {
     http
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-            .requestMatchers(HttpMethod.POST, "/checks/**", "/ui/**").hasRole(normalizeRole(writeRole, "WRITER"))
-            .requestMatchers(HttpMethod.PUT, "/checks/**", "/ui/**").hasRole(normalizeRole(writeRole, "WRITER"))
-            .requestMatchers(HttpMethod.PATCH, "/checks/**", "/ui/**").hasRole(normalizeRole(writeRole, "WRITER"))
-            .requestMatchers(HttpMethod.DELETE, "/checks/**", "/ui/**").hasRole(normalizeRole(writeRole, "WRITER"))
-            .requestMatchers("/ui/**", "/checks/**").authenticated()
+            .requestMatchers(HttpMethod.POST, "/checks/**", "/ui/**", "/contracts/**")
+            .hasRole(normalizeRole(writeRole, "WRITER"))
+            .requestMatchers(HttpMethod.PUT, "/checks/**", "/ui/**", "/contracts/**")
+            .hasRole(normalizeRole(writeRole, "WRITER"))
+            .requestMatchers(HttpMethod.PATCH, "/checks/**", "/ui/**", "/contracts/**")
+            .hasRole(normalizeRole(writeRole, "WRITER"))
+            .requestMatchers(HttpMethod.DELETE, "/checks/**", "/ui/**", "/contracts/**")
+            .hasRole(normalizeRole(writeRole, "WRITER"))
+            .requestMatchers("/ui/**", "/checks/**", "/runs/**").authenticated()
             .anyRequest().permitAll())
         .httpBasic(Customizer.withDefaults())
         .formLogin(form -> form.disable());

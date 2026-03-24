@@ -30,10 +30,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/checks")
 @Tag(name = "Checks", description = "Query compatibility check history")
 public class CheckController {
-  private final CheckRunStore checkRunStore;
+  private final CheckRunRepository checkRunStore;
+  private final CheckMetrics checkMetrics;
 
-  public CheckController(CheckRunStore checkRunStore) {
+  public CheckController(CheckRunRepository checkRunStore, CheckMetrics checkMetrics) {
     this.checkRunStore = checkRunStore;
+    this.checkMetrics = checkMetrics;
   }
 
   @GetMapping
@@ -129,10 +131,12 @@ public class CheckController {
       HttpServletRequest httpRequest) {
     try {
       CheckRunCreateResponse response = checkRunStore.createQueuedRun(request);
+      checkMetrics.recordQueued(request.contractId());
       checkRunStore.recordAuditLog(
           AuditLogSupport.checkRunCreateSuccess(httpRequest, request, response));
       return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     } catch (RuntimeException ex) {
+      checkMetrics.recordFailed(request == null ? null : request.contractId(), "create_error");
       checkRunStore.recordAuditLog(
           AuditLogSupport.checkRunCreateFailure(httpRequest, request, ex));
       throw ex;

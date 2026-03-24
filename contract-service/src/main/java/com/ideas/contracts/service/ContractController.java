@@ -3,6 +3,8 @@ package com.ideas.contracts.service;
 import com.ideas.contracts.service.model.ContractDetailResponse;
 import com.ideas.contracts.service.model.ContractSummaryResponse;
 import com.ideas.contracts.service.model.ContractVersionResponse;
+import com.ideas.contracts.service.model.CreateContractRequest;
+import com.ideas.contracts.service.model.CreateContractVersionRequest;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -11,8 +13,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,9 +30,16 @@ import org.springframework.web.server.ResponseStatusException;
 @Tag(name = "Contracts", description = "Read contract metadata and schema versions")
 public class ContractController {
   private final ContractCatalogService catalogService;
+  private final ContractWriteService contractWriteService;
+  private final CheckRunRepository checkRunStore;
 
-  public ContractController(ContractCatalogService catalogService) {
+  public ContractController(
+      ContractCatalogService catalogService,
+      ContractWriteService contractWriteService,
+      CheckRunRepository checkRunStore) {
     this.catalogService = catalogService;
+    this.contractWriteService = contractWriteService;
+    this.checkRunStore = checkRunStore;
   }
 
   @GetMapping
@@ -150,5 +163,69 @@ public class ContractController {
     } catch (IllegalStateException ex) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
     }
+  }
+
+  @PostMapping
+  @Operation(summary = "Create contract", description = "Creates a new contract with metadata and initial schema version.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "201", description = "Contract created successfully"),
+      @ApiResponse(responseCode = "400", description = "Invalid request payload"),
+      @ApiResponse(responseCode = "409", description = "Contract already exists")
+  })
+  public ResponseEntity<ContractDetailResponse> createContract(
+      @org.springframework.web.bind.annotation.RequestBody CreateContractRequest request,
+      HttpServletRequest httpRequest) {
+    try {
+      ContractDetailResponse response = contractWriteService.createContract(request);
+      checkRunStore.recordAuditLog(
+          AuditLogSupport.contractCreateSuccess(httpRequest, request, response.contractId()));
+      return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    } catch (RuntimeException ex) {
+      checkRunStore.recordAuditLog(AuditLogSupport.contractCreateFailure(httpRequest, request, ex));
+      throw ex;
+    }
+  }
+
+  @PostMapping("/{contractId}/versions")
+  @Operation(summary = "Create contract version", description = "Adds a new versioned schema to an existing contract.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "201", description = "Contract version created successfully"),
+      @ApiResponse(responseCode = "400", description = "Invalid request payload"),
+      @ApiResponse(responseCode = "404", description = "Contract not found"),
+      @ApiResponse(responseCode = "422", description = "Compatibility check failed in strict mode")
+  })
+  public ResponseEntity<ContractVersionResponse> createContractVersion(
+      @PathVariable("contractId") String contractId,
+      @org.springframework.web.bind.annotation.RequestBody CreateContractVersionRequest request,
+      HttpServletRequest httpRequest) {
+    try {
+      ContractVersionResponse response = contractWriteService.createVersion(contractId, request);
+      checkRunStore.recordAuditLog(
+          AuditLogSupport.contractVersionCreateSuccess(httpRequest, contractId, request, response.version()));
+      return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    } catch (RuntimeException ex) {
+      checkRunStore.recordAuditLog(
+          AuditLogSupport.contractVersionCreateFailure(httpRequest, contractId, request, ex));
+      throw ex;
+    }
+  }
+
+  @GetMapping("/{contractId}/badge")
+  @Operation(summary = "Get contract badge", description = "Returns Shields-compatible badge payload for contract status.")
+  public Map<String, Object> badge(@PathVariable("contractId") String contractId) {
+    catalogService.getContract(contractId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found: " + contractId));
+    List<com.ideas.contracts.service.model.CheckRunResponse> runs = checkRunStore.list(contractId, null);
+    if (runs.isEmpty()) {
+      return Map.of("schemaVersion", 1, "label", contractId, "message", "unknown", "color", "lightgrey");
+    }
+    String latest = runs.get(0).status();
+    if ("FAIL".equalsIgnoreCase(latest) || "FAILED".equalsIgnoreCase(latest)) {
+      return Map.of("schemaVersion", 1, "label", contractId, "message", "failing", "color", "red");
+    }
+    if ("QUEUED".equalsIgnoreCase(latest) || "RUNNING".equalsIgnoreCase(latest)) {
+      return Map.of("schemaVersion", 1, "label", contractId, "message", "running", "color", "yellow");
+    }
+    return Map.of("schemaVersion", 1, "label", contractId, "message", "passing", "color", "brightgreen");
   }
 }

@@ -2,6 +2,8 @@ package com.ideas.contracts.service;
 
 import com.ideas.contracts.service.model.CheckRunCreateRequest;
 import com.ideas.contracts.service.model.CheckRunCreateResponse;
+import com.ideas.contracts.service.model.CreateContractRequest;
+import com.ideas.contracts.service.model.CreateContractVersionRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -60,6 +62,102 @@ final class AuditLogSupport {
         "check_run",
         runId,
         detail.isEmpty() ? null : detail);
+  }
+
+  static AuditLogEntry contractCreateSuccess(
+      HttpServletRequest request,
+      CreateContractRequest payload,
+      String contractId) {
+    return buildContractCreateEntry(request, payload, contractId, "SUCCESS", null);
+  }
+
+  static AuditLogEntry contractCreateFailure(
+      HttpServletRequest request,
+      CreateContractRequest payload,
+      Exception error) {
+    String message = error == null ? null : error.getMessage();
+    return buildContractCreateEntry(request, payload, null, "FAILURE", message);
+  }
+
+  private static AuditLogEntry buildContractCreateEntry(
+      HttpServletRequest request,
+      CreateContractRequest payload,
+      String contractId,
+      String status,
+      String errorMessage) {
+    Map<String, Object> detail = new LinkedHashMap<>();
+    if (payload != null) {
+      detail.put("contractId", payload.contractId());
+      detail.put("ownerTeam", payload.ownerTeam());
+      detail.put("domain", payload.domain());
+      detail.put("compatibilityMode", payload.compatibilityMode());
+      detail.put("policyPack", payload.policyPack());
+      detail.put("initialVersion", payload.initialVersion());
+    }
+    if (errorMessage != null && !errorMessage.isBlank()) {
+      detail.put("error", errorMessage);
+    }
+    return new AuditLogEntry(
+        "CONTRACT_CREATE",
+        safeValue(status, "UNKNOWN"),
+        resolveActor(),
+        resolveRoles(),
+        "api",
+        resolveRequestId(request),
+        request == null ? "-" : safeValue(request.getMethod(), "-"),
+        request == null ? "-" : safeValue(request.getRequestURI(), "-"),
+        "contract",
+        contractId,
+        detail.isEmpty() ? null : detail);
+  }
+
+  static AuditLogEntry contractVersionCreateSuccess(
+      HttpServletRequest request,
+      String contractId,
+      CreateContractVersionRequest payload,
+      String version) {
+    return buildContractVersionCreateEntry(request, contractId, payload, version, "SUCCESS", null);
+  }
+
+  static AuditLogEntry contractVersionCreateFailure(
+      HttpServletRequest request,
+      String contractId,
+      CreateContractVersionRequest payload,
+      Exception error) {
+    String message = error == null ? null : error.getMessage();
+    return buildContractVersionCreateEntry(request, contractId, payload, null, "FAILURE", message);
+  }
+
+  private static AuditLogEntry buildContractVersionCreateEntry(
+      HttpServletRequest request,
+      String contractId,
+      CreateContractVersionRequest payload,
+      String version,
+      String status,
+      String errorMessage) {
+    Map<String, Object> detail = new LinkedHashMap<>();
+    detail.put("contractId", contractId);
+    if (payload != null) {
+      detail.put("version", payload.version());
+    }
+    if (version != null && !version.isBlank()) {
+      detail.put("createdVersion", version);
+    }
+    if (errorMessage != null && !errorMessage.isBlank()) {
+      detail.put("error", errorMessage);
+    }
+    return new AuditLogEntry(
+        "CONTRACT_VERSION_CREATE",
+        safeValue(status, "UNKNOWN"),
+        resolveActor(),
+        resolveRoles(),
+        "api",
+        resolveRequestId(request),
+        request == null ? "-" : safeValue(request.getMethod(), "-"),
+        request == null ? "-" : safeValue(request.getRequestURI(), "-"),
+        "contract_version",
+        contractId,
+        detail);
   }
 
   static String resolveRequestId(HttpServletRequest request) {

@@ -23,14 +23,14 @@ public class CheckRunBackfillService {
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunBackfillService.class);
   private static final Set<String> VALID_MODES = Set.of("BACKWARD", "FORWARD", "FULL");
 
-  private final CheckRunStore checkRunStore;
+  private final CheckRunRepository checkRunStore;
   private final ContractCatalogService contractCatalogService;
   private final String defaultMode;
   private final String defaultTriggeredBy;
   private final Map<String, String> modeCache = new ConcurrentHashMap<>();
 
   public CheckRunBackfillService(
-      CheckRunStore checkRunStore,
+      CheckRunRepository checkRunStore,
       ContractCatalogService contractCatalogService,
       @Value("${checks.db.backfill.default-mode:BACKWARD}") String defaultMode,
       @Value("${checks.db.backfill.default-triggered-by:legacy}") String defaultTriggeredBy) {

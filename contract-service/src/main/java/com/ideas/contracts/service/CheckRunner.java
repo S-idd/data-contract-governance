@@ -8,6 +8,8 @@ import com.ideas.contracts.service.model.ContractDetailResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -25,20 +27,22 @@ import org.springframework.stereotype.Service;
 public class CheckRunner {
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunner.class);
 
-  private final CheckRunStore checkRunStore;
+  private final CheckRunRepository checkRunStore;
   private final ContractEngine contractEngine;
   private final ContractCatalogService contractCatalogService;
   private final PolicyPackRegistry policyPackRegistry;
+  private final CheckMetrics checkMetrics;
   private final Path contractsRoot;
   private final int maxPerPoll;
   private final int maxRetries;
   private final ConcurrentMap<String, Integer> retryCounts = new ConcurrentHashMap<>();
 
   public CheckRunner(
-      CheckRunStore checkRunStore,
+      CheckRunRepository checkRunStore,
       ContractEngine contractEngine,
       ContractCatalogService contractCatalogService,
       PolicyPackRegistry policyPackRegistry,
+      CheckMetrics checkMetrics,
       @Value("${contracts.root:contracts}") String contractsRoot,
       @Value("${checks.runner.max-per-poll:3}") int maxPerPoll,
       @Value("${checks.runner.max-retries:2}") int maxRetries) {
@@ -46,6 +50,7 @@ public class CheckRunner {
     this.contractEngine = contractEngine;
     this.contractCatalogService = contractCatalogService;
     this.policyPackRegistry = policyPackRegistry;
+    this.checkMetrics = checkMetrics;
     this.contractsRoot = Paths.get(contractsRoot);
     this.maxPerPoll = Math.max(1, maxPerPoll);
     this.maxRetries = Math.max(0, maxRetries);
@@ -55,7 +60,7 @@ public class CheckRunner {
   public void pollQueue() {
     int processed = 0;
     while (processed < maxPerPoll) {
-      Optional<CheckRunStore.QueuedCheckRun> next = checkRunStore.claimNextQueuedRun();
+      Optional<CheckRunRepository.QueuedCheckRun> next = checkRunStore.claimNextQueuedRun();
       if (next.isEmpty()) {
         return;
       }
@@ -64,8 +69,9 @@ public class CheckRunner {
     }
   }
 
-  private void processRun(CheckRunStore.QueuedCheckRun run) {
-    checkRunStore.appendLog(run.runId(), "INFO", "Check run claimed for execution.");
+  private void processRun(CheckRunRepository.QueuedCheckRun run) {
+    Instant startedAt = Instant.now();
+    checkRunStore.appendLog(run.runId(), "INFO", "code=check_run_claimed message=Check run claimed for execution.");
     try {
       CompatibilityMode mode = resolveMode(run.mode());
       ContractDetailResponse contract = contractCatalogService.getContract(run.contractId())
@@ -85,22 +91,27 @@ public class CheckRunner {
         return;
       }
       retryCounts.remove(run.runId());
+      Duration duration = Duration.between(startedAt, Instant.now());
+      checkMetrics.recordCompleted(run.contractId(), result.status().name(), duration);
+      if (result.status() == com.ideas.contracts.core.CheckStatus.FAIL) {
+        checkMetrics.recordFailed(run.contractId(), "compatibility_breaking");
+      }
       checkRunStore.appendLog(
           run.runId(),
           "INFO",
-          "Check run completed with status " + result.status().name() + ".");
+          "code=check_run_completed status=" + result.status().name() + " message=Check run completed.");
     } catch (Exception ex) {
-      handleFailure(run, ex);
+      handleFailure(run, ex, startedAt);
     }
   }
 
-  private void handleFailure(CheckRunStore.QueuedCheckRun run, Exception ex) {
+  private void handleFailure(CheckRunRepository.QueuedCheckRun run, Exception ex, Instant startedAt) {
     int attempt = retryCounts.merge(run.runId(), 1, Integer::sum);
     String message = summarizeFailure(ex);
     checkRunStore.appendLog(
         run.runId(),
         "ERROR",
-        "Attempt " + attempt + " failed: " + message);
+        "code=check_run_attempt_failed attempt=" + attempt + " message=" + message);
 
     if (attempt <= maxRetries) {
       boolean requeued = checkRunStore.requeueRun(run.runId());
@@ -108,7 +119,7 @@ public class CheckRunner {
         checkRunStore.appendLog(
             run.runId(),
             "WARN",
-            "Re-queued for retry (" + attempt + "/" + maxRetries + ").");
+            "code=check_run_requeued attempt=" + attempt + " maxRetries=" + maxRetries + " message=Run re-queued for retry.");
       } else {
         LOGGER.warn(
             "event=check_run_requeue_skipped component=check_runner run_id={} message=Run not re-queued",
@@ -128,7 +139,9 @@ public class CheckRunner {
           "event=check_run_finalize_skipped component=check_runner run_id={} message=Run not finalized",
           run.runId());
     } else {
-      checkRunStore.appendLog(run.runId(), "ERROR", "Run failed after retries.");
+      checkMetrics.recordCompleted(run.contractId(), "FAIL", Duration.between(startedAt, Instant.now()));
+      checkMetrics.recordFailed(run.contractId(), "execution_error");
+      checkRunStore.appendLog(run.runId(), "ERROR", "code=check_run_failed message=Run failed after retries.");
     }
     retryCounts.remove(run.runId());
   }

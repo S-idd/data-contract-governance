@@ -1,1 +1,7 @@
 com/ideas/contracts/cli/CheckRunRecorderTest.class
+com/ideas/contracts/cli/CheckCompatCommandTest.class
+com/ideas/contracts/cli/CheckCompatCommandTest$RecordingCheckRunRecorder.class
+com/ideas/contracts/cli/ExplainCommandTest.class
+com/ideas/contracts/cli/CheckCompatCommandTest$TestableCheckCompatCommand.class
+com/ideas/contracts/cli/InitCiCommandTest.class
+com/ideas/contracts/cli/ImpactAnalysisCommandTest.class

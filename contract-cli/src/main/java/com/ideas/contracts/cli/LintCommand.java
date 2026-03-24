@@ -21,7 +21,7 @@ public class LintCommand implements Callable<Integer> {
       engine.lint(contractPath);
       System.out.println("Lint passed: " + contractPath);
       return 0;
-    } catch (IllegalStateException ex) {
+    } catch (RuntimeException ex) {
       System.err.println("Lint failed: " + ex.getMessage());
       return 1;
     }

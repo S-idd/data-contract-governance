@@ -14,8 +14,8 @@ public class OpenApiConfig {
     return new OpenAPI()
         .info(new Info()
             .title("Data Contract Governance API")
-            .description("Read APIs for contracts and compatibility check history.")
-            .version("v1")
+            .description("Contract validation V2 APIs for contract lifecycle and async compatibility checks.")
+            .version("v2")
             .contact(new Contact().name("Data Contract Governance"))
             .license(new License().name("Open Source")));
   }

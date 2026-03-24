@@ -1,5 +1,12 @@
 com/ideas/contracts/cli/DiffCommand.class
-com/ideas/contracts/cli/LintCommand.class
+com/ideas/contracts/cli/InitCiCommand.class
 com/ideas/contracts/cli/CheckRunRecorder.class
 com/ideas/contracts/cli/ContractCliApplication.class
 com/ideas/contracts/cli/CheckCompatCommand.class
+com/ideas/contracts/cli/ImpactAnalysisCommand$1.class
+com/ideas/contracts/cli/ImpactAnalysisCommand.class
+com/ideas/contracts/cli/LintCommand.class
+com/ideas/contracts/cli/ExplainCommand$1.class
+com/ideas/contracts/cli/ImpactAnalysisCommand$RunOutcome.class
+com/ideas/contracts/cli/ExplainCommand.class
+com/ideas/contracts/cli/CliDbSupport.class

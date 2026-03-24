@@ -1,5 +1,9 @@
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/src/main/java/com/ideas/contracts/cli/CheckCompatCommand.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/src/main/java/com/ideas/contracts/cli/CheckRunRecorder.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/src/main/java/com/ideas/contracts/cli/CliDbSupport.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/src/main/java/com/ideas/contracts/cli/ContractCliApplication.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/src/main/java/com/ideas/contracts/cli/DiffCommand.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/src/main/java/com/ideas/contracts/cli/ExplainCommand.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/src/main/java/com/ideas/contracts/cli/ImpactAnalysisCommand.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/src/main/java/com/ideas/contracts/cli/InitCiCommand.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/src/main/java/com/ideas/contracts/cli/LintCommand.java

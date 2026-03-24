@@ -21,7 +21,7 @@ public class DiffCommand implements Callable<Integer> {
       String diff = engine.diff(baseSchema, candidateSchema);
       System.out.println(diff);
       return 0;
-    } catch (IllegalStateException ex) {
+    } catch (RuntimeException ex) {
       System.err.println("Diff failed: " + ex.getMessage());
       return 1;
     }

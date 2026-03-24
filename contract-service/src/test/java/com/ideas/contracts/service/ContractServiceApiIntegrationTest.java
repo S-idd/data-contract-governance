@@ -111,10 +111,15 @@ class ContractServiceApiIntegrationTest {
         .andReturn();
     JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
     assertTrue(body.isArray());
-    assertEquals(1, body.size());
-    assertEquals("orders.created", body.get(0).get("contractId").asText());
-    assertEquals("baseline", body.get(0).get("policyPack").asText());
-    assertEquals("v2", body.get(0).get("latestVersion").asText());
+    JsonNode seeded = null;
+    for (JsonNode item : body) {
+      if ("orders.created".equals(item.get("contractId").asText())) {
+        seeded = item;
+        break;
+      }
+    }
+    assertTrue(seeded != null);
+    assertEquals("baseline", seeded.get("policyPack").asText());
   }
 
   @Test
@@ -242,6 +247,17 @@ class ContractServiceApiIntegrationTest {
   }
 
   @Test
+  void runLogsEndpointReturnsLogsForRun() throws Exception {
+    MvcResult response = mockMvc.perform(get("/runs/run-1/logs"))
+        .andExpect(status().isOk())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertTrue(body.isArray());
+    assertEquals(1, body.size());
+    assertEquals("run-1", body.get(0).get("runId").asText());
+  }
+
+  @Test
   void checkRunLogsEndpointReturns404ForUnknownRunId() throws Exception {
     MvcResult response = mockMvc.perform(get("/checks/unknown-run/logs"))
         .andExpect(status().isNotFound())
@@ -257,6 +273,70 @@ class ContractServiceApiIntegrationTest {
         .andReturn();
     JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
     assertEquals("INVALID_REQUEST", body.get("code").asText());
+  }
+
+  @Test
+  void contractsCreateEndpointCreatesNewContract() throws Exception {
+    String payload = """
+        {
+          "contractId": "payments.completed",
+          "ownerTeam": "payments",
+          "domain": "finance",
+          "compatibilityMode": "BACKWARD",
+          "initialVersion": "v1",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "paymentId": { "type": "string" },
+              "amount": { "type": "number" }
+            },
+            "required": ["paymentId"]
+          }
+        }
+        """;
+
+    MvcResult response = mockMvc.perform(
+            post("/contracts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isCreated())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertEquals("payments.completed", body.get("contractId").asText());
+
+    MvcResult getResponse = mockMvc.perform(get("/contracts/payments.completed"))
+        .andExpect(status().isOk())
+        .andReturn();
+    JsonNode fetched = objectMapper.readTree(getResponse.getResponse().getContentAsString());
+    assertEquals("payments.completed", fetched.get("contractId").asText());
+    assertEquals("v1", fetched.get("versions").get(0).asText());
+  }
+
+  @Test
+  void contractVersionCreateEndpointCreatesNextVersion() throws Exception {
+    String payload = """
+        {
+          "version": "v3",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "orderId": { "type": "string" },
+              "status": { "type": "string" },
+              "region": { "type": "string", "nullable": true }
+            }
+          }
+        }
+        """;
+
+    MvcResult response = mockMvc.perform(
+            post("/contracts/orders.created/versions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isCreated())
+        .andReturn();
+    JsonNode body = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertEquals("orders.created", body.get("contractId").asText());
+    assertEquals("v3", body.get("version").asText());
   }
 
   private static synchronized void ensureTestPaths() {

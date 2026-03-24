@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class CheckStorePoolMetrics {
-  public CheckStorePoolMetrics(CheckRunStore checkRunStore, MeterRegistry meterRegistry) {
+  public CheckStorePoolMetrics(CheckRunRepository checkRunStore, MeterRegistry meterRegistry) {
     Gauge.builder(
             "check_store.pool.connections.total",
             checkRunStore,
