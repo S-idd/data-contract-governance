@@ -145,6 +145,30 @@ class CheckRunStoreTest {
   }
 
   @Test
+  void listAndListPageApplyRunIdTieBreakerWhenTimestampsMatch() throws Exception {
+    Path dbPath = tempDir.resolve("checks-ordering.db");
+    CheckStoreProperties properties = baseProperties();
+    properties.setPath(dbPath.toString());
+    CheckRunStore store = new CheckRunStore(properties);
+    store.initialize();
+
+    try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath)) {
+      insertRow(connection, "run-a", "orders.created", "PASS", "[]", "[]", "sha-a", "2026-03-01T12:00:00Z");
+      insertRow(connection, "run-z", "orders.created", "PASS", "[]", "[]", "sha-z", "2026-03-01T12:00:00Z");
+    }
+
+    List<CheckRunResponse> listed = store.list("orders.created", null);
+    assertEquals(2, listed.size());
+    assertEquals("run-z", listed.get(0).runId());
+    assertEquals("run-a", listed.get(1).runId());
+
+    CheckRunPageResponse paged = store.listPage(CheckRunQuery.from("orders.created", null, "PASS", 2, 0));
+    assertEquals(2, paged.items().size());
+    assertEquals("run-z", paged.items().get(0).runId());
+    assertEquals("run-a", paged.items().get(1).runId());
+  }
+
+  @Test
   void findByRunIdReturnsMatchingRowOrEmpty() throws Exception {
     Path dbPath = tempDir.resolve("checks-find.db");
     CheckStoreProperties properties = baseProperties();
@@ -246,6 +270,46 @@ class CheckRunStoreTest {
 
     IllegalStateException exception = assertThrows(IllegalStateException.class, store::initialize);
     assertTrue(exception.getMessage().contains("Failed to initialize check history store"));
+  }
+
+  @Test
+  void constructorFailsWhenSqliteSingleNodeGuardrailIsEnabledWithPoolGreaterThanOne() {
+    CheckStoreProperties properties = baseProperties();
+    properties.getSqlite().setEnforceSingleNode(true);
+    properties.getPool().setMaximumSize(2);
+
+    IllegalStateException exception =
+        assertThrows(IllegalStateException.class, () -> new CheckRunStore(properties));
+    assertTrue(exception.getMessage().contains("enforce-single-node=true"));
+  }
+
+  @Test
+  void constructorFailsWhenSqliteBusyTimeoutIsNonPositive() {
+    CheckStoreProperties properties = baseProperties();
+    properties.getSqlite().setBusyTimeout(Duration.ZERO);
+
+    IllegalStateException exception =
+        assertThrows(IllegalStateException.class, () -> new CheckRunStore(properties));
+    assertTrue(exception.getMessage().contains("checks.db.sqlite.busy-timeout"));
+  }
+
+  @Test
+  void initializeConfiguresSqliteWalAndIntegrityCheck() throws Exception {
+    Path dbPath = tempDir.resolve("checks-sqlite-hardening.db");
+    CheckStoreProperties properties = baseProperties();
+    properties.setPath(dbPath.toString());
+    properties.getSqlite().setWalEnabled(true);
+    properties.getSqlite().setIntegrityCheckOnStartup(true);
+
+    CheckRunStore store = new CheckRunStore(properties);
+    store.initialize();
+
+    try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+         PreparedStatement statement = connection.prepareStatement("PRAGMA journal_mode");
+         java.sql.ResultSet resultSet = statement.executeQuery()) {
+      assertTrue(resultSet.next());
+      assertEquals("wal", resultSet.getString(1).toLowerCase());
+    }
   }
 
   private void insertRow(

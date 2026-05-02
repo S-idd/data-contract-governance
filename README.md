@@ -96,6 +96,15 @@ CHECKS_DB_SSL_ROOT_CERT="/etc/ssl/certs/db-root.crt" \
 mvn spring-boot:run
 ```
 
+Run service with SQLite production-lite guardrails:
+```bash
+cd /path/to/data-contract-governance/contract-service
+SPRING_PROFILES_ACTIVE="sqlite-prod-lite" \
+CHECKS_DB_PATH="/var/lib/dcg/checks.db" \
+APP_SECURITY_ENABLED=true \
+mvn spring-boot:run
+```
+
 Service check-store hardening (env-configurable):
 - Check-store schema is managed via shared Flyway migrations in `contract-core/src/main/resources/db/migration` (used by both CLI and service), replacing runtime `CREATE TABLE` DDL.
 - `checks.db.pool.maximum-size` and `checks.db.pool.minimum-idle` tune HikariCP pooling.
@@ -182,6 +191,35 @@ APP_SECURITY_ROLES=USER,WRITER \
 mvn spring-boot:run
 ```
 
+## Docker Compose (Production Baseline)
+Fresh-machine quickstart (<10 min):
+
+```bash
+cd /path/to/data-contract-governance
+bash scripts/demo/run-compose-demo.sh
+```
+
+Low-bandwidth startup (hotspot/4G):
+
+```bash
+DCG_COMPOSE_PULL_POLICY=never \
+DCG_COMPOSE_BUILD_ENABLED=false \
+bash scripts/demo/run-compose-demo.sh
+```
+
+Manual path:
+
+```bash
+cp .env.compose.example .env
+docker compose --env-file .env -f docker-compose.yml up --build -d
+curl -fsS http://localhost:8080/actuator/health
+```
+
+Stop:
+```bash
+docker compose --env-file .env -f docker-compose.yml down
+```
+
 ## One-Command Demo (Windows PowerShell)
 ```powershell
 cd <repo-root>
@@ -213,9 +251,12 @@ export TEST_POSTGRES_PASSWORD="<your_pg_password>"
 Helpful docs:
 
 - [Local Quickstart](quickstart-local.md)
+- [Compose Quickstart](docs/quickstart-compose.md)
 - [Demo Walkthrough](docs/demo-walkthrough.md)
 - [CLI Walkthrough](docs/cli-walkthrough.md)
 - [Week 7 Exit Checklist](docs/week7-exit-checklist.md)
+- [Week 7 Phase 1 Release Notes](docs/week7-phase1-release-notes.md)
+- [Week 7 Showcase Kit](docs/week7-showcase-kit.md)
 - [Week 8 Stabilization Checklist](docs/week8-stabilization-checklist.md)
 
 ## Sample Contracts
@@ -226,7 +267,17 @@ Helpful docs:
 ## Project Docs
 - [Requirements](docs/Requirements.md)
 - [System Design](docs/SystemDesign.md)
+- [Architecture v3](docs/Architecture-v3.md)
+- [Architecture FAQ](docs/Architecture-FAQ.md)
 - [Architecture Decisions](adr/ArchitectureDecisionRecord.md)
+- [Week 3 Storage Interface Spec](docs/week3-storage-interface-spec.md)
+- [Week 3 DB Compatibility Test Plan](docs/week3-db-compatibility-test-plan.md)
+- [Week 4 Postgres Readiness Checklist](docs/week4-postgres-readiness-checklist.md)
+- [Postgres Backup and Restore Runbook](docs/postgres-backup-restore-runbook.md)
+- [Week 5 SQLite Prod-Lite Checklist](docs/week5-sqlite-prod-lite-checklist.md)
+- [SQLite Prod-Lite Runbook](docs/sqlite-prod-lite-runbook.md)
+- [Week 6 Docker Compose Production Baseline](docs/week6-docker-compose-production-baseline.md)
+- [Week 7 Feedback Log Template](docs/week7-feedback-log-template.md)
 - [Local Quickstart](quickstart-local.md)
 - [Demo Walkthrough](docs/demo-walkthrough.md)
 - [Week 7 Exit Checklist](docs/week7-exit-checklist.md)

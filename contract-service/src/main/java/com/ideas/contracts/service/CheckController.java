@@ -30,10 +30,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/checks")
 @Tag(name = "Checks", description = "Query compatibility check history")
 public class CheckController {
-  private final CheckRunRepository checkRunStore;
+  private final MetadataStore checkRunStore;
   private final CheckMetrics checkMetrics;
 
-  public CheckController(CheckRunRepository checkRunStore, CheckMetrics checkMetrics) {
+  public CheckController(MetadataStore checkRunStore, CheckMetrics checkMetrics) {
     this.checkRunStore = checkRunStore;
     this.checkMetrics = checkMetrics;
   }

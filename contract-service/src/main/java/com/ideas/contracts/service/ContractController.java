@@ -31,12 +31,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class ContractController {
   private final ContractCatalogService catalogService;
   private final ContractWriteService contractWriteService;
-  private final CheckRunRepository checkRunStore;
+  private final MetadataStore checkRunStore;
 
   public ContractController(
       ContractCatalogService catalogService,
       ContractWriteService contractWriteService,
-      CheckRunRepository checkRunStore) {
+      MetadataStore checkRunStore) {
     this.catalogService = catalogService;
     this.contractWriteService = contractWriteService;
     this.checkRunStore = checkRunStore;

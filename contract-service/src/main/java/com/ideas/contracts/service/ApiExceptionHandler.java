@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
@@ -118,7 +119,7 @@ public class ApiExceptionHandler {
         request,
         HttpStatus.BAD_REQUEST,
         INVALID_REQUEST,
-        "Malformed JSON request body.");
+        resolveInvalidPayloadMessage(ex));
   }
 
   @ExceptionHandler(ResponseStatusException.class)
@@ -133,6 +134,26 @@ public class ApiExceptionHandler {
       default -> status.name();
     };
     return buildErrorResponse(ex, request, status, code, ex.getReason());
+  }
+
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ResponseEntity<ApiErrorResponse> handleNoResourceFound(
+      NoResourceFoundException ex,
+      HttpServletRequest request) {
+    String path = request.getRequestURI();
+    if ("/favicon.ico".equals(path)) {
+      LOGGER.debug(
+          "event=request_ignored component=api_exception_handler path={} request_id={} reason=favicon_not_configured",
+          path,
+          resolveRequestId(request));
+      return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+    return buildErrorResponse(
+        ex,
+        request,
+        HttpStatus.NOT_FOUND,
+        RESOURCE_NOT_FOUND,
+        ex.getMessage());
   }
 
   @ExceptionHandler(Exception.class)
@@ -183,6 +204,20 @@ public class ApiExceptionHandler {
     }
     String headerValue = request.getHeader(RequestIdFilter.REQUEST_ID_HEADER);
     return safeValue(headerValue);
+  }
+
+  private String resolveInvalidPayloadMessage(HttpMessageNotReadableException ex) {
+    Throwable current = ex;
+    while (current != null) {
+      if (current instanceof IllegalArgumentException illegalArgumentException) {
+        String message = safeValue(illegalArgumentException.getMessage());
+        if (!"-".equals(message)) {
+          return message;
+        }
+      }
+      current = current.getCause();
+    }
+    return "Malformed JSON request body.";
   }
 
   private String safeValue(String value) {

@@ -80,7 +80,15 @@ final class PostgresTestSupport {
   }
 
   static String localPassword() {
-    return firstNonBlank(System.getProperty(PASSWORD_PROPERTY), System.getenv(PASSWORD_ENV), DEFAULT_PASSWORD);
+    String fromProperty = System.getProperty(PASSWORD_PROPERTY);
+    if (fromProperty != null) {
+      return fromProperty.trim();
+    }
+    String fromEnv = System.getenv(PASSWORD_ENV);
+    if (fromEnv != null) {
+      return fromEnv.trim();
+    }
+    return DEFAULT_PASSWORD;
   }
 
   static void assumeLocalPostgresAvailable() {

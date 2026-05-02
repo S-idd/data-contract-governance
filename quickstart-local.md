@@ -2,6 +2,8 @@
 
 This project runs fully local. Docker/Testcontainers are not required.
 
+For the Week 6 fresh-machine Docker path, use `docs/quickstart-compose.md`.
+
 ## Fastest Path
 
 If your local PostgreSQL credentials are already set, use the one-command demo runner:

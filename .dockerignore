@@ -1,0 +1,14 @@
+.git
+.github
+.vscode
+.idea
+
+**/target
+**/.classpath
+**/.project
+**/.settings
+
+checks.db
+contract-service-demo.log
+docs/screenshots
+contracts/payments.completed.*/

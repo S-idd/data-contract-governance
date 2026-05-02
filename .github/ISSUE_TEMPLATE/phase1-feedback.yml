@@ -1,0 +1,61 @@
+name: Phase 1 User Feedback
+description: Capture first-user feedback for Data Contract Governance Phase 1.
+title: "[Feedback] "
+labels:
+  - feedback
+  - phase-1
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying the Phase 1 candidate. Please share what worked and what blocked you.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Java version, and DB path used (Compose/Postgres/SQLite).
+      placeholder: macOS 15, Java 21, Docker Compose + Postgres 16
+    validations:
+      required: true
+  - type: input
+    id: setup_time
+    attributes:
+      label: Setup Time (minutes)
+      description: Approximate time from start to first successful check run.
+      placeholder: "8"
+    validations:
+      required: true
+  - type: textarea
+    id: what_worked
+    attributes:
+      label: What Worked Well
+      description: Which parts felt smooth or valuable?
+      placeholder: Quickstart script, UI check detail, clear error messages
+    validations:
+      required: true
+  - type: textarea
+    id: blockers
+    attributes:
+      label: Blockers / Friction
+      description: What slowed you down or was confusing?
+      placeholder: Compose startup issue, unclear docs step, auth confusion
+    validations:
+      required: true
+  - type: dropdown
+    id: adoption
+    attributes:
+      label: Would You Use This in a Real Project?
+      options:
+        - "Yes"
+        - "Maybe, with changes"
+        - "Not yet"
+    validations:
+      required: true
+  - type: textarea
+    id: required_changes
+    attributes:
+      label: Required Changes Before Adoption
+      description: What must be improved before you would rely on it?
+      placeholder: Better onboarding docs, fewer manual env steps, stronger auth defaults
+    validations:
+      required: false

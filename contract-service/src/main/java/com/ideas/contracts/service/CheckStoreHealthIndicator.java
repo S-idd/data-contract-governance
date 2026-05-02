@@ -6,16 +6,16 @@ import org.springframework.stereotype.Component;
 
 @Component("checkStore")
 public class CheckStoreHealthIndicator implements HealthIndicator {
-  private final CheckRunRepository checkRunStore;
+  private final MetadataStore checkRunStore;
 
-  public CheckStoreHealthIndicator(CheckRunRepository checkRunStore) {
+  public CheckStoreHealthIndicator(MetadataStore checkRunStore) {
     this.checkRunStore = checkRunStore;
   }
 
   @Override
   public Health health() {
-    CheckRunRepository.HealthSnapshot snapshot = checkRunStore.healthSnapshot();
-    CheckRunRepository.PoolSnapshot poolSnapshot = checkRunStore.poolSnapshot();
+    MetadataStore.HealthSnapshot snapshot = checkRunStore.healthSnapshot();
+    MetadataStore.PoolSnapshot poolSnapshot = checkRunStore.poolSnapshot();
     if (snapshot.available()) {
       return baseDetails(Health.up(), poolSnapshot).build();
     }
@@ -25,7 +25,7 @@ public class CheckStoreHealthIndicator implements HealthIndicator {
         .build();
   }
 
-  private Health.Builder baseDetails(Health.Builder builder, CheckRunRepository.PoolSnapshot poolSnapshot) {
+  private Health.Builder baseDetails(Health.Builder builder, MetadataStore.PoolSnapshot poolSnapshot) {
     return builder
         .withDetail("component", "check_run_store")
         .withDetail("dbTarget", checkRunStore.configuredDbTarget())

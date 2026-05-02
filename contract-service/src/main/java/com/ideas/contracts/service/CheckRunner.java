@@ -27,7 +27,7 @@ import org.springframework.stereotype.Service;
 public class CheckRunner {
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunner.class);
 
-  private final CheckRunRepository checkRunStore;
+  private final MetadataStore checkRunStore;
   private final ContractEngine contractEngine;
   private final ContractCatalogService contractCatalogService;
   private final PolicyPackRegistry policyPackRegistry;
@@ -38,7 +38,7 @@ public class CheckRunner {
   private final ConcurrentMap<String, Integer> retryCounts = new ConcurrentHashMap<>();
 
   public CheckRunner(
-      CheckRunRepository checkRunStore,
+      MetadataStore checkRunStore,
       ContractEngine contractEngine,
       ContractCatalogService contractCatalogService,
       PolicyPackRegistry policyPackRegistry,
@@ -60,7 +60,7 @@ public class CheckRunner {
   public void pollQueue() {
     int processed = 0;
     while (processed < maxPerPoll) {
-      Optional<CheckRunRepository.QueuedCheckRun> next = checkRunStore.claimNextQueuedRun();
+      Optional<MetadataStore.QueuedCheckRun> next = checkRunStore.claimNextQueuedRun();
       if (next.isEmpty()) {
         return;
       }
@@ -69,7 +69,7 @@ public class CheckRunner {
     }
   }
 
-  private void processRun(CheckRunRepository.QueuedCheckRun run) {
+  private void processRun(MetadataStore.QueuedCheckRun run) {
     Instant startedAt = Instant.now();
     checkRunStore.appendLog(run.runId(), "INFO", "code=check_run_claimed message=Check run claimed for execution.");
     try {
@@ -105,7 +105,7 @@ public class CheckRunner {
     }
   }
 
-  private void handleFailure(CheckRunRepository.QueuedCheckRun run, Exception ex, Instant startedAt) {
+  private void handleFailure(MetadataStore.QueuedCheckRun run, Exception ex, Instant startedAt) {
     int attempt = retryCounts.merge(run.runId(), 1, Integer::sum);
     String message = summarizeFailure(ex);
     checkRunStore.appendLog(
