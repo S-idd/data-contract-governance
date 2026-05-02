@@ -32,9 +32,9 @@ public class UiController {
   private static final Logger LOGGER = LoggerFactory.getLogger(UiController.class);
 
   private final ContractCatalogService contractCatalogService;
-  private final CheckRunRepository checkRunStore;
+  private final MetadataStore checkRunStore;
 
-  public UiController(ContractCatalogService contractCatalogService, CheckRunRepository checkRunStore) {
+  public UiController(ContractCatalogService contractCatalogService, MetadataStore checkRunStore) {
     this.contractCatalogService = contractCatalogService;
     this.checkRunStore = checkRunStore;
   }

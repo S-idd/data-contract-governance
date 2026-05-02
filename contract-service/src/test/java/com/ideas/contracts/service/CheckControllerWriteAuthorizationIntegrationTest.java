@@ -79,6 +79,61 @@ class CheckControllerWriteAuthorizationIntegrationTest {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  void createContractIsForbiddenWithoutWriterRole() throws Exception {
+    String payload = """
+        {
+          "contractId": "payments.forbidden",
+          "ownerTeam": "payments",
+          "domain": "finance",
+          "compatibilityMode": "BACKWARD",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "paymentId": { "type": "string" }
+            }
+          }
+        }
+        """;
+
+    mockMvc.perform(post("/contracts")
+            .header("Authorization", basicAuthHeader("tester", "secret"))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(payload))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void createContractVersionIsForbiddenWithoutWriterRole() throws Exception {
+    String payload = """
+        {
+          "version": "v3",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "orderId": { "type": "string" },
+              "status": { "type": "string" }
+            }
+          }
+        }
+        """;
+
+    mockMvc.perform(post("/contracts/orders.created/versions")
+            .header("Authorization", basicAuthHeader("tester", "secret"))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(payload))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void uiRunCheckIsForbiddenWithoutWriterRole() throws Exception {
+    mockMvc.perform(post("/ui/contracts/orders.created/checks")
+            .header("Authorization", basicAuthHeader("tester", "secret"))
+            .param("baseVersion", "v1")
+            .param("candidateVersion", "v2"))
+        .andExpect(status().isForbidden());
+  }
+
   private String basicAuthHeader(String username, String password) {
     String raw = username + ":" + password;
     return "Basic " + Base64.getEncoder().encodeToString(raw.getBytes(StandardCharsets.UTF_8));

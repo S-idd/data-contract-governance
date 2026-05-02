@@ -21,9 +21,11 @@ com/ideas/contracts/service/ContractServiceApplication.class
 com/ideas/contracts/service/ContractWriteService.class
 com/ideas/contracts/service/CheckMetrics.class
 com/ideas/contracts/service/OpenApiConfig.class
+com/ideas/contracts/service/CheckStoreProperties$Sqlite.class
 com/ideas/contracts/service/RequestIdFilter.class
 com/ideas/contracts/service/AuditLogEntry.class
 com/ideas/contracts/service/model/ContractSummaryResponse.class
+com/ideas/contracts/service/ArtifactStore.class
 com/ideas/contracts/service/ApiExceptionHandler$1.class
 com/ideas/contracts/service/CheckRunRepository$PoolSnapshot.class
 com/ideas/contracts/service/AuditLogSupport.class
@@ -35,6 +37,8 @@ com/ideas/contracts/service/CheckRunner.class
 com/ideas/contracts/service/model/ContractDetailResponse.class
 com/ideas/contracts/service/CheckRunRepository$HealthSnapshot.class
 com/ideas/contracts/service/model/ApiErrorResponse.class
+com/ideas/contracts/service/FilesystemArtifactStore.class
+com/ideas/contracts/service/MetadataStore.class
 com/ideas/contracts/service/ContractCatalogService.class
 com/ideas/contracts/service/model/CheckRunPageResponse.class
 com/ideas/contracts/service/RunController.class

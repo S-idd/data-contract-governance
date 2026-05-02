@@ -1,4 +1,5 @@
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/ApiExceptionHandler.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/ArtifactStore.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/AuditLogEntry.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/AuditLogSupport.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/CheckController.java
@@ -19,6 +20,8 @@
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/ContractEngineConfig.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/ContractServiceApplication.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/ContractWriteService.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/FilesystemArtifactStore.java
+/Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/MetadataStore.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/OpenApiConfig.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/PolicyPackRegistry.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/main/java/com/ideas/contracts/service/RequestIdFilter.java

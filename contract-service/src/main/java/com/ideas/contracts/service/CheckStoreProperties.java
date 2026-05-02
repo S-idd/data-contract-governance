@@ -19,6 +19,7 @@ public class CheckStoreProperties {
   private Duration queryTimeout = Duration.ofSeconds(5);
   private final Pool pool = new Pool();
   private final Ssl ssl = new Ssl();
+  private final Sqlite sqlite = new Sqlite();
 
   public String getUrl() {
     return url;
@@ -106,6 +107,10 @@ public class CheckStoreProperties {
 
   public Ssl getSsl() {
     return ssl;
+  }
+
+  public Sqlite getSqlite() {
+    return sqlite;
   }
 
   public static class Pool {
@@ -219,6 +224,54 @@ public class CheckStoreProperties {
 
     public void setKeyPath(String keyPath) {
       this.keyPath = keyPath;
+    }
+  }
+
+  public static class Sqlite {
+    private boolean walEnabled = true;
+    private Duration busyTimeout = Duration.ofSeconds(5);
+    private boolean enforceSingleNode;
+    private boolean integrityCheckOnStartup;
+    private String synchronous = "NORMAL";
+
+    public boolean isWalEnabled() {
+      return walEnabled;
+    }
+
+    public void setWalEnabled(boolean walEnabled) {
+      this.walEnabled = walEnabled;
+    }
+
+    public Duration getBusyTimeout() {
+      return busyTimeout;
+    }
+
+    public void setBusyTimeout(Duration busyTimeout) {
+      this.busyTimeout = busyTimeout;
+    }
+
+    public boolean isEnforceSingleNode() {
+      return enforceSingleNode;
+    }
+
+    public void setEnforceSingleNode(boolean enforceSingleNode) {
+      this.enforceSingleNode = enforceSingleNode;
+    }
+
+    public boolean isIntegrityCheckOnStartup() {
+      return integrityCheckOnStartup;
+    }
+
+    public void setIntegrityCheckOnStartup(boolean integrityCheckOnStartup) {
+      this.integrityCheckOnStartup = integrityCheckOnStartup;
+    }
+
+    public String getSynchronous() {
+      return synchronous;
+    }
+
+    public void setSynchronous(String synchronous) {
+      this.synchronous = synchronous;
     }
   }
 }

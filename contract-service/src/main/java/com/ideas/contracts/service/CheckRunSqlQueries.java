@@ -30,7 +30,7 @@ final class CheckRunSqlQueries {
              commit_sha, triggered_by
       FROM check_runs
       WHERE status = ?
-      ORDER BY created_at ASC
+      ORDER BY created_at ASC, run_id ASC
       LIMIT 1
       """;
 

@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: dcg-postgres
+    restart: unless-stopped
+    init: true
+    environment:
+      POSTGRES_DB: contracts
+      POSTGRES_USER: ${DCG_DB_USERNAME:-contracts_app}
+      POSTGRES_PASSWORD: ${DCG_DB_PASSWORD:-change-me}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - dcg_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DCG_POSTGRES_PORT:-5432}:5432"
+
+  contract-service:
+    build:
+      context: .
+      dockerfile: docker/contract-service.Dockerfile
+    image: dcg/contract-service:local
+    container_name: dcg-service
+    restart: unless-stopped
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      CONTRACTS_ROOT: /app/contracts
+      CHECKS_DB_URL: jdbc:postgresql://postgres:5432/contracts?currentSchema=dcg_prod
+      CHECKS_DB_EXPECTED_SCHEMA: dcg_prod
+      CHECKS_DB_USERNAME: ${DCG_DB_USERNAME:-contracts_app}
+      CHECKS_DB_PASSWORD: ${DCG_DB_PASSWORD:-change-me}
+      CHECKS_DB_FAIL_FAST_STARTUP: "true"
+      # Local Compose uses in-cluster plain TCP. Keep strict SSL for real prod deployments.
+      CHECKS_DB_ENFORCE_SECURE_POSTGRES: "false"
+      CHECKS_DB_SSL_ENABLED: "false"
+      APP_UI_ENABLED: "true"
+      APP_SECURITY_ENABLED: "true"
+      APP_SECURITY_USERNAME: ${DCG_APP_USERNAME:-admin}
+      APP_SECURITY_PASSWORD: ${DCG_APP_PASSWORD:-change-me}
+      APP_SECURITY_ROLES: USER,WRITER
+      APP_SECURITY_WRITE_ROLE: WRITER
+      JAVA_OPTS: -XX:InitialRAMPercentage=25 -XX:MaxRAMPercentage=75
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    volumes:
+      - ./contracts:/app/contracts:ro
+    ports:
+      - "${DCG_SERVICE_PORT:-8080}:8080"
+
+volumes:
+  dcg_postgres_data:

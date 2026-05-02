@@ -3,9 +3,6 @@ package com.ideas.contracts.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ideas.contracts.service.CheckRunRepository.HealthSnapshot;
-import com.ideas.contracts.service.CheckRunRepository.PoolSnapshot;
-import com.ideas.contracts.service.CheckRunRepository.QueuedCheckRun;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariConfigMXBean;
 import com.zaxxer.hikari.HikariDataSource;
@@ -31,6 +28,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -50,14 +48,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-public class CheckRunStore implements CheckRunRepository {
+public class CheckRunStore implements MetadataStore {
   private static final String SQLITE_JDBC_PREFIX = "jdbc:sqlite:";
   private static final Set<String> ALLOWED_STRICT_SSL_MODES = Set.of("verify-ca", "verify-full");
+  private static final Set<String> ALLOWED_SQLITE_SYNCHRONOUS =
+      Set.of("OFF", "NORMAL", "FULL", "EXTRA");
   private static final Set<String> ALLOWED_COMPATIBILITY_MODES =
       Set.of("BACKWARD", "FORWARD", "FULL");
   private static final String STATUS_QUEUED = "QUEUED";
   private static final String STATUS_RUNNING = "RUNNING";
-  private static final String LATEST_MIGRATION_RESOURCE = "db/migration/V5__create_audit_logs.sql";
+  private static final String LATEST_MIGRATION_RESOURCE = "db/migration/V6__add_check_run_operational_indexes.sql";
   private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunStore.class);
 
@@ -69,6 +69,7 @@ public class CheckRunStore implements CheckRunRepository {
   private final int queryTimeoutSeconds;
   private final boolean failFastStartup;
   private final ObjectMapper objectMapper;
+  private final CheckStoreProperties.Sqlite sqliteSettings;
   private final Object initLock = new Object();
   private volatile boolean initialized;
 
@@ -94,6 +95,7 @@ public class CheckRunStore implements CheckRunRepository {
     }
     validateExpectedSchema(this.jdbcUrl, properties.getExpectedSchema());
     validatePoolAndTimeoutSettings(properties);
+    this.sqliteSettings = properties.getSqlite();
     String dbUsername = resolveUsername(properties);
     String dbPassword = resolvePassword(properties);
     this.dataSource = createDataSource(jdbcUrl, dbUsername, dbPassword, properties.getPool());
@@ -129,7 +131,7 @@ public class CheckRunStore implements CheckRunRepository {
       sql.append(" AND commit_sha = ?");
       params.add(commitSha);
     }
-    sql.append(" ORDER BY created_at DESC");
+    sql.append(" ORDER BY created_at DESC, run_id DESC");
 
     try (Connection connection = openConnection();
          PreparedStatement statement = connection.prepareStatement(sql.toString())) {
@@ -171,7 +173,7 @@ public class CheckRunStore implements CheckRunRepository {
       sql.append(" AND UPPER(status) = ?");
       params.add(query.status());
     }
-    sql.append(" ORDER BY created_at DESC");
+    sql.append(" ORDER BY created_at DESC, run_id DESC");
     sql.append(" LIMIT ? OFFSET ?");
     params.add(query.limit() + 1);
     params.add(query.offset());
@@ -633,7 +635,9 @@ public class CheckRunStore implements CheckRunRepository {
             java.nio.file.Files.createDirectories(parent);
           }
         }
+        applySqliteRuntimePragmas();
         migrateSchema();
+        verifySqliteIntegrityIfEnabled();
         initialized = true;
         LOGGER.info(
             "event=check_store_initialized component=check_run_store db_target={} backend={}",
@@ -662,6 +666,47 @@ public class CheckRunStore implements CheckRunRepository {
         .baselineVersion(MigrationVersion.fromVersion("0"))
         .load()
         .migrate();
+  }
+
+  private void applySqliteRuntimePragmas() throws SQLException {
+    if (!isSqliteUrl(jdbcUrl)) {
+      return;
+    }
+    try (Connection connection = openConnection();
+         Statement statement = connection.createStatement()) {
+      if (sqliteSettings.isWalEnabled()) {
+        try (ResultSet resultSet = statement.executeQuery("PRAGMA journal_mode=WAL")) {
+          if (!resultSet.next()) {
+            throw new IllegalStateException("SQLite did not return a journal_mode result.");
+          }
+          String mode = trimToEmpty(resultSet.getString(1)).toLowerCase(Locale.ROOT);
+          if (!"wal".equals(mode)) {
+            throw new IllegalStateException("SQLite journal_mode is '" + mode + "' instead of 'wal'.");
+          }
+        }
+      }
+      statement.execute("PRAGMA foreign_keys=ON");
+      statement.execute("PRAGMA synchronous=" + normalizeSqliteSynchronous(sqliteSettings.getSynchronous()));
+      statement.execute("PRAGMA busy_timeout=" + sqliteBusyTimeoutMillis(sqliteSettings.getBusyTimeout()));
+    }
+  }
+
+  private void verifySqliteIntegrityIfEnabled() throws SQLException {
+    if (!isSqliteUrl(jdbcUrl) || !sqliteSettings.isIntegrityCheckOnStartup()) {
+      return;
+    }
+
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement("PRAGMA quick_check");
+         ResultSet resultSet = statement.executeQuery()) {
+      if (!resultSet.next()) {
+        throw new IllegalStateException("SQLite quick_check did not return a result.");
+      }
+      String result = trimToEmpty(resultSet.getString(1));
+      if (!"ok".equalsIgnoreCase(result)) {
+        throw new IllegalStateException("SQLite integrity check failed: " + result);
+      }
+    }
   }
 
   private String[] resolveMigrationLocations() {
@@ -811,6 +856,34 @@ public class CheckRunStore implements CheckRunRepository {
       throw new IllegalStateException(
           "checks.db.pool.initialization-fail-timeout must be negative (disable) or greater than 0ms.");
     }
+
+    if (isSqliteUrl(jdbcUrl)) {
+      validateSqliteSettings(properties.getSqlite(), pool);
+    }
+  }
+
+  private void validateSqliteSettings(CheckStoreProperties.Sqlite sqlite, CheckStoreProperties.Pool pool) {
+    if (sqlite == null) {
+      return;
+    }
+
+    requirePositiveDuration("checks.db.sqlite.busy-timeout", sqlite.getBusyTimeout());
+    String synchronous = normalizeSqliteSynchronous(sqlite.getSynchronous());
+    if (!ALLOWED_SQLITE_SYNCHRONOUS.contains(synchronous)) {
+      throw new IllegalStateException(
+          "checks.db.sqlite.synchronous must be one of " + ALLOWED_SQLITE_SYNCHRONOUS + ".");
+    }
+
+    if (sqlite.isEnforceSingleNode()) {
+      if (pool.getMaximumSize() != 1) {
+        throw new IllegalStateException(
+            "checks.db.pool.maximum-size must be 1 when checks.db.sqlite.enforce-single-node=true.");
+      }
+      if (pool.getMinimumIdle() > 1) {
+        throw new IllegalStateException(
+            "checks.db.pool.minimum-idle must be <= 1 when checks.db.sqlite.enforce-single-node=true.");
+      }
+    }
   }
 
   private void validatePostgresSecurityConstraints(
@@ -893,9 +966,21 @@ public class CheckRunStore implements CheckRunRepository {
     return value != null && value.startsWith("jdbc:postgresql:");
   }
 
+  private boolean isSqliteUrl(String value) {
+    return value != null && value.startsWith(SQLITE_JDBC_PREFIX);
+  }
+
   private String normalizeSslMode(String value) {
     String normalized = normalizeCredential(value);
     return normalized == null ? "" : normalized.toLowerCase(Locale.ROOT);
+  }
+
+  private String normalizeSqliteSynchronous(String value) {
+    String normalized = normalizeCredential(value);
+    if (normalized == null || normalized.isBlank()) {
+      return "NORMAL";
+    }
+    return normalized.toUpperCase(Locale.ROOT);
   }
 
   private String normalizeCompatibilityMode(String value, String fallback) {
@@ -934,6 +1019,9 @@ public class CheckRunStore implements CheckRunRepository {
     config.setValidationTimeout(toPositiveMillis(pool.getValidationTimeout(), Duration.ofSeconds(3), 250));
     config.setInitializationFailTimeout(toInitializationFailTimeoutMillis(pool.getInitializationFailTimeout()));
     config.setAutoCommit(true);
+    if (isSqliteUrl(jdbcUrl)) {
+      config.setConnectionInitSql("PRAGMA busy_timeout=" + sqliteBusyTimeoutMillis(sqliteSettings.getBusyTimeout()));
+    }
     return new HikariDataSource(config);
   }
 
@@ -950,6 +1038,15 @@ public class CheckRunStore implements CheckRunRepository {
       return Integer.MAX_VALUE;
     }
     return (int) seconds;
+  }
+
+  private long sqliteBusyTimeoutMillis(Duration timeout) {
+    Duration normalized = timeout == null ? Duration.ofSeconds(5) : timeout;
+    long millis = normalized.toMillis();
+    if (millis <= 0) {
+      millis = Duration.ofSeconds(5).toMillis();
+    }
+    return Math.max(1, millis);
   }
 
   private long toPositiveMillis(Duration value, Duration fallback, long minimum) {

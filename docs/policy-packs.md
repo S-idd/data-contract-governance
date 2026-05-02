@@ -1,6 +1,6 @@
 # Policy Packs (How Compatibility Policies Work)
 
-This document explains how policy paccks ontrol compatibility outcomes in `data-contract-governance`, how they are resolved, and how to iterate safely.
+This document explains how policy paccks Control compatibility outcomes in `data-contract-governance`, how they are resolved, and how to iterate safely.
 
 **Overview**
 Policy packs decide whether each compatibility rule is treated as `BREAKING`, `WARNING`, or `IGNORE`. A check run:

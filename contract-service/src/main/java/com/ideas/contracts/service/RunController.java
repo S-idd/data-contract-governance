@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/runs")
 public class RunController {
-  private final CheckRunRepository checkRunStore;
+  private final MetadataStore checkRunStore;
 
-  public RunController(CheckRunRepository checkRunStore) {
+  public RunController(MetadataStore checkRunStore) {
     this.checkRunStore = checkRunStore;
   }
 

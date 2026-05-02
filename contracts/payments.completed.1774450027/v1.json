@@ -1,0 +1,15 @@
+{
+  "type" : "object",
+  "properties" : {
+    "paymentId" : {
+      "type" : "string"
+    },
+    "amount" : {
+      "type" : "number"
+    },
+    "currency" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "paymentId", "amount" ]
+}
