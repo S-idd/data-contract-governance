@@ -96,6 +96,16 @@ CHECKS_DB_SSL_ROOT_CERT="/etc/ssl/certs/db-root.crt" \
 mvn spring-boot:run
 ```
 
+Run service with MySQL in local profile:
+```bash
+cd /path/to/data-contract-governance/contract-service
+SPRING_PROFILES_ACTIVE="local" \
+CHECKS_DB_URL="jdbc:mysql://localhost:3306/contracts?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" \
+CHECKS_DB_USERNAME="contracts_user" \
+CHECKS_DB_PASSWORD="change-me" \
+mvn spring-boot:run
+```
+
 Run service with SQLite production-lite guardrails:
 ```bash
 cd /path/to/data-contract-governance/contract-service
@@ -106,7 +116,7 @@ mvn spring-boot:run
 ```
 
 Service check-store hardening (env-configurable):
-- Check-store schema is managed via shared Flyway migrations in `contract-core/src/main/resources/db/migration` (used by both CLI and service), replacing runtime `CREATE TABLE` DDL.
+- Check-store schema is managed via Flyway migrations in `contract-core/src/main/resources/db/migration` (PostgreSQL/SQLite) and `contract-core/src/main/resources/db/migration-mysql` (MySQL), replacing runtime `CREATE TABLE` DDL.
 - `checks.db.pool.maximum-size` and `checks.db.pool.minimum-idle` tune HikariCP pooling.
 - `checks.db.pool.connection-timeout`, `checks.db.pool.validation-timeout`, and `checks.db.query-timeout` enforce request/DB time bounds.
 - `checks.db.ssl.enabled=true` enables PostgreSQL SSL params (`sslmode`, optional cert paths).
@@ -141,6 +151,24 @@ Then validate:
 ```bash
 psql "$PSQL_URL" -c "select version, description, success from dcg_dev.flyway_schema_history order by installed_rank;"
 psql "$PSQL_URL" -c "select run_id, contract_id, status, created_at from dcg_dev.check_runs order by created_at desc limit 5;"
+```
+
+3-DB metadata test matrix:
+```bash
+cd /path/to/data-contract-governance
+
+export TEST_POSTGRES_JDBC_URL="jdbc:postgresql://localhost:5432/contracts?currentSchema=dcg_dev"
+export TEST_POSTGRES_USERNAME="<your_pg_user>"
+export TEST_POSTGRES_PASSWORD="<your_pg_password>"
+
+export TEST_MYSQL_JDBC_URL="jdbc:mysql://localhost:3306/mysql?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+export TEST_MYSQL_USERNAME="<your_mysql_user>"
+export TEST_MYSQL_PASSWORD="<your_mysql_password>"
+
+./mvnw -pl contract-service -am \
+  -Dtest=CheckRunStoreSqliteContractTest,CheckRunStorePostgresContractTest,CheckRunStoreMySqlContractTest,CheckRunStorePostgresPathTest,CheckRunStoreMySqlPathTest \
+  -Dsurefire.failIfNoSpecifiedTests=false \
+  test
 ```
 
 Endpoints:
@@ -258,6 +286,8 @@ Helpful docs:
 - [Week 7 Phase 1 Release Notes](docs/week7-phase1-release-notes.md)
 - [Week 7 Showcase Kit](docs/week7-showcase-kit.md)
 - [Week 8 Stabilization Checklist](docs/week8-stabilization-checklist.md)
+- [Week 8 MySQL Phase 2 Design](docs/week8-mysql-phase2-design.md)
+- [Week 9 MySQL Implementation Checklist](docs/week9-mysql-implementation-checklist.md)
 
 ## Sample Contracts
 - [orders.created metadata](contracts/orders.created/metadata.yaml)
@@ -282,3 +312,5 @@ Helpful docs:
 - [Demo Walkthrough](docs/demo-walkthrough.md)
 - [Week 7 Exit Checklist](docs/week7-exit-checklist.md)
 - [Week 8 Stabilization Checklist](docs/week8-stabilization-checklist.md)
+- [Week 8 MySQL Phase 2 Design](docs/week8-mysql-phase2-design.md)
+- [Week 9 MySQL Implementation Checklist](docs/week9-mysql-implementation-checklist.md)
