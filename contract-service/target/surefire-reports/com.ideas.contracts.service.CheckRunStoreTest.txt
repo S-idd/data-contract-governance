@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.ideas.contracts.service.CheckRunStoreTest
 -------------------------------------------------------------------------------
-Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.545 s -- in com.ideas.contracts.service.CheckRunStoreTest
+Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.463 s -- in com.ideas.contracts.service.CheckRunStoreTest

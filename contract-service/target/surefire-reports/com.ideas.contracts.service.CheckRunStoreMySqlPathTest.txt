@@ -1,8 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.ideas.contracts.service.CheckRunStoreMySqlPathTest
 -------------------------------------------------------------------------------
-<<<<<<< HEAD:contract-service/target/surefire-reports/com.ideas.contracts.service.CheckRunQueryTest.txt
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in com.ideas.contracts.service.CheckRunQueryTest
-=======
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.612 s -- in com.ideas.contracts.service.CheckRunStoreMySqlPathTest
->>>>>>> 6356cf2 (Week 8 And Week 9 In progress):contract-service/target/surefire-reports/com.ideas.contracts.service.CheckRunStoreMySqlPathTest.txt
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.573 s -- in com.ideas.contracts.service.CheckRunStoreMySqlPathTest
