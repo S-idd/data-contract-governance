@@ -1,25 +1,3 @@
-<<<<<<< HEAD
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/AbstractMetadataStoreContractTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerDbFailureIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerPostgresAuthFailureIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerPostgresNetworkFailureIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerPostgresSchemaMismatchIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerPostgresSuccessIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerSecurityIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerWriteAuthorizationIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckRunQueryTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckRunStorePostgresContractTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckRunStorePostgresPathTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckRunStoreSqliteContractTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckRunStoreTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckRunnerIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/ContractCatalogPolicyPackTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/ContractServiceApiIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/PostApiStrictIntegrationTest.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/PostgresSchemaCleanupExtension.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/PostgresTestSupport.java
-/Users/divyapatil/Siddarth_Project_Code/dcg_diva/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/UiControllerIntegrationTest.java
-=======
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/AbstractMetadataStoreContractTest.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerDbFailureIntegrationTest.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/CheckControllerPostgresAuthFailureIntegrationTest.java
@@ -44,4 +22,3 @@
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/PostgresSchemaCleanupExtension.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/PostgresTestSupport.java
 /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-service/src/test/java/com/ideas/contracts/service/UiControllerIntegrationTest.java
->>>>>>> 6356cf2 (Week 8 And Week 9 In progress)

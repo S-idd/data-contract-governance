@@ -1,18 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.ideas.contracts.service.CheckRunStoreSqliteContractTest
 -------------------------------------------------------------------------------
-<<<<<<< HEAD
-Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.109 s -- in com.ideas.contracts.service.CheckRunStoreSqliteContractTest
-=======
-Tests run: 3, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.659 s <<< FAILURE! -- in com.ideas.contracts.service.CheckRunStoreSqliteContractTest
-com.ideas.contracts.service.CheckRunStoreSqliteContractTest.paginationAndStatusFiltersRemainConsistentAcrossBackends -- Time elapsed: 0.581 s <<< ERROR!
-com.ideas.contracts.service.CheckRunStoreException: Check history store is currently unavailable.
-	at com.ideas.contracts.service.CheckRunStore.ensureInitialized(CheckRunStore.java:586)
-	at com.ideas.contracts.service.CheckRunStore.createQueuedRun(CheckRunStore.java:403)
-	at com.ideas.contracts.service.AbstractMetadataStoreContractTest.createAndComplete(AbstractMetadataStoreContractTest.java:109)
-	at com.ideas.contracts.service.AbstractMetadataStoreContractTest.paginationAndStatusFiltersRemainConsistentAcrossBackends(AbstractMetadataStoreContractTest.java:58)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
-
->>>>>>> 6356cf2 (Week 8 And Week 9 In progress)
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.110 s -- in com.ideas.contracts.service.CheckRunStoreSqliteContractTest
