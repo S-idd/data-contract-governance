@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -96,6 +97,7 @@ public class CheckRunStore implements MetadataStore {
     validateExpectedSchema(this.jdbcUrl, properties.getExpectedSchema());
     validatePoolAndTimeoutSettings(properties);
     this.sqliteSettings = properties.getSqlite();
+    warmUpSqliteDriverIfPossible();
     String dbUsername = resolveUsername(properties);
     String dbPassword = resolvePassword(properties);
     this.dataSource = createDataSource(jdbcUrl, dbUsername, dbPassword, properties.getPool());
@@ -650,6 +652,29 @@ public class CheckRunStore implements MetadataStore {
         }
         return false;
       }
+    }
+  }
+
+  private void warmUpSqliteDriverIfPossible() {
+    if (!isSqliteUrl(jdbcUrl)) {
+      return;
+    }
+    try {
+      if (sqlitePath != null) {
+        Path parent = sqlitePath.toAbsolutePath().getParent();
+        if (parent != null) {
+          Files.createDirectories(parent);
+        }
+      }
+      try (Connection ignored = DriverManager.getConnection(jdbcUrl)) {
+        // Warm sqlite-jdbc native initialization before Hikari's acquisition timeout applies.
+      }
+    } catch (Exception e) {
+      LOGGER.debug(
+          "event=sqlite_driver_warmup_skipped component=check_run_store db_target={} error_type={} error_message={}",
+          dbTarget,
+          e.getClass().getSimpleName(),
+          safeValue(e.getMessage()));
     }
   }
 

@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.ideas.contracts.service.CheckRunStorePostgresContractTest
 -------------------------------------------------------------------------------
-Tests run: 3, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 0.092 s -- in com.ideas.contracts.service.CheckRunStorePostgresContractTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 0.089 s -- in com.ideas.contracts.service.CheckRunStorePostgresContractTest
