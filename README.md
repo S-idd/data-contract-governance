@@ -288,6 +288,9 @@ Helpful docs:
 - [Week 8 Stabilization Checklist](docs/week8-stabilization-checklist.md)
 - [Week 8 MySQL Phase 2 Design](docs/week8-mysql-phase2-design.md)
 - [Week 9 MySQL Implementation Checklist](docs/week9-mysql-implementation-checklist.md)
+- [Week 10 MySQL Beta Stabilization](docs/week10-mysql-beta-stabilization.md)
+- [Week 11 S3 Artifact RFC](docs/week11-s3-artifact-rfc.md)
+- [AWS Account Safety](docs/aws-account-safety.md)
 
 ## Sample Contracts
 - [orders.created metadata](contracts/orders.created/metadata.yaml)
@@ -314,3 +317,6 @@ Helpful docs:
 - [Week 8 Stabilization Checklist](docs/week8-stabilization-checklist.md)
 - [Week 8 MySQL Phase 2 Design](docs/week8-mysql-phase2-design.md)
 - [Week 9 MySQL Implementation Checklist](docs/week9-mysql-implementation-checklist.md)
+- [Week 10 MySQL Beta Stabilization](docs/week10-mysql-beta-stabilization.md)
+- [Week 11 S3 Artifact RFC](docs/week11-s3-artifact-rfc.md)
+- [AWS Account Safety](docs/aws-account-safety.md)
