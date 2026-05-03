@@ -23,6 +23,7 @@ import java.util.UUID;
 
 public class CheckRunRecorder {
   private static final String SQLITE_JDBC_PREFIX = "jdbc:sqlite:";
+  private static final String MYSQL_JDBC_PREFIX = "jdbc:mysql:";
   private static final String DEFAULT_TRIGGERED_BY = "cli";
   private static final String DEFAULT_COMPATIBILITY_MODE = "BACKWARD";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -128,13 +129,18 @@ public class CheckRunRecorder {
   }
 
   private void migrateSchema(String jdbcUrl, String username, String password) {
+    String location = isMySqlUrl(jdbcUrl) ? "classpath:db/migration-mysql" : "classpath:db/migration";
     Flyway.configure()
         .dataSource(jdbcUrl, normalizeCredential(username), normalizeCredential(password))
-        .locations("classpath:db/migration")
+        .locations(location)
         .baselineOnMigrate(true)
         .baselineVersion(MigrationVersion.fromVersion("0"))
         .load()
         .migrate();
+  }
+
+  private boolean isMySqlUrl(String jdbcUrl) {
+    return jdbcUrl != null && jdbcUrl.startsWith(MYSQL_JDBC_PREFIX);
   }
 
   private void insertRow(

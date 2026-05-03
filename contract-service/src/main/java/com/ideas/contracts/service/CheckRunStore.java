@@ -58,13 +58,17 @@ public class CheckRunStore implements MetadataStore {
       Set.of("BACKWARD", "FORWARD", "FULL");
   private static final String STATUS_QUEUED = "QUEUED";
   private static final String STATUS_RUNNING = "RUNNING";
-  private static final String LATEST_MIGRATION_RESOURCE = "db/migration/V6__add_check_run_operational_indexes.sql";
+  private static final String LATEST_DEFAULT_MIGRATION_RESOURCE =
+      "db/migration/V6__add_check_run_operational_indexes.sql";
+  private static final String LATEST_MYSQL_MIGRATION_RESOURCE =
+      "db/migration-mysql/V6__add_check_run_operational_indexes.sql";
   private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunStore.class);
 
   private final String jdbcUrl;
   private final Path sqlitePath;
   private final String dbTarget;
+  private final DatabaseBackend databaseBackend;
   private final HikariDataSource dataSource;
   private final Function<String, String> envLookup;
   private final int queryTimeoutSeconds;
@@ -94,6 +98,7 @@ public class CheckRunStore implements MetadataStore {
       this.sqlitePath = resolveSqlitePath(jdbcUrl);
       this.dbTarget = sanitizeJdbcUrl(jdbcUrl);
     }
+    this.databaseBackend = backendFromJdbcUrl(this.jdbcUrl);
     validateExpectedSchema(this.jdbcUrl, properties.getExpectedSchema());
     validatePoolAndTimeoutSettings(properties);
     this.sqliteSettings = properties.getSqlite();
@@ -644,7 +649,7 @@ public class CheckRunStore implements MetadataStore {
         LOGGER.info(
             "event=check_store_initialized component=check_run_store db_target={} backend={}",
             dbTarget,
-            backendFromJdbcUrl(jdbcUrl));
+            databaseBackend.label());
         return true;
       } catch (Exception e) {
         if (logFailure) {
@@ -683,7 +688,11 @@ public class CheckRunStore implements MetadataStore {
   }
 
   private void migrateSchema() {
-    String[] locations = resolveMigrationLocations();
+    String[] locations = resolveMigrationLocations(databaseBackend);
+    LOGGER.info(
+        "event=check_store_migrations_selected component=check_run_store backend={} locations={}",
+        databaseBackend.label(),
+        String.join(",", locations));
     Flyway.configure()
         .dataSource(dataSource)
         .locations(locations)
@@ -734,37 +743,67 @@ public class CheckRunStore implements MetadataStore {
     }
   }
 
-  private String[] resolveMigrationLocations() {
-    if (classpathMigrationAvailable()) {
-      return new String[] {"classpath:db/migration"};
+  private String[] resolveMigrationLocations(DatabaseBackend backend) {
+    MigrationLocation migrationLocation = migrationLocation(backend);
+    if (classpathMigrationAvailable(migrationLocation.latestMigrationResource())) {
+      return new String[] {migrationLocation.classpathLocation()};
     }
 
-    Path fallback = resolveFilesystemMigrationPath();
+    Path fallback = resolveFilesystemMigrationPath(migrationLocation.filesystemDirectory());
     if (fallback != null) {
       LOGGER.warn(
-          "event=check_store_migrations_fallback component=check_run_store path={} message=Using filesystem migrations",
-          fallback.toAbsolutePath());
+          "event=check_store_migrations_fallback component=check_run_store path={} location={} message=Using filesystem migrations",
+          fallback.toAbsolutePath(),
+          migrationLocation.classpathLocation());
       return new String[] {"filesystem:" + fallback.toAbsolutePath()};
     }
 
     throw new IllegalStateException(
-        "No Flyway migrations found for check history store. Ensure db/migration resources are packaged.");
+        "No Flyway migrations found for check history store. Ensure "
+            + migrationLocation.classpathLocation()
+            + " resources are packaged.");
   }
 
-  private boolean classpathMigrationAvailable() {
+  private MigrationLocation migrationLocation(DatabaseBackend backend) {
+    if (backend == DatabaseBackend.MYSQL) {
+      return new MigrationLocation(
+          "classpath:db/migration-mysql",
+          LATEST_MYSQL_MIGRATION_RESOURCE,
+          "migration-mysql");
+    }
+    return new MigrationLocation(
+        "classpath:db/migration",
+        LATEST_DEFAULT_MIGRATION_RESOURCE,
+        "migration");
+  }
+
+  private boolean classpathMigrationAvailable(String latestMigrationResource) {
     ClassLoader loader = Thread.currentThread().getContextClassLoader();
     if (loader == null) {
       loader = CheckRunStore.class.getClassLoader();
     }
-    return loader != null && loader.getResource(LATEST_MIGRATION_RESOURCE) != null;
+    return loader != null && loader.getResource(latestMigrationResource) != null;
   }
 
-  private Path resolveFilesystemMigrationPath() {
-    Path rootRelative = Paths.get("contract-core", "src", "main", "resources", "db", "migration");
+  private Path resolveFilesystemMigrationPath(String migrationDirectory) {
+    Path rootRelative = Paths.get(
+        "contract-core",
+        "src",
+        "main",
+        "resources",
+        "db",
+        migrationDirectory);
     if (Files.isDirectory(rootRelative)) {
       return rootRelative;
     }
-    Path moduleRelative = Paths.get("..", "contract-core", "src", "main", "resources", "db", "migration");
+    Path moduleRelative = Paths.get(
+        "..",
+        "contract-core",
+        "src",
+        "main",
+        "resources",
+        "db",
+        migrationDirectory);
     if (Files.isDirectory(moduleRelative)) {
       return moduleRelative;
     }
@@ -991,6 +1030,10 @@ public class CheckRunStore implements MetadataStore {
     return value != null && value.startsWith("jdbc:postgresql:");
   }
 
+  private boolean isMySqlUrl(String value) {
+    return value != null && value.startsWith("jdbc:mysql:");
+  }
+
   private boolean isSqliteUrl(String value) {
     return value != null && value.startsWith(SQLITE_JDBC_PREFIX);
   }
@@ -1148,15 +1191,40 @@ public class CheckRunStore implements MetadataStore {
     }
   }
 
-  private String backendFromJdbcUrl(String value) {
-    if (value.startsWith("jdbc:postgresql:")) {
-      return "postgresql";
+  private DatabaseBackend backendFromJdbcUrl(String value) {
+    if (isPostgresUrl(value)) {
+      return DatabaseBackend.POSTGRESQL;
     }
-    if (value.startsWith(SQLITE_JDBC_PREFIX)) {
-      return "sqlite";
+    if (isMySqlUrl(value)) {
+      return DatabaseBackend.MYSQL;
     }
-    return "jdbc";
+    if (isSqliteUrl(value)) {
+      return DatabaseBackend.SQLITE;
+    }
+    return DatabaseBackend.JDBC;
   }
+
+  private enum DatabaseBackend {
+    POSTGRESQL("postgresql"),
+    SQLITE("sqlite"),
+    MYSQL("mysql"),
+    JDBC("jdbc");
+
+    private final String label;
+
+    DatabaseBackend(String label) {
+      this.label = label;
+    }
+
+    String label() {
+      return label;
+    }
+  }
+
+  private record MigrationLocation(
+      String classpathLocation,
+      String latestMigrationResource,
+      String filesystemDirectory) {}
 
   private String sanitizeJdbcUrl(String value) {
     String sanitized = value.replaceAll("(?i)(password=)[^&;]+", "$1****");

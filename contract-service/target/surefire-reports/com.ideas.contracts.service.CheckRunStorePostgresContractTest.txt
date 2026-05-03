@@ -1,4 +1,8 @@
 -------------------------------------------------------------------------------
 Test set: com.ideas.contracts.service.CheckRunStorePostgresContractTest
 -------------------------------------------------------------------------------
+<<<<<<< HEAD
 Tests run: 3, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 0.089 s -- in com.ideas.contracts.service.CheckRunStorePostgresContractTest
+=======
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.588 s -- in com.ideas.contracts.service.CheckRunStorePostgresContractTest
+>>>>>>> 6356cf2 (Week 8 And Week 9 In progress)
