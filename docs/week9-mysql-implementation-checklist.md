@@ -2,7 +2,7 @@
 
 - Plan ID: `PLAN-2026-W9-MYSQL-IMPLEMENTATION`
 - Date: `2026-05-02`
-- Status: `In Progress`
+- Status: `Completed (validated 2026-05-13)`
 - Scope: `MySQL metadata adapter + integration/contract coverage`
 - Exit target: `all tests green in 3-DB matrix`
 
@@ -53,21 +53,32 @@ cd /path/to/data-contract-governance
 
 ## 4. Exit Criteria
 
-- [ ] SQLite tests pass with zero regressions.
-- [ ] PostgreSQL tests pass with existing behavior unchanged.
-- [ ] MySQL tests pass with zero skips on provisioned local MySQL.
-- [ ] `BUILD SUCCESS` for full suite.
+- [x] SQLite tests pass with zero regressions.
+- [x] PostgreSQL tests pass with existing behavior unchanged.
+- [x] MySQL tests pass with zero skips on provisioned local MySQL.
+- [x] `BUILD SUCCESS` for full suite.
 
 ## 5. Validation Snapshot
 
-Latest local run (2026-05-02):
+Latest local 3-DB matrix run (2026-05-13):
 
 ```bash
-./mvnw -pl contract-service,contract-cli -am test -Dsurefire.failIfNoSpecifiedTests=false
+export TEST_POSTGRES_JDBC_URL="jdbc:postgresql://127.0.0.1:5432/contracts?currentSchema=dcg_dev"
+export TEST_POSTGRES_USERNAME="<local_pg_user>"
+export TEST_POSTGRES_PASSWORD="<local_pg_password_or_empty>"
+
+export TEST_MYSQL_JDBC_URL="jdbc:mysql://127.0.0.1:3306/mysql?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+export TEST_MYSQL_USERNAME="<local_mysql_user>"
+export TEST_MYSQL_PASSWORD="<local_mysql_password>"
+
+./mvnw -pl contract-service -am clean \
+  -Dtest=CheckRunStoreSqliteContractTest,CheckRunStorePostgresContractTest,CheckRunStoreMySqlContractTest,CheckRunStorePostgresPathTest,CheckRunStoreMySqlPathTest \
+  -Dsurefire.failIfNoSpecifiedTests=false \
+  test
 ```
 
 Observed result:
 
 1. `BUILD SUCCESS`
-2. `contract-service`: `Tests run: 81, Failures: 0, Errors: 0, Skipped: 15`
-3. MySQL contract/path tests compiled and executed with explicit skip reasons when local MySQL was unavailable.
+2. `contract-service`: `Tests run: 17, Failures: 0, Errors: 0, Skipped: 0`
+3. 3-DB matrix exit target satisfied on provisioned local PostgreSQL + MySQL.

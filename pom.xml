@@ -25,6 +25,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <spring.boot.version>3.3.5</spring.boot.version>
     <junit.jupiter.version>5.11.3</junit.jupiter.version>
+    <aws.sdk.version>2.25.66</aws.sdk.version>
   </properties>
 
   <dependencyManagement>

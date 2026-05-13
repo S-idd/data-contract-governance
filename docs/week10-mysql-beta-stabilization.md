@@ -2,7 +2,7 @@
 
 - Plan ID: `PLAN-2026-W10-MYSQL-BETA`
 - Date: `2026-05-03`
-- Status: `Implemented locally; external 3-DB no-skip verification still required`
+- Status: `Implemented and locally verified (2026-05-13)`
 - Scope: `load smoke tests, migration rollback readiness, docs, examples, beta announcement`
 - Exit target: `MySQL beta published`
 
@@ -10,7 +10,7 @@
 
 Week 8 is complete: the MySQL design doc is approved and captures SQL dialect gaps, Flyway routing, and transaction/locking behavior.
 
-Week 9 is code-complete but not fully exited in this checkout because the recorded and current local runs skip external PostgreSQL/MySQL tests unless those databases are provisioned. Treat MySQL as beta-ready only after the 3-DB matrix runs with zero MySQL skips.
+Week 9 is fully exited in this checkout after a provisioned local run completed with zero 3-DB matrix skips (`Tests run: 17, Failures: 0, Errors: 0, Skipped: 0` on 2026-05-13).
 
 ## 2. Stabilization Coverage Added
 
@@ -110,5 +110,5 @@ Beta requirements:
 - [x] Migration rollback readiness test added.
 - [x] MySQL beta verification command documented.
 - [x] Beta announcement copy drafted.
-- [ ] MySQL tests run with zero skips against provisioned local MySQL.
-- [ ] 3-DB matrix published with zero failures and zero targeted external-DB skips.
+- [x] MySQL tests run with zero skips against provisioned local MySQL.
+- [x] 3-DB matrix published with zero failures and zero targeted external-DB skips.

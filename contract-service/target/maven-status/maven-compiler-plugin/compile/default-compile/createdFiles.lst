@@ -2,6 +2,7 @@ com/ideas/contracts/service/CheckRunSqlQueries.class
 com/ideas/contracts/service/ApiExceptionHandler.class
 com/ideas/contracts/service/CheckRunStoreException.class
 com/ideas/contracts/service/CheckRunRepository$QueuedCheckRun.class
+com/ideas/contracts/service/S3ArtifactStoreConfig.class
 com/ideas/contracts/service/model/CheckRunLogResponse.class
 com/ideas/contracts/service/ContractEngineConfig.class
 com/ideas/contracts/service/CheckRunQuery.class
@@ -31,10 +32,12 @@ com/ideas/contracts/service/ApiExceptionHandler$1.class
 com/ideas/contracts/service/CheckRunRepository$PoolSnapshot.class
 com/ideas/contracts/service/AuditLogSupport.class
 com/ideas/contracts/service/model/CheckRunCreateRequest.class
+com/ideas/contracts/service/ArtifactKeyStrategy.class
 com/ideas/contracts/service/SecurityConfig.class
 com/ideas/contracts/service/UiController.class
 com/ideas/contracts/service/CheckStoreProperties.class
 com/ideas/contracts/service/CheckRunner.class
+com/ideas/contracts/service/ArtifactStore$ArtifactReference.class
 com/ideas/contracts/service/model/ContractDetailResponse.class
 com/ideas/contracts/service/CheckRunRepository$HealthSnapshot.class
 com/ideas/contracts/service/model/ApiErrorResponse.class
@@ -43,6 +46,7 @@ com/ideas/contracts/service/MetadataStore.class
 com/ideas/contracts/service/ContractCatalogService.class
 com/ideas/contracts/service/model/CheckRunPageResponse.class
 com/ideas/contracts/service/RunController.class
+com/ideas/contracts/service/S3ArtifactStore.class
 com/ideas/contracts/service/CheckRunNotFoundException.class
 com/ideas/contracts/service/ContractCatalogService$CachedContract.class
 com/ideas/contracts/service/CheckRunStore$1.class
