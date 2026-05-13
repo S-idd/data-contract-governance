@@ -260,6 +260,17 @@ This script:
 - prints Swagger URL and sample API outputs
 - stops service automatically
 
+## S3 Artifact Demo Script
+For Week 12 S3 artifact backend testing, use:
+
+```bash
+cd /path/to/data-contract-governance
+scripts/aws/s3-artifact-demo.sh setup --profile dcg-s3
+scripts/aws/s3-artifact-demo.sh seed-contract
+scripts/aws/s3-artifact-demo.sh verify
+scripts/aws/s3-artifact-demo.sh cleanup --yes
+```
+
 ## Local Demo (macOS/Linux)
 One-command local demo against local PostgreSQL:
 
@@ -290,6 +301,7 @@ Helpful docs:
 - [Week 9 MySQL Implementation Checklist](docs/week9-mysql-implementation-checklist.md)
 - [Week 10 MySQL Beta Stabilization](docs/week10-mysql-beta-stabilization.md)
 - [Week 11 S3 Artifact RFC](docs/week11-s3-artifact-rfc.md)
+- [Week 12 S3 Implementation Checklist](docs/week12-s3-implementation-checklist.md)
 - [AWS Account Safety](docs/aws-account-safety.md)
 
 ## Sample Contracts
@@ -319,4 +331,5 @@ Helpful docs:
 - [Week 9 MySQL Implementation Checklist](docs/week9-mysql-implementation-checklist.md)
 - [Week 10 MySQL Beta Stabilization](docs/week10-mysql-beta-stabilization.md)
 - [Week 11 S3 Artifact RFC](docs/week11-s3-artifact-rfc.md)
+- [Week 12 S3 Implementation Checklist](docs/week12-s3-implementation-checklist.md)
 - [AWS Account Safety](docs/aws-account-safety.md)

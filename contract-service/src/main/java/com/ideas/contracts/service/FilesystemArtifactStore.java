@@ -22,10 +22,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
+@ConditionalOnProperty(
+    prefix = "contracts.artifact",
+    name = "backend",
+    havingValue = "filesystem",
+    matchIfMissing = true)
 public class FilesystemArtifactStore implements ArtifactStore {
   private static final Comparator<String> VERSION_COMPARATOR =
       Comparator.comparingInt(FilesystemArtifactStore::versionNumber);

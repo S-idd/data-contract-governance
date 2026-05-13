@@ -5,9 +5,9 @@ import com.ideas.contracts.core.CompatibilityResult;
 import com.ideas.contracts.core.ContractEngine;
 import com.ideas.contracts.core.PolicyPack;
 import com.ideas.contracts.service.model.ContractDetailResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -31,8 +31,8 @@ public class CheckRunner {
   private final ContractEngine contractEngine;
   private final ContractCatalogService contractCatalogService;
   private final PolicyPackRegistry policyPackRegistry;
+  private final ArtifactStore artifactStore;
   private final CheckMetrics checkMetrics;
-  private final Path contractsRoot;
   private final int maxPerPoll;
   private final int maxRetries;
   private final ConcurrentMap<String, Integer> retryCounts = new ConcurrentHashMap<>();
@@ -42,16 +42,16 @@ public class CheckRunner {
       ContractEngine contractEngine,
       ContractCatalogService contractCatalogService,
       PolicyPackRegistry policyPackRegistry,
+      ArtifactStore artifactStore,
       CheckMetrics checkMetrics,
-      @Value("${contracts.root:contracts}") String contractsRoot,
       @Value("${checks.runner.max-per-poll:3}") int maxPerPoll,
       @Value("${checks.runner.max-retries:2}") int maxRetries) {
     this.checkRunStore = checkRunStore;
     this.contractEngine = contractEngine;
     this.contractCatalogService = contractCatalogService;
     this.policyPackRegistry = policyPackRegistry;
+    this.artifactStore = artifactStore;
     this.checkMetrics = checkMetrics;
-    this.contractsRoot = Paths.get(contractsRoot);
     this.maxPerPoll = Math.max(1, maxPerPoll);
     this.maxRetries = Math.max(0, maxRetries);
   }
@@ -164,7 +164,13 @@ public class CheckRunner {
     if (version == null || version.isBlank()) {
       throw new IllegalStateException("version is missing.");
     }
-    Path schemaPath = contractsRoot.resolve(contractId).resolve(version + ".json");
+    Path schemaPath = artifactStore.schemaPath(contractId, version);
+    if (!Files.exists(schemaPath)) {
+      Optional<JsonNode> reloaded = artifactStore.readSchema(contractId, version);
+      if (reloaded.isEmpty()) {
+        throw new IllegalStateException("Schema file does not exist: " + schemaPath);
+      }
+    }
     if (!Files.exists(schemaPath)) {
       throw new IllegalStateException("Schema file does not exist: " + schemaPath);
     }

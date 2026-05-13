@@ -1,0 +1,559 @@
+package com.ideas.contracts.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import com.ideas.contracts.core.ContractMetadata;
+import com.ideas.contracts.core.DefaultSchemaLoader;
+import com.ideas.contracts.core.ExecutionException;
+import com.ideas.contracts.core.SchemaLoader;
+import com.ideas.contracts.service.model.CreateContractRequest;
+import com.ideas.contracts.service.model.CreateContractVersionRequest;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HexFormat;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.S3Object;
+
+@Service
+@ConditionalOnProperty(prefix = "contracts.artifact", name = "backend", havingValue = "s3")
+public class S3ArtifactStore implements ArtifactStore {
+  private static final Logger LOGGER = LoggerFactory.getLogger(S3ArtifactStore.class);
+  private static final Comparator<String> VERSION_COMPARATOR =
+      Comparator.comparingInt(S3ArtifactStore::versionNumber);
+
+  private final S3Client s3Client;
+  private final String bucket;
+  private final ArtifactKeyStrategy keyStrategy;
+  private final FilesystemArtifactStore fallbackStore;
+  private final boolean fallbackEnabled;
+  private final boolean s3Enabled;
+  private final ObjectMapper jsonMapper;
+  private final SchemaLoader schemaLoader;
+
+  @Autowired
+  public S3ArtifactStore(
+      S3Client s3Client,
+      @Value("${contracts.artifact.s3.bucket:}") String bucket,
+      @Value("${contracts.artifact.s3.prefix:contracts}") String prefix,
+      @Value("${contracts.root:contracts}") String fallbackRoot,
+      @Value("${contracts.artifact.s3.fallback-enabled:true}") boolean fallbackEnabled) {
+    this(
+        s3Client,
+        bucket,
+        new ArtifactKeyStrategy(prefix),
+        new FilesystemArtifactStore(
+            Paths.get(fallbackRoot),
+            new DefaultSchemaLoader(),
+            new ObjectMapper(),
+            new YAMLMapper()),
+        fallbackEnabled,
+        new ObjectMapper(),
+        new DefaultSchemaLoader());
+  }
+
+  S3ArtifactStore(
+      S3Client s3Client,
+      String bucket,
+      ArtifactKeyStrategy keyStrategy,
+      FilesystemArtifactStore fallbackStore,
+      boolean fallbackEnabled,
+      ObjectMapper jsonMapper,
+      SchemaLoader schemaLoader) {
+    this.s3Client = s3Client;
+    this.bucket = bucket == null ? "" : bucket.trim();
+    this.keyStrategy = keyStrategy;
+    this.fallbackStore = fallbackStore;
+    this.fallbackEnabled = fallbackEnabled;
+    this.jsonMapper = jsonMapper;
+    this.schemaLoader = schemaLoader;
+    this.s3Enabled = !this.bucket.isBlank();
+    if (!this.s3Enabled) {
+      LOGGER.warn(
+          "event=artifact_store_s3_disabled component=s3_artifact_store message=S3 bucket is blank, using filesystem fallback");
+    }
+  }
+
+  @Override
+  public List<String> listContracts() {
+    if (!s3Enabled) {
+      return fallbackStore.listContracts();
+    }
+    try {
+      return listContractsFromS3();
+    } catch (RuntimeException ex) {
+      return fallbackOrThrow("list_contracts", "-", ex, fallbackStore::listContracts);
+    }
+  }
+
+  @Override
+  public Optional<ContractMetadata> readMetadata(String contractId) {
+    String normalizedContractId = normalizeContractId(contractId);
+    if (!s3Enabled) {
+      return fallbackStore.readMetadata(normalizedContractId);
+    }
+
+    try {
+      Path metadataPath = localMetadataPath(normalizedContractId);
+      byte[] payload = getObjectBytes(keyStrategy.metadataKey(normalizedContractId));
+      writeLocalFile(metadataPath, payload);
+      return Optional.of(schemaLoader.loadMetadata(metadataPath, normalizedContractId));
+    } catch (RuntimeException ex) {
+      if (isMissingObject(ex)) {
+        return fallbackStore.readMetadata(normalizedContractId);
+      }
+      return fallbackOrThrow(
+          "read_metadata",
+          keyStrategy.metadataKey(normalizedContractId),
+          ex,
+          () -> fallbackStore.readMetadata(normalizedContractId));
+    }
+  }
+
+  @Override
+  public List<String> listVersions(String contractId) {
+    String normalizedContractId = normalizeContractId(contractId);
+    if (!s3Enabled) {
+      return fallbackStore.listVersions(normalizedContractId);
+    }
+    try {
+      return listVersionsFromS3(normalizedContractId);
+    } catch (RuntimeException ex) {
+      return fallbackOrThrow(
+          "list_versions",
+          normalizedContractId,
+          ex,
+          () -> fallbackStore.listVersions(normalizedContractId));
+    }
+  }
+
+  @Override
+  public Optional<JsonNode> readSchema(String contractId, String version) {
+    String normalizedContractId = normalizeContractId(contractId);
+    String normalizedVersion = normalizeVersion(normalizedContractId, version);
+    if (!s3Enabled) {
+      return fallbackStore.readSchema(normalizedContractId, normalizedVersion);
+    }
+
+    try {
+      Path schemaPath = localSchemaPath(normalizedContractId, normalizedVersion);
+      byte[] payload = getObjectBytes(keyStrategy.schemaKey(normalizedContractId, normalizedVersion));
+      writeLocalFile(schemaPath, payload);
+      return Optional.of(jsonMapper.readTree(payload));
+    } catch (RuntimeException ex) {
+      if (isMissingObject(ex)) {
+        return fallbackStore.readSchema(normalizedContractId, normalizedVersion);
+      }
+      return fallbackOrThrow(
+          "read_schema",
+          keyStrategy.schemaKey(normalizedContractId, normalizedVersion),
+          ex,
+          () -> fallbackStore.readSchema(normalizedContractId, normalizedVersion));
+    } catch (IOException ex) {
+      throw new ExecutionException("Unable to parse schema JSON for " + normalizedContractId, ex);
+    }
+  }
+
+  @Override
+  public boolean contractExists(String contractId) {
+    String normalizedContractId = normalizeContractId(contractId);
+    if (!s3Enabled) {
+      return fallbackStore.contractExists(normalizedContractId);
+    }
+    try {
+      s3Client.headObject(
+          HeadObjectRequest.builder()
+              .bucket(bucket)
+              .key(keyStrategy.metadataKey(normalizedContractId))
+              .build());
+      return true;
+    } catch (RuntimeException ex) {
+      if (isMissingObject(ex)) {
+        return fallbackStore.contractExists(normalizedContractId);
+      }
+      return fallbackOrThrow(
+          "contract_exists",
+          keyStrategy.metadataKey(normalizedContractId),
+          ex,
+          () -> fallbackStore.contractExists(normalizedContractId));
+    }
+  }
+
+  @Override
+  public Path contractDirectory(String contractId) {
+    return fallbackStore.contractDirectory(contractId);
+  }
+
+  @Override
+  public Path schemaPath(String contractId, String version) {
+    return fallbackStore.schemaPath(contractId, version);
+  }
+
+  @Override
+  public long contractLastModified(String contractId) {
+    String normalizedContractId = normalizeContractId(contractId);
+    if (!s3Enabled) {
+      return fallbackStore.contractLastModified(normalizedContractId);
+    }
+    try {
+      String prefix = keyStrategy.contractPrefix(normalizedContractId) + "/";
+      long max = 0L;
+      String continuationToken = null;
+      do {
+        ListObjectsV2Response response = s3Client.listObjectsV2(
+            ListObjectsV2Request.builder()
+                .bucket(bucket)
+                .prefix(prefix)
+                .continuationToken(continuationToken)
+                .build());
+        for (S3Object object : response.contents()) {
+          if (object.lastModified() != null) {
+            max = Math.max(max, object.lastModified().toEpochMilli());
+          }
+        }
+        continuationToken = response.nextContinuationToken();
+      } while (continuationToken != null);
+      return max == 0L ? fallbackStore.contractLastModified(normalizedContractId) : max;
+    } catch (RuntimeException ex) {
+      return fallbackOrThrow(
+          "contract_last_modified",
+          normalizedContractId,
+          ex,
+          () -> fallbackStore.contractLastModified(normalizedContractId));
+    }
+  }
+
+  @Override
+  public void createContract(CreateContractRequest request) {
+    if (request == null) {
+      throw new IllegalArgumentException("request must not be null.");
+    }
+    fallbackStore.createContract(request);
+    if (!s3Enabled) {
+      return;
+    }
+
+    String normalizedContractId = normalizeContractId(request.contractId());
+    String normalizedVersion = normalizeVersion(normalizedContractId, request.initialVersion());
+    try {
+      replicateContractMetadataToS3(normalizedContractId);
+      replicateSchemaToS3(normalizedContractId, normalizedVersion);
+    } catch (RuntimeException ex) {
+      deleteS3ContractArtifactsQuietly(normalizedContractId);
+      if (!fallbackEnabled) {
+        fallbackStore.deleteContractIfExists(normalizedContractId);
+        throw ex;
+      }
+      logFallback("create_contract", normalizedContractId, ex);
+    }
+  }
+
+  @Override
+  public void createVersion(String contractId, CreateContractVersionRequest request) {
+    if (request == null) {
+      throw new IllegalArgumentException("request must not be null.");
+    }
+    String normalizedContractId = normalizeContractId(contractId);
+    String normalizedVersion = normalizeVersion(normalizedContractId, request.version());
+
+    fallbackStore.createVersion(normalizedContractId, request);
+    if (!s3Enabled) {
+      return;
+    }
+    try {
+      replicateSchemaToS3(normalizedContractId, normalizedVersion);
+    } catch (RuntimeException ex) {
+      deleteS3VersionArtifactsQuietly(normalizedContractId, normalizedVersion);
+      if (!fallbackEnabled) {
+        fallbackStore.deleteVersionIfExists(normalizedContractId, normalizedVersion);
+        throw ex;
+      }
+      logFallback("create_version", normalizedContractId + "/" + normalizedVersion, ex);
+    }
+  }
+
+  @Override
+  public void deleteContractIfExists(String contractId) {
+    fallbackStore.deleteContractIfExists(contractId);
+    if (!s3Enabled) {
+      return;
+    }
+    try {
+      deleteS3ContractArtifactsQuietly(normalizeContractId(contractId));
+    } catch (RuntimeException ex) {
+      LOGGER.debug(
+          "event=artifact_store_s3_cleanup_failed component=s3_artifact_store operation=delete_contract key={} error_type={} error_message={}",
+          contractId,
+          ex.getClass().getSimpleName(),
+          ex.getMessage());
+    }
+  }
+
+  @Override
+  public void deleteVersionIfExists(String contractId, String version) {
+    fallbackStore.deleteVersionIfExists(contractId, version);
+    if (!s3Enabled) {
+      return;
+    }
+    try {
+      String normalizedContractId = normalizeContractId(contractId);
+      String normalizedVersion = normalizeVersion(normalizedContractId, version);
+      deleteS3VersionArtifactsQuietly(normalizedContractId, normalizedVersion);
+    } catch (RuntimeException ex) {
+      LOGGER.debug(
+          "event=artifact_store_s3_cleanup_failed component=s3_artifact_store operation=delete_version key={}/{} error_type={} error_message={}",
+          contractId,
+          version,
+          ex.getClass().getSimpleName(),
+          ex.getMessage());
+    }
+  }
+
+  @Override
+  public ArtifactReference metadataReference(String contractId) {
+    String normalizedContractId = normalizeContractId(contractId);
+    if (s3Enabled) {
+      return new ArtifactReference("s3", keyStrategy.metadataKey(normalizedContractId));
+    }
+    return ArtifactStore.super.metadataReference(normalizedContractId);
+  }
+
+  @Override
+  public ArtifactReference schemaReference(String contractId, String version) {
+    String normalizedContractId = normalizeContractId(contractId);
+    String normalizedVersion = normalizeVersion(normalizedContractId, version);
+    if (s3Enabled) {
+      return new ArtifactReference("s3", keyStrategy.schemaKey(normalizedContractId, normalizedVersion));
+    }
+    return ArtifactStore.super.schemaReference(normalizedContractId, normalizedVersion);
+  }
+
+  private List<String> listContractsFromS3() {
+    String prefix = keyStrategy.rootPrefix() + "/";
+    Set<String> contractIds = new LinkedHashSet<>();
+    String continuationToken = null;
+    do {
+      ListObjectsV2Response response = s3Client.listObjectsV2(
+          ListObjectsV2Request.builder()
+              .bucket(bucket)
+              .prefix(prefix)
+              .delimiter("/")
+              .continuationToken(continuationToken)
+              .build());
+      for (CommonPrefix commonPrefix : response.commonPrefixes()) {
+        String value = commonPrefix.prefix();
+        if (value == null || value.isBlank()) {
+          continue;
+        }
+        String withoutRoot = value.substring(prefix.length());
+        if (withoutRoot.endsWith("/")) {
+          withoutRoot = withoutRoot.substring(0, withoutRoot.length() - 1);
+        }
+        if (!withoutRoot.isBlank()) {
+          contractIds.add(withoutRoot);
+        }
+      }
+      continuationToken = response.nextContinuationToken();
+    } while (continuationToken != null);
+    return contractIds.stream().sorted().toList();
+  }
+
+  private List<String> listVersionsFromS3(String contractId) {
+    String prefix = keyStrategy.contractPrefix(contractId) + "/versions/";
+    List<String> versions = new ArrayList<>();
+    String continuationToken = null;
+    do {
+      ListObjectsV2Response response = s3Client.listObjectsV2(
+          ListObjectsV2Request.builder()
+              .bucket(bucket)
+              .prefix(prefix)
+              .continuationToken(continuationToken)
+              .build());
+      for (S3Object object : response.contents()) {
+        String key = object.key();
+        if (key == null || !key.endsWith("/schema.json")) {
+          continue;
+        }
+        int versionStart = key.indexOf("/versions/");
+        int versionEnd = key.lastIndexOf("/schema.json");
+        if (versionStart < 0 || versionEnd <= versionStart) {
+          continue;
+        }
+        String candidate = key.substring(versionStart + "/versions/".length(), versionEnd);
+        if (candidate.matches("^v[1-9][0-9]*$")) {
+          versions.add(candidate);
+        }
+      }
+      continuationToken = response.nextContinuationToken();
+    } while (continuationToken != null);
+
+    if (versions.isEmpty()) {
+      return fallbackStore.listVersions(contractId);
+    }
+    return versions.stream().distinct().sorted(VERSION_COMPARATOR).toList();
+  }
+
+  private void replicateContractMetadataToS3(String contractId) {
+    Path metadataPath = localMetadataPath(contractId);
+    putObjectFromFile(keyStrategy.metadataKey(contractId), metadataPath);
+  }
+
+  private void replicateSchemaToS3(String contractId, String version) {
+    Path schemaPath = localSchemaPath(contractId, version);
+    putObjectFromFile(keyStrategy.schemaKey(contractId, version), schemaPath);
+    putObject(
+        keyStrategy.checksumKey(contractId, version),
+        RequestBody.fromBytes((sha256Hex(schemaPath) + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  }
+
+  private void putObjectFromFile(String key, Path filePath) {
+    putObject(key, RequestBody.fromFile(filePath));
+  }
+
+  private void putObject(String key, RequestBody body) {
+    s3Client.putObject(
+        PutObjectRequest.builder().bucket(bucket).key(key).build(),
+        body);
+  }
+
+  private byte[] getObjectBytes(String key) {
+    return s3Client.getObjectAsBytes(
+        GetObjectRequest.builder().bucket(bucket).key(key).build()).asByteArray();
+  }
+
+  private void deleteS3ContractArtifactsQuietly(String contractId) {
+    String prefix = keyStrategy.contractPrefix(contractId) + "/";
+    String continuationToken = null;
+    do {
+      ListObjectsV2Response response = s3Client.listObjectsV2(
+          ListObjectsV2Request.builder()
+              .bucket(bucket)
+              .prefix(prefix)
+              .continuationToken(continuationToken)
+              .build());
+      for (S3Object object : response.contents()) {
+        if (object.key() == null || object.key().isBlank()) {
+          continue;
+        }
+        s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(object.key()).build());
+      }
+      continuationToken = response.nextContinuationToken();
+    } while (continuationToken != null);
+  }
+
+  private void deleteS3VersionArtifactsQuietly(String contractId, String version) {
+    deleteObjectQuietly(keyStrategy.schemaKey(contractId, version));
+    deleteObjectQuietly(keyStrategy.checksumKey(contractId, version));
+  }
+
+  private void deleteObjectQuietly(String key) {
+    try {
+      s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+    } catch (RuntimeException ignored) {
+      // Best effort cleanup only.
+    }
+  }
+
+  private String normalizeContractId(String contractId) {
+    return fallbackStore.contractDirectory(contractId).getFileName().toString();
+  }
+
+  private String normalizeVersion(String contractId, String version) {
+    Path schemaPath = fallbackStore.schemaPath(contractId, version);
+    String fileName = schemaPath.getFileName().toString();
+    return fileName.endsWith(".json") ? fileName.substring(0, fileName.length() - 5) : fileName;
+  }
+
+  private Path localMetadataPath(String contractId) {
+    return fallbackStore.contractDirectory(contractId).resolve("metadata.yaml");
+  }
+
+  private Path localSchemaPath(String contractId, String version) {
+    return fallbackStore.schemaPath(contractId, version);
+  }
+
+  private void writeLocalFile(Path path, byte[] bytes) {
+    try {
+      Path parent = path.toAbsolutePath().normalize().getParent();
+      if (parent != null) {
+        Files.createDirectories(parent);
+      }
+      Files.write(path, bytes);
+    } catch (IOException ex) {
+      throw new ExecutionException("Unable to write local fallback artifact path: " + path, ex);
+    }
+  }
+
+  private String sha256Hex(Path path) {
+    try {
+      byte[] payload = Files.readAllBytes(path);
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      return HexFormat.of().formatHex(digest.digest(payload));
+    } catch (Exception ex) {
+      throw new ExecutionException("Unable to compute schema checksum: " + path, ex);
+    }
+  }
+
+  private boolean isMissingObject(RuntimeException ex) {
+    if (ex instanceof NoSuchKeyException) {
+      return true;
+    }
+    if (ex instanceof S3Exception s3Exception) {
+      int status = s3Exception.statusCode();
+      return status == 404 || status == 403;
+    }
+    return false;
+  }
+
+  private <T> T fallbackOrThrow(
+      String operation,
+      String key,
+      RuntimeException ex,
+      Supplier<T> fallbackSupplier) {
+    if (!fallbackEnabled) {
+      throw ex;
+    }
+    logFallback(operation, key, ex);
+    return fallbackSupplier.get();
+  }
+
+  private void logFallback(String operation, String key, RuntimeException ex) {
+    LOGGER.warn(
+        "event=artifact_store_s3_fallback component=s3_artifact_store operation={} bucket={} key={} error_type={} error_message={}",
+        operation,
+        bucket,
+        key,
+        ex.getClass().getSimpleName(),
+        ex.getMessage());
+  }
+
+  private static int versionNumber(String version) {
+    return Integer.parseInt(version.substring(1));
+  }
+}

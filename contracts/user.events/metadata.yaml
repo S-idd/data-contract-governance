@@ -1,0 +1,5 @@
+---
+ownerTeam: "platform"
+domain: "analytics"
+compatibilityMode: "BACKWARD"
+policyPack: "baseline"

@@ -1,0 +1,23 @@
+{
+  "type" : "object",
+  "properties" : {
+    "user_id" : {
+      "type" : "string"
+    },
+    "event_type" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "string"
+    },
+    "page" : {
+      "type" : "string"
+    },
+    "session_id" : {
+      "type" : "string"
+    },
+    "metadata" : {
+      "type" : "object"
+    }
+  }
+}
