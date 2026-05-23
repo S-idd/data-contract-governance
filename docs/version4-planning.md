@@ -66,7 +66,7 @@ Go criteria:
 
 Cassandra may become relevant for very high write volume, distributed deployments, or event-style historical queries, but it has different consistency, query modeling, migration, and operational tradeoffs than the current relational metadata stores.
 
-V4 should research Cassandra before committing to it.
+V4 should research Cassandra before committing to it. Use `docs/version4-cassandra-research-gate.md` as the evaluation template.
 
 Research questions:
 
@@ -325,7 +325,7 @@ Tasks:
 1. Publish `docs/Architecture-v4.md`.
 2. Resolve or defer V3 open questions.
 3. Make MongoDB decision: no-go, research spike, or implementation proposal.
-4. Make Cassandra decision: no-go, research spike, or implementation proposal.
+4. Make Cassandra decision from `docs/version4-cassandra-research-gate.md`: no-go, research spike, projection-only, or implementation proposal.
 5. Run final focused regression checks.
 6. Create V4 release notes or V4 carry-forward plan.
 
