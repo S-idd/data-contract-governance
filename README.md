@@ -261,7 +261,7 @@ This script:
 - stops service automatically
 
 ## S3 Artifact Demo Script
-For Week 12 S3 artifact backend testing, use:
+For Week 13 S3 beta artifact backend testing, use:
 
 ```bash
 cd /path/to/data-contract-governance
@@ -270,6 +270,8 @@ scripts/aws/s3-artifact-demo.sh seed-contract
 scripts/aws/s3-artifact-demo.sh verify
 scripts/aws/s3-artifact-demo.sh cleanup --yes
 ```
+
+Full beta runbook: [Week 13 S3 Beta Stabilization Runbook](docs/week13-s3-beta-runbook.md)
 
 ## Local Demo (macOS/Linux)
 One-command local demo against local PostgreSQL:
@@ -302,6 +304,9 @@ Helpful docs:
 - [Week 10 MySQL Beta Stabilization](docs/week10-mysql-beta-stabilization.md)
 - [Week 11 S3 Artifact RFC](docs/week11-s3-artifact-rfc.md)
 - [Week 12 S3 Implementation Checklist](docs/week12-s3-implementation-checklist.md)
+- [Week 13 S3 Beta Stabilization Runbook](docs/week13-s3-beta-runbook.md)
+- [Week 13 S3 Beta Launch Post](docs/week13-s3-beta-launch-post.md)
+- [Week 13 S3 Beta User Onboarding Session](docs/week13-s3-beta-onboarding-session.md)
 - [AWS Account Safety](docs/aws-account-safety.md)
 
 ## Sample Contracts
@@ -332,4 +337,7 @@ Helpful docs:
 - [Week 10 MySQL Beta Stabilization](docs/week10-mysql-beta-stabilization.md)
 - [Week 11 S3 Artifact RFC](docs/week11-s3-artifact-rfc.md)
 - [Week 12 S3 Implementation Checklist](docs/week12-s3-implementation-checklist.md)
+- [Week 13 S3 Beta Stabilization Runbook](docs/week13-s3-beta-runbook.md)
+- [Week 13 S3 Beta Launch Post](docs/week13-s3-beta-launch-post.md)
+- [Week 13 S3 Beta User Onboarding Session](docs/week13-s3-beta-onboarding-session.md)
 - [AWS Account Safety](docs/aws-account-safety.md)
