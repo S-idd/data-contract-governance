@@ -1,8 +1,12 @@
 # Week 13: S3 Beta Stabilization Runbook
 
 - Plan ID: `PLAN-2026-W13-S3-BETA`
+- Status: `Published`
+- Published date: `2026-05-23`
 - Scope: Docker-only smoke testing, S3 beta hardening, operator docs, onboarding-ready curls
-- Exit target: `S3 beta`
+- Exit target: `S3 beta published`
+- Launch post: `docs/week13-s3-beta-launch-post.md`
+- User onboarding session: `docs/week13-s3-beta-onboarding-session.md`
 
 ## 1. Docker Credentials
 
@@ -183,3 +187,36 @@ Track these every week during beta:
 - Quality: test pass rate, escaped defects, migration failures
 - Reliability: p95 API latency, queue delay, error rate
 - Community: stars, discussions, external contributors, docs clarity feedback
+
+## 6. Launch Package
+
+- Launch post: `docs/week13-s3-beta-launch-post.md`
+- User onboarding session: `docs/week13-s3-beta-onboarding-session.md`
+- Demo script: `scripts/aws/s3-artifact-demo.sh`
+- README entry point: `README.md`
+
+## 7. Verification Snapshot
+
+Latest focused verification on `2026-05-23`:
+
+```text
+./mvnw -pl contract-service -am \
+  -Dtest=ArtifactStoreBackendSelectionTest,S3ArtifactStoreTest,ArtifactKeyStrategyTest,CheckRunnerIntegrationTest \
+  -Dsurefire.failIfNoSpecifiedTests=false \
+  test
+
+BUILD SUCCESS
+Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+```
+
+## 8. Exit Checklist
+
+- [x] Operational runbook published.
+- [x] Docker API smoke curls documented.
+- [x] S3 beta smoke flow documented.
+- [x] Bucket hardening defaults documented.
+- [x] Failure-mode tests present for blank bucket config, S3 write failure rollback, and read fallback.
+- [x] Launch post drafted and published.
+- [x] User onboarding session guide published.
+- [x] Focused S3 beta test slice passed with zero failures and zero skips.
+- [x] S3 beta published.
