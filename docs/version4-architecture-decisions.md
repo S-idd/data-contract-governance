@@ -97,7 +97,7 @@ Cassandra could be useful for high-write, distributed, time-series-like workload
 
 Decision:
 
-Cassandra is not implemented in V4. It is allowed only as a research track.
+Cassandra is not implemented in V4. It is allowed only as a research track using `docs/version4-cassandra-research-gate.md`.
 
 Research must answer:
 
