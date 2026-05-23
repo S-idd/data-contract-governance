@@ -19,6 +19,7 @@ com/ideas/contracts/service/UiControllerIntegrationTest.class
 com/ideas/contracts/service/MySqlTestSupport$Version.class
 com/ideas/contracts/service/CheckControllerPostgresNetworkFailureIntegrationTest.class
 com/ideas/contracts/service/CheckRunStoreMigrationRollbackTest.class
+com/ideas/contracts/service/ArtifactStoreBackendSelectionTest.class
 com/ideas/contracts/service/CheckRunStorePostgresPathTest.class
 com/ideas/contracts/service/CheckRunStorePostgresContractTest.class
 com/ideas/contracts/service/ContractCatalogPolicyPackTest.class
