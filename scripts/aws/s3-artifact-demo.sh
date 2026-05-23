@@ -11,6 +11,8 @@ SERVICE_URL="http://localhost:8080"
 CONTRACT_ID="user.events"
 ENV_FILE="/tmp/dcg-s3-demo.env"
 FORCE_NO_PROMPT=0
+APP_USER="${DCG_APP_USERNAME:-admin}"
+APP_PASSWORD="${DCG_APP_PASSWORD:-change-me}"
 
 usage() {
   cat <<'EOF'
@@ -33,6 +35,8 @@ Options:
   --service-url URL     API base URL (default: http://localhost:8080)
   --contract-id ID      Contract ID for seed calls (default: user.events)
   --env-file PATH       Env file path (default: /tmp/dcg-s3-demo.env)
+  --username NAME       Contract-service basic-auth username (default: env DCG_APP_USERNAME or admin)
+  --password VALUE      Contract-service basic-auth password (default: env DCG_APP_PASSWORD or change-me)
   --yes                 Skip cleanup confirmation prompt
   -h, --help            Show this help
 
@@ -108,6 +112,16 @@ parse_args() {
         ENV_FILE="$2"
         shift 2
         ;;
+      --username)
+        [[ $# -ge 2 ]] || die "--username requires a value"
+        APP_USER="$2"
+        shift 2
+        ;;
+      --password)
+        [[ $# -ge 2 ]] || die "--password requires a value"
+        APP_PASSWORD="$2"
+        shift 2
+        ;;
       --yes)
         FORCE_NO_PROMPT=1
         shift
@@ -142,6 +156,18 @@ load_saved_env() {
     if [[ -z "$PROFILE" && -n "${AWS_PROFILE:-}" ]]; then
       PROFILE="$AWS_PROFILE"
     fi
+    if [[ -n "${DCG_SERVICE_URL:-}" ]]; then
+      SERVICE_URL="$DCG_SERVICE_URL"
+    fi
+    if [[ -n "${DCG_CONTRACT_ID:-}" ]]; then
+      CONTRACT_ID="$DCG_CONTRACT_ID"
+    fi
+    if [[ -n "${DCG_APP_USERNAME:-}" ]]; then
+      APP_USER="$DCG_APP_USERNAME"
+    fi
+    if [[ -n "${DCG_APP_PASSWORD:-}" ]]; then
+      APP_PASSWORD="$DCG_APP_PASSWORD"
+    fi
   fi
 }
 
@@ -159,6 +185,7 @@ export DCG_S3_BUCKET="$BUCKET"
 export DCG_S3_PREFIX="$PREFIX"
 export DCG_SERVICE_URL="$SERVICE_URL"
 export DCG_CONTRACT_ID="$CONTRACT_ID"
+export DCG_APP_USERNAME="$APP_USER"
 EOF
   log "Saved env file: $ENV_FILE"
 }
@@ -201,12 +228,24 @@ configure_bucket() {
     --public-access-block-configuration \
       BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 
+  aws s3api put-bucket-ownership-controls \
+    --profile "$PROFILE" \
+    --bucket "$BUCKET" \
+    --ownership-controls \
+      "Rules=[{ObjectOwnership=BucketOwnerEnforced}]"
+
+  aws s3api put-bucket-encryption \
+    --profile "$PROFILE" \
+    --bucket "$BUCKET" \
+    --server-side-encryption-configuration \
+      "Rules=[{ApplyServerSideEncryptionByDefault={SSEAlgorithm=AES256}}]"
+
   aws s3api put-bucket-versioning \
     --profile "$PROFILE" \
     --bucket "$BUCKET" \
     --versioning-configuration Status=Enabled
 
-  log "Enabled Block Public Access and versioning"
+  log "Enabled Block Public Access, bucket-owner-enforced ownership, SSE-S3, and versioning"
 }
 
 seed_raw_sample() {
@@ -231,16 +270,27 @@ print_service_run_hint() {
 
 Start contract-service with S3 backend:
   cd "$ROOT_DIR"
-  AWS_PROFILE="$PROFILE" \\
+  CONTRACTS_ROOT="/tmp/dcg-contracts-cache" \\
   CONTRACTS_ARTIFACT_BACKEND=s3 \\
   CONTRACTS_ARTIFACT_S3_BUCKET="$BUCKET" \\
   CONTRACTS_ARTIFACT_S3_REGION="$REGION" \\
   CONTRACTS_ARTIFACT_S3_PREFIX="$PREFIX" \\
   CONTRACTS_ARTIFACT_S3_FALLBACK_ENABLED=false \\
-  APP_UI_ENABLED=true \\
-  APP_SECURITY_ENABLED=false \\
-  ./mvnw -f contract-service/pom.xml spring-boot:run
+  CONTRACTS_ARTIFACT_S3_LOCAL_CACHE_ROOT="/tmp/dcg-contracts-cache" \\
+  CONTRACTS_ARTIFACT_S3_SERVER_SIDE_ENCRYPTION=AES256 \\
+  APP_SECURITY_ENABLED=true \\
+  DCG_APP_USERNAME="$APP_USER" \\
+  docker compose --env-file .env -f docker-compose.yml up --build -d
+
+Credential note:
+  Contract-service basic auth uses DCG_APP_USERNAME / DCG_APP_PASSWORD from .env.
+  The container must receive AWS credentials through env vars, IAM role, or app-scoped
+  CONTRACTS_ARTIFACT_S3_ACCESS_KEY / CONTRACTS_ARTIFACT_S3_SECRET_KEY. Do not commit them.
 EOF
+}
+
+curl_auth_args() {
+  printf '%s:%s' "$APP_USER" "$APP_PASSWORD"
 }
 
 http_post_json() {
@@ -251,6 +301,7 @@ http_post_json() {
 
   set +e
   status_code="$(curl -sS -o "$body_file" -w "%{http_code}" \
+    -u "$(curl_auth_args)" \
     -X POST "$url" \
     -H "Content-Type: application/json" \
     -d "$payload")"
@@ -358,7 +409,7 @@ verify() {
 
   if curl -fsS "$SERVICE_URL/actuator/health" >/dev/null 2>&1; then
     log "Service is up; fetching contract detail"
-    curl -sS "$SERVICE_URL/contracts/$CONTRACT_ID"
+    curl -sS -u "$(curl_auth_args)" "$SERVICE_URL/contracts/$CONTRACT_ID"
     printf '\n'
   else
     log "Service not running at $SERVICE_URL; skipping API verify"
@@ -440,6 +491,7 @@ SERVICE_URL=$SERVICE_URL
 CONTRACT_ID=$CONTRACT_ID
 ENV_FILE=$ENV_FILE
 ROOT_DIR=$ROOT_DIR
+APP_USER=$APP_USER
 EOF
 }
 

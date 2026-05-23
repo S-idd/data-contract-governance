@@ -1,6 +1,7 @@
 package com.ideas.contracts.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
@@ -59,6 +60,80 @@ class S3ArtifactStoreTest {
   }
 
   @Test
+  void createContractAddsProductionS3ObjectHeaders() throws Exception {
+    S3Client s3Client = Mockito.mock(S3Client.class);
+    when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+        .thenReturn(PutObjectResponse.builder().eTag("ok").build());
+
+    S3ArtifactStore store = new S3ArtifactStore(
+        s3Client,
+        "dcg-artifacts-test",
+        new ArtifactKeyStrategy("contracts"),
+        newFallbackStore(tempDir.resolve("contracts-cache")),
+        false,
+        "AES256",
+        "",
+        new ObjectMapper(),
+        new DefaultSchemaLoader());
+
+    store.createContract(createRequest("orders.created", "v1"));
+
+    ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+    verify(s3Client, times(3)).putObject(captor.capture(), any(RequestBody.class));
+    List<PutObjectRequest> requests = captor.getAllValues();
+    assertTrue(requests.stream().allMatch(request -> "AES256".equals(request.serverSideEncryptionAsString())));
+    assertTrue(requests.stream()
+        .anyMatch(request -> request.key().endsWith("/schema.json")
+            && "application/json".equals(request.contentType())));
+    assertTrue(requests.stream()
+        .anyMatch(request -> request.key().endsWith("/metadata.yaml")
+            && "application/yaml".equals(request.contentType())));
+    assertTrue(requests.stream()
+        .anyMatch(request -> request.key().endsWith("/schema.sha256")
+            && "text/plain".equals(request.contentType())));
+  }
+
+  @Test
+  void blankBucketFailsFastWhenFallbackIsDisabled() {
+    S3Client s3Client = Mockito.mock(S3Client.class);
+
+    IllegalStateException error = assertThrows(IllegalStateException.class, () -> new S3ArtifactStore(
+        s3Client,
+        "",
+        new ArtifactKeyStrategy("contracts"),
+        newFallbackStore(tempDir.resolve("contracts-cache")),
+        false,
+        "AES256",
+        "",
+        new ObjectMapper(),
+        new DefaultSchemaLoader()));
+
+    assertTrue(error.getMessage().contains("bucket must be set"));
+  }
+
+  @Test
+  void createContractRollsBackLocalCacheWhenS3WriteFailsAndFallbackIsDisabled() {
+    S3Client s3Client = Mockito.mock(S3Client.class);
+    when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+        .thenThrow(S3Exception.builder().statusCode(503).message("S3 temporarily unavailable").build());
+
+    Path cacheRoot = tempDir.resolve("contracts-cache");
+    S3ArtifactStore store = new S3ArtifactStore(
+        s3Client,
+        "dcg-artifacts-test",
+        new ArtifactKeyStrategy("contracts"),
+        newFallbackStore(cacheRoot),
+        false,
+        "AES256",
+        "",
+        new ObjectMapper(),
+        new DefaultSchemaLoader());
+
+    assertThrows(S3Exception.class, () -> store.createContract(createRequest("orders.created", "v1")));
+    assertTrue(Files.notExists(cacheRoot.resolve("orders.created")));
+  }
+
+  @Test
   void readSchemaFallsBackToLocalFilesystemWhenS3IsUnavailable() throws Exception {
     S3Client s3Client = Mockito.mock(S3Client.class);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
@@ -111,19 +186,24 @@ class S3ArtifactStoreTest {
   }
 
   private S3ArtifactStore newStore(S3Client s3Client, Path fallbackRoot, boolean fallbackEnabled) {
-    FilesystemArtifactStore fallbackStore = new FilesystemArtifactStore(
-        fallbackRoot,
-        new DefaultSchemaLoader(),
-        new ObjectMapper(),
-        new YAMLMapper());
     return new S3ArtifactStore(
         s3Client,
         "dcg-artifacts-test",
         new ArtifactKeyStrategy("contracts"),
-        fallbackStore,
+        newFallbackStore(fallbackRoot),
         fallbackEnabled,
+        "AES256",
+        "",
         new ObjectMapper(),
         new DefaultSchemaLoader());
+  }
+
+  private FilesystemArtifactStore newFallbackStore(Path fallbackRoot) {
+    return new FilesystemArtifactStore(
+        fallbackRoot,
+        new DefaultSchemaLoader(),
+        new ObjectMapper(),
+        new YAMLMapper());
   }
 
   private CreateContractRequest createRequest(String contractId, String version) {

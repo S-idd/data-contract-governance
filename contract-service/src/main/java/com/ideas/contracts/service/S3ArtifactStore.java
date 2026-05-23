@@ -56,24 +56,30 @@ public class S3ArtifactStore implements ArtifactStore {
   private final boolean s3Enabled;
   private final ObjectMapper jsonMapper;
   private final SchemaLoader schemaLoader;
+  private final String serverSideEncryption;
+  private final String kmsKeyId;
 
   @Autowired
   public S3ArtifactStore(
       S3Client s3Client,
       @Value("${contracts.artifact.s3.bucket:}") String bucket,
       @Value("${contracts.artifact.s3.prefix:contracts}") String prefix,
-      @Value("${contracts.root:contracts}") String fallbackRoot,
-      @Value("${contracts.artifact.s3.fallback-enabled:true}") boolean fallbackEnabled) {
+      @Value("${contracts.artifact.s3.local-cache-root:${contracts.root:contracts}}") String localCacheRoot,
+      @Value("${contracts.artifact.s3.fallback-enabled:true}") boolean fallbackEnabled,
+      @Value("${contracts.artifact.s3.server-side-encryption:AES256}") String serverSideEncryption,
+      @Value("${contracts.artifact.s3.kms-key-id:}") String kmsKeyId) {
     this(
         s3Client,
         bucket,
         new ArtifactKeyStrategy(prefix),
         new FilesystemArtifactStore(
-            Paths.get(fallbackRoot),
+            Paths.get(localCacheRoot),
             new DefaultSchemaLoader(),
             new ObjectMapper(),
             new YAMLMapper()),
         fallbackEnabled,
+        serverSideEncryption,
+        kmsKeyId,
         new ObjectMapper(),
         new DefaultSchemaLoader());
   }
@@ -84,6 +90,8 @@ public class S3ArtifactStore implements ArtifactStore {
       ArtifactKeyStrategy keyStrategy,
       FilesystemArtifactStore fallbackStore,
       boolean fallbackEnabled,
+      String serverSideEncryption,
+      String kmsKeyId,
       ObjectMapper jsonMapper,
       SchemaLoader schemaLoader) {
     this.s3Client = s3Client;
@@ -91,12 +99,22 @@ public class S3ArtifactStore implements ArtifactStore {
     this.keyStrategy = keyStrategy;
     this.fallbackStore = fallbackStore;
     this.fallbackEnabled = fallbackEnabled;
+    this.serverSideEncryption = normalizeOptional(serverSideEncryption);
+    this.kmsKeyId = normalizeOptional(kmsKeyId);
     this.jsonMapper = jsonMapper;
     this.schemaLoader = schemaLoader;
     this.s3Enabled = !this.bucket.isBlank();
     if (!this.s3Enabled) {
+      if (!fallbackEnabled) {
+        throw new IllegalStateException(
+            "contracts.artifact.s3.bucket must be set when S3 artifact backend fallback is disabled.");
+      }
       LOGGER.warn(
           "event=artifact_store_s3_disabled component=s3_artifact_store message=S3 bucket is blank, using filesystem fallback");
+    }
+    if (!this.kmsKeyId.isBlank() && !this.serverSideEncryption.startsWith("aws:kms")) {
+      throw new IllegalArgumentException(
+          "contracts.artifact.s3.kms-key-id requires contracts.artifact.s3.server-side-encryption=aws:kms or aws:kms:dsse.");
     }
   }
 
@@ -437,9 +455,17 @@ public class S3ArtifactStore implements ArtifactStore {
   }
 
   private void putObject(String key, RequestBody body) {
-    s3Client.putObject(
-        PutObjectRequest.builder().bucket(bucket).key(key).build(),
-        body);
+    PutObjectRequest.Builder request = PutObjectRequest.builder()
+        .bucket(bucket)
+        .key(key)
+        .contentType(contentTypeFor(key));
+    if (!serverSideEncryption.isBlank()) {
+      request.serverSideEncryption(serverSideEncryption);
+    }
+    if (!kmsKeyId.isBlank()) {
+      request.ssekmsKeyId(kmsKeyId);
+    }
+    s3Client.putObject(request.build(), body);
   }
 
   private byte[] getObjectBytes(String key) {
@@ -448,23 +474,34 @@ public class S3ArtifactStore implements ArtifactStore {
   }
 
   private void deleteS3ContractArtifactsQuietly(String contractId) {
-    String prefix = keyStrategy.contractPrefix(contractId) + "/";
-    String continuationToken = null;
-    do {
-      ListObjectsV2Response response = s3Client.listObjectsV2(
-          ListObjectsV2Request.builder()
-              .bucket(bucket)
-              .prefix(prefix)
-              .continuationToken(continuationToken)
-              .build());
-      for (S3Object object : response.contents()) {
-        if (object.key() == null || object.key().isBlank()) {
-          continue;
+    try {
+      String prefix = keyStrategy.contractPrefix(contractId) + "/";
+      String continuationToken = null;
+      do {
+        ListObjectsV2Response response = s3Client.listObjectsV2(
+            ListObjectsV2Request.builder()
+                .bucket(bucket)
+                .prefix(prefix)
+                .continuationToken(continuationToken)
+                .build());
+        if (response == null) {
+          return;
         }
-        s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(object.key()).build());
-      }
-      continuationToken = response.nextContinuationToken();
-    } while (continuationToken != null);
+        for (S3Object object : response.contents()) {
+          if (object.key() == null || object.key().isBlank()) {
+            continue;
+          }
+          s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(object.key()).build());
+        }
+        continuationToken = response.nextContinuationToken();
+      } while (continuationToken != null);
+    } catch (RuntimeException ex) {
+      LOGGER.debug(
+          "event=artifact_store_s3_cleanup_failed component=s3_artifact_store operation=delete_contract key={} error_type={} error_message={}",
+          contractId,
+          ex.getClass().getSimpleName(),
+          ex.getMessage());
+    }
   }
 
   private void deleteS3VersionArtifactsQuietly(String contractId, String version) {
@@ -482,6 +519,26 @@ public class S3ArtifactStore implements ArtifactStore {
 
   private String normalizeContractId(String contractId) {
     return fallbackStore.contractDirectory(contractId).getFileName().toString();
+  }
+
+  private String normalizeOptional(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+    return value.trim();
+  }
+
+  private String contentTypeFor(String key) {
+    if (key.endsWith(".json")) {
+      return "application/json";
+    }
+    if (key.endsWith(".yaml") || key.endsWith(".yml")) {
+      return "application/yaml";
+    }
+    if (key.endsWith(".sha256")) {
+      return "text/plain";
+    }
+    return "application/octet-stream";
   }
 
   private String normalizeVersion(String contractId, String version) {

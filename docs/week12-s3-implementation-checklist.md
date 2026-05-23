@@ -30,6 +30,9 @@ contracts.artifact.s3.path-style=false
 contracts.artifact.s3.access-key=
 contracts.artifact.s3.secret-key=
 contracts.artifact.s3.fallback-enabled=true
+contracts.artifact.s3.local-cache-root=contracts
+contracts.artifact.s3.server-side-encryption=AES256
+contracts.artifact.s3.kms-key-id=
 ```
 
 Environment aliases in `application.properties`:
@@ -44,6 +47,9 @@ CONTRACTS_ARTIFACT_S3_PATH_STYLE
 CONTRACTS_ARTIFACT_S3_ACCESS_KEY
 CONTRACTS_ARTIFACT_S3_SECRET_KEY
 CONTRACTS_ARTIFACT_S3_FALLBACK_ENABLED
+CONTRACTS_ARTIFACT_S3_LOCAL_CACHE_ROOT
+CONTRACTS_ARTIFACT_S3_SERVER_SIDE_ENCRYPTION
+CONTRACTS_ARTIFACT_S3_KMS_KEY_ID
 ```
 
 ## 3. Verification Commands
