@@ -20,7 +20,7 @@ bash scripts/demo/run-compose-demo.sh
 
 What the script does:
 
-1. Creates `.env` from `.env.compose.example` if missing.
+1. Creates `.env` from `config/compose.env.example` if missing.
 2. Builds and starts the compose stack.
 3. Waits for `/actuator/health`.
 4. Submits a sample compatibility check (`orders.created`, `v1 -> v2`).
@@ -48,7 +48,7 @@ Notes:
 - UI: `http://localhost:8080/ui`
 - Swagger: `http://localhost:8080/swagger-ui/index.html`
 
-Default credentials (from `.env.compose.example`):
+Default credentials (from `config/compose.env.example`):
 
 - Username: `admin`
 - Password: `change-me`
@@ -56,7 +56,7 @@ Default credentials (from `.env.compose.example`):
 ## 4) Manual Path (if you prefer explicit commands)
 
 ```bash
-cp .env.compose.example .env
+cp config/compose.env.example .env
 docker compose --env-file .env -f docker-compose.yml up --build -d
 curl -fsS http://localhost:8080/actuator/health
 ```

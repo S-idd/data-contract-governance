@@ -1,14 +1,27 @@
 .git
 .github
+.m2
 .vscode
 .idea
 
+.env
+.env.*
+
 **/target
+**/*.class
+**/*.jar
+!.mvn/wrapper/maven-wrapper.jar
 **/.classpath
 **/.project
 **/.settings
 
-checks.db
-contract-service-demo.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log
+.DS_Store
+desktop.ini
 docs/screenshots
 contracts/payments.completed.*/

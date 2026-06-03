@@ -38,7 +38,7 @@ docker exec dcg-postgres psql -U contracts_app -d contracts \
 ## 2. Start Docker Stack
 
 ```bash
-cp .env.compose.example .env
+cp config/compose.env.example .env
 docker compose --env-file .env -f docker-compose.yml up --build -d
 docker compose --env-file .env -f docker-compose.yml ps
 ```
