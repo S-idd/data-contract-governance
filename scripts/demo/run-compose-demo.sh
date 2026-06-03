@@ -50,8 +50,8 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  cp "$ROOT_DIR/.env.compose.example" "$ENV_FILE"
-  echo "Created $ENV_FILE from .env.compose.example"
+  cp "$ROOT_DIR/config/compose.env.example" "$ENV_FILE"
+  echo "Created $ENV_FILE from config/compose.env.example"
 fi
 
 # shellcheck disable=SC1090

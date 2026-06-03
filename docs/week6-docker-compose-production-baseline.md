@@ -28,7 +28,7 @@ bash scripts/demo/run-compose-demo.sh
 
 The script:
 
-1. Creates `.env` from `.env.compose.example` if missing.
+1. Creates `.env` from `config/compose.env.example` if missing.
 2. Runs `docker compose up --build -d`.
 3. Waits for service health.
 4. Submits a sample check run using HTTP Basic auth.
@@ -45,7 +45,7 @@ bash scripts/demo/run-compose-demo.sh
 ## 3) Manual Path
 
 ```bash
-cp .env.compose.example .env
+cp config/compose.env.example .env
 docker compose --env-file .env -f docker-compose.yml up --build -d
 ```
 
@@ -65,7 +65,7 @@ Open UI:
 
 - `http://localhost:8080/ui`
 
-Default credentials (from `.env.compose.example`):
+Default credentials (from `config/compose.env.example`):
 
 - username: `admin`
 - password: `change-me`
@@ -116,6 +116,6 @@ Already enabled in the service container:
 1. `.dockerignore`
 2. `docker/contract-service.Dockerfile`
 3. `docker-compose.yml`
-4. `.env.compose.example`
+4. `config/compose.env.example`
 5. `scripts/demo/run-compose-demo.sh`
 6. `docs/quickstart-compose.md`

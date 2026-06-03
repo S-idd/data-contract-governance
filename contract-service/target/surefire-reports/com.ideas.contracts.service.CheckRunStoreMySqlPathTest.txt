@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.ideas.contracts.service.CheckRunStoreMySqlPathTest
--------------------------------------------------------------------------------
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 4.647 s -- in com.ideas.contracts.service.CheckRunStoreMySqlPathTest

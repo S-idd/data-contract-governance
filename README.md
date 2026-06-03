@@ -238,7 +238,7 @@ bash scripts/demo/run-compose-demo.sh
 Manual path:
 
 ```bash
-cp .env.compose.example .env
+cp config/compose.env.example .env
 docker compose --env-file .env -f docker-compose.yml up --build -d
 curl -fsS http://localhost:8080/actuator/health
 ```
