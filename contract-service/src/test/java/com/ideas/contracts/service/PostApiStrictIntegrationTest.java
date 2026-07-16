@@ -22,9 +22,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -35,10 +38,13 @@ import org.springframework.test.web.servlet.MvcResult;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(OutputCaptureExtension.class)
 @TestPropertySource(properties = {
     "app.security.enabled=false",
     "app.ui.enabled=true",
-    "contracts.validation.strict-mode=true"
+    "contracts.validation.strict-mode=true",
+    "notifications.enabled=true",
+    "notifications.sinks=log"
 })
 class PostApiStrictIntegrationTest {
   private static Path tempRoot;
@@ -248,7 +254,7 @@ class PostApiStrictIntegrationTest {
   }
 
   @Test
-  void contractVersionCreateRejectsBreakingChangesInStrictMode() throws Exception {
+  void contractVersionCreateRejectsBreakingChangesInStrictMode(CapturedOutput output) throws Exception {
     String payload = """
         {
           "version": "v3",
@@ -277,6 +283,9 @@ class PostApiStrictIntegrationTest {
         "/contracts/orders.created/versions",
         "orders.created",
         "\"version\":\"v3\"");
+    assertTrue(output.toString().contains("event=notification_event"));
+    assertTrue(output.toString().contains("event_type=CONTRACT_VERSION_REJECTED"));
+    assertTrue(output.toString().contains("contract_id=orders.created"));
   }
 
   @Test

@@ -2,6 +2,7 @@ package com.ideas.contracts.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.ideas.contracts.service.model.CheckRunCreateRequest;
 import com.ideas.contracts.service.model.CheckRunCreateResponse;
@@ -11,9 +12,12 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
@@ -21,8 +25,11 @@ import org.springframework.test.context.TestPropertySource;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(OutputCaptureExtension.class)
 @TestPropertySource(properties = {
     "checks.runner.enabled=true",
+    "notifications.enabled=true",
+    "notifications.sinks=log",
     "spring.task.scheduling.enabled=false"
 })
 class CheckRunnerIntegrationTest {
@@ -57,6 +64,9 @@ class CheckRunnerIntegrationTest {
     Files.writeString(
         contractDir.resolve("v2.json"),
         "{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"string\"},\"status\":{\"type\":\"string\"}}}");
+    Files.writeString(
+        contractDir.resolve("v3.json"),
+        "{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"integer\"},\"status\":{\"type\":\"string\"}}}");
   }
 
   @Test
@@ -74,6 +84,25 @@ class CheckRunnerIntegrationTest {
     CheckRunResponse completed = checkRunStore.findByRunId(created.runId()).orElseThrow();
     assertEquals("PASS", completed.status());
     assertNotNull(completed.finishedAt());
+  }
+
+  @Test
+  void runnerPublishesNotificationForFailedCompatibilityCheck(CapturedOutput output) {
+    CheckRunCreateResponse created = checkRunStore.createQueuedRun(new CheckRunCreateRequest(
+        "orders.created",
+        "v2",
+        "v3",
+        "BACKWARD",
+        "runner-fail-test",
+        "integration-test"));
+
+    checkRunner.pollQueue();
+
+    CheckRunResponse completed = checkRunStore.findByRunId(created.runId()).orElseThrow();
+    assertEquals("FAIL", completed.status());
+    assertTrue(output.toString().contains("event=notification_event"));
+    assertTrue(output.toString().contains("event_type=CONTRACT_CHECK_FAILED"));
+    assertTrue(output.toString().contains("run_id=" + created.runId()));
   }
 
   private static synchronized void ensurePaths() {

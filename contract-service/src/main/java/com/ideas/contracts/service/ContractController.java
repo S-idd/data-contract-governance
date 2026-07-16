@@ -1,5 +1,6 @@
 package com.ideas.contracts.service;
 
+import com.ideas.contracts.core.CompatibilityException;
 import com.ideas.contracts.service.model.ContractDetailResponse;
 import com.ideas.contracts.service.model.ContractSummaryResponse;
 import com.ideas.contracts.service.model.ContractVersionResponse;
@@ -32,14 +33,17 @@ public class ContractController {
   private final ContractCatalogService catalogService;
   private final ContractWriteService contractWriteService;
   private final MetadataStore checkRunStore;
+  private final NotificationService notificationService;
 
   public ContractController(
       ContractCatalogService catalogService,
       ContractWriteService contractWriteService,
-      MetadataStore checkRunStore) {
+      MetadataStore checkRunStore,
+      NotificationService notificationService) {
     this.catalogService = catalogService;
     this.contractWriteService = contractWriteService;
     this.checkRunStore = checkRunStore;
+    this.notificationService = notificationService;
   }
 
   @GetMapping
@@ -179,6 +183,7 @@ public class ContractController {
       ContractDetailResponse response = contractWriteService.createContract(request);
       checkRunStore.recordAuditLog(
           AuditLogSupport.contractCreateSuccess(httpRequest, request, response.contractId()));
+      notificationService.publish(NotificationEvent.contractRegistered(response));
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
     } catch (RuntimeException ex) {
       checkRunStore.recordAuditLog(AuditLogSupport.contractCreateFailure(httpRequest, request, ex));
@@ -202,10 +207,14 @@ public class ContractController {
       ContractVersionResponse response = contractWriteService.createVersion(contractId, request);
       checkRunStore.recordAuditLog(
           AuditLogSupport.contractVersionCreateSuccess(httpRequest, contractId, request, response.version()));
+      notificationService.publish(NotificationEvent.schemaVersionPublished(response));
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
     } catch (RuntimeException ex) {
       checkRunStore.recordAuditLog(
           AuditLogSupport.contractVersionCreateFailure(httpRequest, contractId, request, ex));
+      if (ex instanceof CompatibilityException) {
+        notificationService.publish(NotificationEvent.contractVersionRejected(contractId, request, ex));
+      }
       throw ex;
     }
   }
