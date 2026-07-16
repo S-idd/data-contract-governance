@@ -33,6 +33,7 @@ public class CheckRunner {
   private final PolicyPackRegistry policyPackRegistry;
   private final ArtifactStore artifactStore;
   private final CheckMetrics checkMetrics;
+  private final NotificationService notificationService;
   private final int maxPerPoll;
   private final int maxRetries;
   private final ConcurrentMap<String, Integer> retryCounts = new ConcurrentHashMap<>();
@@ -44,6 +45,7 @@ public class CheckRunner {
       PolicyPackRegistry policyPackRegistry,
       ArtifactStore artifactStore,
       CheckMetrics checkMetrics,
+      NotificationService notificationService,
       @Value("${checks.runner.max-per-poll:3}") int maxPerPoll,
       @Value("${checks.runner.max-retries:2}") int maxRetries) {
     this.checkRunStore = checkRunStore;
@@ -52,6 +54,7 @@ public class CheckRunner {
     this.policyPackRegistry = policyPackRegistry;
     this.artifactStore = artifactStore;
     this.checkMetrics = checkMetrics;
+    this.notificationService = notificationService;
     this.maxPerPoll = Math.max(1, maxPerPoll);
     this.maxRetries = Math.max(0, maxRetries);
   }
@@ -95,6 +98,7 @@ public class CheckRunner {
       checkMetrics.recordCompleted(run.contractId(), result.status().name(), duration);
       if (result.status() == com.ideas.contracts.core.CheckStatus.FAIL) {
         checkMetrics.recordFailed(run.contractId(), "compatibility_breaking");
+        notificationService.publish(NotificationEvent.checkFailed(run, contract, result));
       }
       checkRunStore.appendLog(
           run.runId(),

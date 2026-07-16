@@ -308,6 +308,7 @@ Helpful docs:
 - [Week 13 S3 Beta Launch Post](docs/week13-s3-beta-launch-post.md)
 - [Week 13 S3 Beta User Onboarding Session](docs/week13-s3-beta-onboarding-session.md)
 - [AWS Account Safety](docs/aws-account-safety.md)
+- [Architecture v4](docs/Architecture-v4.md)
 
 ## Sample Contracts
 - [orders.created metadata](contracts/orders.created/metadata.yaml)
@@ -317,6 +318,7 @@ Helpful docs:
 ## Project Docs
 - [Requirements](docs/Requirements.md)
 - [System Design](docs/SystemDesign.md)
+- [Architecture v4](docs/Architecture-v4.md)
 - [Architecture v3](docs/Architecture-v3.md)
 - [Architecture FAQ](docs/Architecture-FAQ.md)
 - [Architecture Decisions](adr/ArchitectureDecisionRecord.md)

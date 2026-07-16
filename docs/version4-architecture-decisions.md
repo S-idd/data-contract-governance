@@ -175,3 +175,101 @@ Consequences:
 1. New adopters get one current architecture entry point.
 2. Future implementation work must cite the V4 matrix.
 3. README should point to Architecture v4 once accepted.
+
+## Decision V4-007: Notifications Are Durable Operational Signals
+
+Status: `Proposed`
+
+Context:
+
+Contract and policy failures should not be discovered only by manually refreshing the UI or reading CLI output. Shared environments need reliable notification when a contract breaks, a policy rule blocks a version, policy configuration fails, a new contract is registered, or a schema version is published.
+
+Decision:
+
+Version 4 includes a notification baseline for contract and policy failures. Notifications are treated as operational signals and must be implemented through a small notification boundary, not as direct controller side effects.
+
+Initial scope:
+
+1. Check run completes with `FAIL` because breaking changes are detected.
+2. Contract version write is rejected because compatibility or policy rules fail.
+3. New contract is registered.
+4. New schema version is published.
+5. Policy pack configuration or resolution fails and requires operator action.
+6. Notification delivery fails and needs retry or operator visibility.
+
+Delivery approach:
+
+1. Store notification events before delivery when possible.
+2. Deliver asynchronously so notification failure does not corrupt check-run state.
+3. Start with log/audit visibility and a generic webhook sink.
+4. Keep provider-specific Slack, Teams, PagerDuty, and email integrations out of the first slice unless explicitly approved.
+5. Keep REST for CLI checks, SDK submissions, and dashboard reads; use WebHooks only for asynchronous events.
+
+Required controls:
+
+1. Redact secrets from payloads and logs.
+2. Configure webhook URLs and credentials through env vars or secret references.
+3. Use timeouts, bounded retries, and dedupe keys.
+4. Record delivery attempts and failures.
+5. Test trigger conditions and failed delivery behavior.
+
+Consequences:
+
+1. Notification reliability becomes part of V4 trust work.
+2. The first implementation remains open and provider-neutral.
+3. Provider-specific integrations can be added later behind the same notification contract.
+
+## Decision V4-008: UI Is an Operations and Trust Surface
+
+Status: `Proposed`
+
+Context:
+
+The current UI already supports dashboard, contract list, contract detail, check detail, runner logs, and rerun snippets. Version 4 needs the UI to support trust and recovery, not just browsing. Users should be able to understand system risk without reading server logs or guessing which backend failed.
+
+Decision:
+
+Version 4 treats the UI as an operations and trust surface.
+
+Required UI direction:
+
+1. Show current risk: failed checks, queued/running checks, and recent policy rejections.
+2. Show backend health: metadata store, artifact store, and notification delivery status.
+3. Show actionable recovery guidance when stores, migrations, credentials, artifacts, or notifications fail.
+4. Keep command/query flows on REST and event flows on WebHooks.
+5. Keep the UI dense, clear, and operational rather than decorative.
+6. Link failures to runbooks, rerun commands, API commands, and notification delivery state.
+
+Consequences:
+
+1. V4 UI work is allowed when it improves diagnosis, recovery, security clarity, or notification visibility.
+2. Pure visual polish is not enough to break the feature-freeze rule.
+3. The first UI plan should be documented in `docs/version4-ui-hardening-plan.md`.
+
+## Decision V4-009: V4 Requires Real Spring Boot Demo Validation
+
+Status: `Proposed`
+
+Context:
+
+Version 4 is meant to prove production readiness. A service that only works in its own repository can still fail when used by a realistic application. The team also plans to validate V4 in real time in front of `56` people, so the release needs a deterministic demo path and rehearsed recovery story.
+
+Decision:
+
+Version 4 must include a separate Spring Boot demo project as a release validation target.
+
+The demo must exercise:
+
+1. CLI contract checks.
+2. SDK or REST check-run submission.
+3. Spring Boot starter validation.
+4. Contract-service UI triage.
+5. WebHook notification for breaking contract or policy failure.
+6. At least one documented recovery path.
+
+Consequences:
+
+1. The demo project becomes part of the V4 release gate.
+2. The final-week live validation must have rehearsal evidence.
+3. Production-readiness claims must be backed by a realistic integration, not only module tests.
+4. Fallback materials are allowed only as backup and must not replace the live validation path.
