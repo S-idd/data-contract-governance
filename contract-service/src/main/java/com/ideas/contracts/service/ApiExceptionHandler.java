@@ -110,6 +110,18 @@ public class ApiExceptionHandler {
         ex.getMessage());
   }
 
+  @ExceptionHandler(PolicyPackResolutionException.class)
+  public ResponseEntity<ApiErrorResponse> handlePolicyPackResolution(
+      PolicyPackResolutionException ex,
+      HttpServletRequest request) {
+    return buildErrorResponse(
+        ex,
+        request,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        EXECUTION_FAILED,
+        ex.getMessage());
+  }
+
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<ApiErrorResponse> handleJsonParseError(
       HttpMessageNotReadableException ex,

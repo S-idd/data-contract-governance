@@ -102,6 +102,15 @@ P0 sinks:
 1. `log`: structured application log for local and smoke verification.
 2. `webhook`: generic HTTP POST for teams that want to connect Slack, Teams, PagerDuty, or custom automation externally.
 
+Current V4 baseline:
+
+1. `NotificationService` publishes typed events to configured sinks.
+2. `log` delivery is available for local and smoke verification.
+3. `webhook` delivery posts the same event envelope as JSON when notifications and webhook delivery are explicitly enabled.
+4. Webhook URL and authorization header values can be resolved through environment-variable indirection.
+5. Webhook failures are isolated from the persisted contract or check-run decision and logged by the notification boundary.
+6. Outbox persistence, retry state, delivery history, and UI visibility remain follow-on reliability work.
+
 P1 candidates:
 
 1. `email`: SMTP-based notification if there is real demand.

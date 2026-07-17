@@ -158,7 +158,7 @@ class PostApiStrictIntegrationTest {
   }
 
   @Test
-  void contractsCreateDefaultsInitialVersionAndWritesAuditLog() throws Exception {
+  void contractsCreateDefaultsInitialVersionAndWritesAuditLog(CapturedOutput output) throws Exception {
     String contractId = uniqueContractId("payments.strict");
     String payload = """
         {
@@ -189,6 +189,59 @@ class PostApiStrictIntegrationTest {
         .andExpect(status().isOk());
 
     assertAuditLog("CONTRACT_CREATE", "SUCCESS", "/contracts", contractId, "\"initialVersion\":\"v1\"");
+    assertTrue(output.toString().contains("event=notification_event"));
+    assertTrue(output.toString().contains("event_type=CONTRACT_REGISTERED"));
+    assertTrue(output.toString().contains("contract_id=" + contractId));
+  }
+
+  @Test
+  void contractVersionCreatePublishesLifecycleNotification(CapturedOutput output) throws Exception {
+    String contractId = uniqueContractId("inventory.strict");
+    String createPayload = """
+        {
+          "contractId": "%s",
+          "ownerTeam": "inventory",
+          "domain": "supply",
+          "compatibilityMode": "BACKWARD",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "sku": { "type": "string" }
+            }
+          }
+        }
+        """.formatted(contractId);
+    mockMvc.perform(post("/contracts")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(createPayload))
+        .andExpect(status().isCreated());
+
+    String versionPayload = """
+        {
+          "version": "v2",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "sku": { "type": "string" },
+              "warehouse": { "type": "string" }
+            }
+          }
+        }
+        """;
+
+    MvcResult response = mockMvc.perform(post("/contracts/" + contractId + "/versions")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(versionPayload))
+        .andExpect(status().isCreated())
+        .andReturn();
+
+    JsonNode body = readJson(response);
+    assertEquals(contractId, body.get("contractId").asText());
+    assertEquals("v2", body.get("version").asText());
+    assertTrue(output.toString().contains("event=notification_event"));
+    assertTrue(output.toString().contains("event_type=SCHEMA_VERSION_PUBLISHED"));
+    assertTrue(output.toString().contains("contract_id=" + contractId));
+    assertTrue(output.toString().contains("candidate_version=v2"));
   }
 
   @Test
