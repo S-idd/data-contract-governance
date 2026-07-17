@@ -45,16 +45,23 @@ public class NotificationService {
   }
 
   private void deliverSafely(NotificationEvent event, NotificationSink sink) {
-    try {
-      sink.deliver(event);
-    } catch (RuntimeException ex) {
-      LOGGER.warn(
-          "event=notification_delivery_failed component=notification_service event_id={} event_type={} sink={} error_type={} error_message={}",
-          event.eventId(),
-          event.eventType(),
-          sink.name(),
-          ex.getClass().getSimpleName(),
-          safeMessage(ex));
+    int maxAttempts = Math.max(1, properties.getRetry().getMaxAttempts());
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        sink.deliver(event);
+        return;
+      } catch (RuntimeException ex) {
+        LOGGER.warn(
+            "event=notification_delivery_failed component=notification_service event_id={} event_type={} sink={} attempt={} max_attempts={} will_retry={} error_type={} error_message={}",
+            event.eventId(),
+            event.eventType(),
+            sink.name(),
+            attempt,
+            maxAttempts,
+            attempt < maxAttempts,
+            ex.getClass().getSimpleName(),
+            safeMessage(ex));
+      }
     }
   }
 
@@ -62,6 +69,14 @@ public class NotificationService {
     if (ex.getMessage() == null || ex.getMessage().isBlank()) {
       return ex.getClass().getSimpleName();
     }
-    return ex.getMessage();
+    return redactSecrets(ex.getMessage());
+  }
+
+  private String redactSecrets(String message) {
+    return message
+        .replaceAll("(?i)(bearer|basic)\\s+[A-Za-z0-9._~+/=-]+", "$1 [REDACTED]")
+        .replaceAll(
+            "(?i)(authorization|password|secret|token|api[-_]?key|access[-_]?key)(\\s*[:=]\\s*)[^\\s,;]+",
+            "$1$2[REDACTED]");
   }
 }

@@ -112,8 +112,9 @@ V4 starts with:
 1. A typed `NotificationEvent` envelope.
 2. `NotificationService` as the publication boundary.
 3. Log sink delivery for local and smoke verification.
-4. Disabled-by-default configuration.
-5. Failure isolation so notification delivery cannot corrupt check-run state.
+4. Generic webhook sink delivery for team-owned automation endpoints.
+5. Disabled-by-default configuration.
+6. Failure isolation so notification delivery cannot corrupt check-run state.
 
 Initial event types:
 
@@ -125,7 +126,7 @@ Initial event types:
 6. `POLICY_PACK_CONFIG_INVALID`
 7. `NOTIFICATION_DELIVERY_FAILED`
 
-Webhook and outbox delivery are follow-on work after the event contract is stable.
+Outbox persistence, bounded retry state, delivery history, and UI exposure are follow-on work after the event and webhook contract are stable.
 
 ## 9. UI Trust Surface
 

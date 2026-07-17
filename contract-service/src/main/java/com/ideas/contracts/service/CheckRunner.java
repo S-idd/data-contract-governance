@@ -79,7 +79,7 @@ public class CheckRunner {
       CompatibilityMode mode = resolveMode(run.mode());
       ContractDetailResponse contract = contractCatalogService.getContract(run.contractId())
           .orElseThrow(() -> new IllegalStateException("Contract not found: " + run.contractId()));
-      PolicyPack policyPack = policyPackRegistry.resolve(contract.policyPack());
+      PolicyPack policyPack = resolvePolicyPack(run, contract);
       Path baseSchema = resolveSchemaPath(run.contractId(), run.baseVersion());
       Path candidateSchema = resolveSchemaPath(run.contractId(), run.candidateVersion());
       CompatibilityResult result = contractEngine.checkCompatibility(baseSchema, candidateSchema, mode, policyPack);
@@ -145,9 +145,28 @@ public class CheckRunner {
     } else {
       checkMetrics.recordCompleted(run.contractId(), "FAIL", Duration.between(startedAt, Instant.now()));
       checkMetrics.recordFailed(run.contractId(), "execution_error");
+      publishOperationalFailureNotification(ex);
       checkRunStore.appendLog(run.runId(), "ERROR", "code=check_run_failed message=Run failed after retries.");
     }
     retryCounts.remove(run.runId());
+  }
+
+  private PolicyPack resolvePolicyPack(MetadataStore.QueuedCheckRun run, ContractDetailResponse contract) {
+    try {
+      return policyPackRegistry.resolve(contract.policyPack());
+    } catch (RuntimeException ex) {
+      throw new PolicyPackResolutionException(
+          run.contractId(),
+          run.runId(),
+          contract.policyPack(),
+          ex);
+    }
+  }
+
+  private void publishOperationalFailureNotification(Exception ex) {
+    if (ex instanceof PolicyPackResolutionException policyPackException) {
+      notificationService.publish(NotificationEvent.policyPackResolutionFailed(policyPackException));
+    }
   }
 
   private CompatibilityMode resolveMode(String rawMode) {

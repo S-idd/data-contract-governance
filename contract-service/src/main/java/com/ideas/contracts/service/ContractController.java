@@ -214,6 +214,8 @@ public class ContractController {
           AuditLogSupport.contractVersionCreateFailure(httpRequest, contractId, request, ex));
       if (ex instanceof CompatibilityException) {
         notificationService.publish(NotificationEvent.contractVersionRejected(contractId, request, ex));
+      } else if (ex instanceof PolicyPackResolutionException policyPackException) {
+        notificationService.publish(NotificationEvent.policyPackResolutionFailed(policyPackException));
       }
       throw ex;
     }
