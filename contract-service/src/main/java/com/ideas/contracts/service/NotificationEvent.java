@@ -147,6 +147,55 @@ public record NotificationEvent(
         dedupe(NotificationEventType.SCHEMA_VERSION_PUBLISHED.name(), response.contractId(), response.version()));
   }
 
+  public static NotificationEvent policyPackResolutionFailed(PolicyPackResolutionException exception) {
+    String contractId = exception == null ? null : exception.contractId();
+    String runId = exception == null ? null : exception.runId();
+    String policyPack = exception == null ? null : exception.policyPack();
+    RuntimeException cause = exception == null || !(exception.getCause() instanceof RuntimeException runtimeException)
+        ? exception
+        : runtimeException;
+    String summary = "Policy pack resolution failed.";
+    return new NotificationEvent(
+        null,
+        NotificationEventType.POLICY_PACK_RESOLUTION_FAILED,
+        NotificationSeverity.HIGH,
+        null,
+        contractId,
+        runId,
+        null,
+        null,
+        null,
+        null,
+        policyPack,
+        summary,
+        List.of(),
+        List.of(safeMessage(cause)),
+        runId == null
+            ? Map.of("contract", "/contracts/" + normalize(contractId, "unknown"))
+            : Map.of("checkRun", "/checks/" + runId),
+        dedupe(NotificationEventType.POLICY_PACK_RESOLUTION_FAILED.name(), contractId, policyPack, runId));
+  }
+
+  public static NotificationEvent policyPackConfigInvalid(RuntimeException exception) {
+    return new NotificationEvent(
+        null,
+        NotificationEventType.POLICY_PACK_CONFIG_INVALID,
+        NotificationSeverity.HIGH,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Policy pack configuration is invalid.",
+        List.of(),
+        List.of(safeMessage(exception)),
+        Map.of(),
+        dedupe(NotificationEventType.POLICY_PACK_CONFIG_INVALID.name(), safeMessage(exception)));
+  }
+
   private static String firstVersion(ContractDetailResponse response) {
     if (response.versions() == null || response.versions().isEmpty()) {
       return null;

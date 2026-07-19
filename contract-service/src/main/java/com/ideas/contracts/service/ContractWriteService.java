@@ -124,14 +124,22 @@ public class ContractWriteService {
     ContractMetadata metadata = artifactStore.readMetadata(contractId)
         .orElseThrow(() -> new IllegalStateException("Contract metadata not found: " + contractId));
     CompatibilityMode mode = metadata.compatibilityMode();
-    PolicyPack policyPack = policyPackRegistry.resolve(metadata.policyPack());
+    PolicyPack policyPack = resolvePolicyPack(contractId, metadata.policyPack());
     CompatibilityResult result = contractEngine.checkCompatibility(basePath, candidatePath, mode, policyPack);
     if (strictMode && result.status() == com.ideas.contracts.core.CheckStatus.FAIL) {
       throw new CompatibilityException(
           "Strict mode rejected version "
               + candidateVersion
               + ". Breaking changes: "
-              + String.join("; ", result.breakingChanges()));
+          + String.join("; ", result.breakingChanges()));
+    }
+  }
+
+  private PolicyPack resolvePolicyPack(String contractId, String policyPack) {
+    try {
+      return policyPackRegistry.resolve(policyPack);
+    } catch (RuntimeException ex) {
+      throw new PolicyPackResolutionException(contractId, null, policyPack, ex);
     }
   }
 

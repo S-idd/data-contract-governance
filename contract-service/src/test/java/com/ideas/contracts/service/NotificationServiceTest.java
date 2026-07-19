@@ -2,11 +2,17 @@ package com.ideas.contracts.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
+@ExtendWith(OutputCaptureExtension.class)
 class NotificationServiceTest {
   @Test
   void disabledNotificationsDoNotDeliver() {
@@ -43,6 +49,42 @@ class NotificationServiceTest {
     NotificationService service = new NotificationService(properties, List.of(new FailingSink()));
 
     assertDoesNotThrow(() -> service.publish(sampleEvent()));
+  }
+
+  @Test
+  void deliveryFailureRetriesConfiguredAttempts() {
+    NotificationProperties properties = new NotificationProperties();
+    properties.setEnabled(true);
+    properties.setSinks(List.of("broken"));
+    properties.getRetry().setMaxAttempts(2);
+    CountingFailingSink sink = new CountingFailingSink("sink unavailable");
+
+    NotificationService service = new NotificationService(properties, List.of(sink));
+
+    service.publish(sampleEvent());
+
+    assertEquals(2, sink.attempts);
+  }
+
+  @Test
+  void deliveryFailureLogsRedactedMessage(CapturedOutput output) {
+    NotificationProperties properties = new NotificationProperties();
+    properties.setEnabled(true);
+    properties.setSinks(List.of("broken"));
+    properties.getRetry().setMaxAttempts(1);
+
+    NotificationService service = new NotificationService(
+        properties,
+        List.of(new CountingFailingSink("Authorization=Bearer secret-token password=letmein token=abc123")));
+
+    service.publish(sampleEvent());
+
+    String logs = output.toString();
+    assertTrue(logs.contains("event=notification_delivery_failed"));
+    assertTrue(logs.contains("[REDACTED]"));
+    assertFalse(logs.contains("secret-token"));
+    assertFalse(logs.contains("letmein"));
+    assertFalse(logs.contains("abc123"));
   }
 
   private NotificationEvent sampleEvent() {
@@ -93,6 +135,26 @@ class NotificationServiceTest {
     @Override
     public void deliver(NotificationEvent event) {
       throw new IllegalStateException("sink unavailable");
+    }
+  }
+
+  private static final class CountingFailingSink implements NotificationSink {
+    private final String message;
+    private int attempts;
+
+    private CountingFailingSink(String message) {
+      this.message = message;
+    }
+
+    @Override
+    public String name() {
+      return "broken";
+    }
+
+    @Override
+    public void deliver(NotificationEvent event) {
+      attempts++;
+      throw new IllegalStateException(message);
     }
   }
 }
