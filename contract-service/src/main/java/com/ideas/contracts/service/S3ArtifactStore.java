@@ -372,6 +372,30 @@ public class S3ArtifactStore implements ArtifactStore {
     return ArtifactStore.super.schemaReference(normalizedContractId, normalizedVersion);
   }
 
+  @Override
+  public HealthSnapshot healthSnapshot() {
+    if (!s3Enabled) {
+      return fallbackHealthSnapshot(
+          "S3 is selected but no bucket is configured; filesystem fallback is active.");
+    }
+
+    try {
+      listContractsFromS3();
+      return HealthSnapshot.healthy(backend());
+    } catch (RuntimeException ex) {
+      if (!fallbackEnabled) {
+        return HealthSnapshot.unavailable(backend(), ex.getClass().getSimpleName());
+      }
+      return fallbackHealthSnapshot(
+          "S3 is unavailable; filesystem fallback is active (" + ex.getClass().getSimpleName() + ").");
+    }
+  }
+
+  @Override
+  public String backend() {
+    return "s3";
+  }
+
   private List<String> listContractsFromS3() {
     String prefix = keyStrategy.rootPrefix() + "/";
     Set<String> contractIds = new LinkedHashSet<>();
@@ -400,6 +424,17 @@ public class S3ArtifactStore implements ArtifactStore {
       continuationToken = response.nextContinuationToken();
     } while (continuationToken != null);
     return contractIds.stream().sorted().toList();
+  }
+
+  private HealthSnapshot fallbackHealthSnapshot(String detail) {
+    HealthSnapshot fallbackStatus = fallbackStore.healthSnapshot();
+    if (fallbackStatus.status() == HealthStatus.HEALTHY) {
+      return HealthSnapshot.degraded(backend(), detail);
+    }
+    return HealthSnapshot.unavailable(
+        backend(),
+        "S3 is unavailable and filesystem fallback is unavailable ("
+            + fallbackStatus.detail() + ").");
   }
 
   private List<String> listVersionsFromS3(String contractId) {

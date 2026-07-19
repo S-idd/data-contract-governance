@@ -19,17 +19,45 @@
     </nav>
   </header>
 
-  <section class="card">
+  <section class="dashboard-overview">
     <h1 class="title">Dashboard</h1>
-    <p class="subtitle">Quick visibility into contract inventory and recent compatibility checks.</p>
-    <div class="row">
-      <article class="card">
+    <p class="subtitle">Current platform health, contract inventory, and recent compatibility checks.</p>
+    <div class="metric-grid">
+      <article class="metric">
         <div class="muted">Discovered Contracts</div>
         <div class="metric-value" th:text="${contractCount}">0</div>
       </article>
-      <article class="card">
-        <div class="muted">Recent Checks Loaded</div>
-        <div class="metric-value" th:text="${#lists.size(recentChecks)}">0</div>
+      <article class="metric">
+        <div class="muted">Recent Failed Checks</div>
+        <div class="metric-value" th:text="${recentFailedChecks}">0</div>
+      </article>
+      <article class="metric">
+        <div class="muted">Checks In Progress</div>
+        <div class="metric-value" th:text="${recentActiveChecks}">0</div>
+      </article>
+    </div>
+  </section>
+
+  <section class="status-section" aria-labelledby="system-status-heading">
+    <div class="section-heading">
+      <div>
+        <h2 id="system-status-heading" class="section-title">System Status</h2>
+        <p class="subtitle">Safe readiness signals for the components that run this environment.</p>
+      </div>
+      <span class="pill"
+            th:classappend="${operationalStatus.overallStatus == 'HEALTHY'} ? ' pill-pass' : (${operationalStatus.overallStatus == 'DEGRADED'} ? ' pill-queued' : ' pill-fail')"
+            th:text="${operationalStatus.overallStatus}">STATUS</span>
+    </div>
+    <div class="status-grid">
+      <article class="status-item" th:each="component : ${operationalStatus.components}">
+        <div class="status-item-heading">
+          <h3 th:text="${component.label}">Component</h3>
+          <span class="operational-status"
+                th:classappend="' operational-status-' + ${#strings.toLowerCase(component.status)}"
+                th:text="${#strings.replace(component.status, '_', ' ')}">Healthy</span>
+        </div>
+        <p class="status-detail" th:text="${component.detail}">Component detail.</p>
+        <p class="status-action" th:text="${component.action}">Next safe action.</p>
       </article>
     </div>
   </section>
