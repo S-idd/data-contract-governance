@@ -86,6 +86,8 @@ public class OperationalStatusService {
           "notifications", "Notifications", "HEALTHY", readiness.detail(), readiness.action());
       case DISABLED -> new ComponentStatus(
           "notifications", "Notifications", "DISABLED", readiness.detail(), readiness.action());
+      case DEGRADED -> new ComponentStatus(
+          "notifications", "Notifications", "DEGRADED", readiness.detail(), readiness.action());
       case ACTION_REQUIRED -> new ComponentStatus(
           "notifications", "Notifications", "ACTION_REQUIRED", readiness.detail(), readiness.action());
     };
