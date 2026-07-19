@@ -15,6 +15,7 @@ public class NotificationProperties {
   private List<String> sinks = List.of("log");
   private final Webhook webhook = new Webhook();
   private final Retry retry = new Retry();
+  private final Dispatch dispatch = new Dispatch();
   private final Payload payload = new Payload();
 
   public boolean isEnabled() {
@@ -39,6 +40,10 @@ public class NotificationProperties {
 
   public Retry getRetry() {
     return retry;
+  }
+
+  public Dispatch getDispatch() {
+    return dispatch;
   }
 
   public Payload getPayload() {
@@ -136,6 +141,27 @@ public class NotificationProperties {
 
     public void setMaxBreakingChanges(int maxBreakingChanges) {
       this.maxBreakingChanges = maxBreakingChanges;
+    }
+  }
+
+  public static class Dispatch {
+    private Duration claimTimeout = Duration.ofMinutes(1);
+    private int maxPerPoll = 10;
+
+    public Duration getClaimTimeout() {
+      return claimTimeout;
+    }
+
+    public void setClaimTimeout(Duration claimTimeout) {
+      this.claimTimeout = claimTimeout;
+    }
+
+    public int getMaxPerPoll() {
+      return maxPerPoll;
+    }
+
+    public void setMaxPerPoll(int maxPerPoll) {
+      this.maxPerPoll = maxPerPoll;
     }
   }
 }

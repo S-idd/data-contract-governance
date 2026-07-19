@@ -44,7 +44,8 @@ import org.springframework.test.web.servlet.MvcResult;
     "app.ui.enabled=true",
     "contracts.validation.strict-mode=true",
     "notifications.enabled=true",
-    "notifications.sinks=log"
+    "notifications.sinks=log",
+    "spring.task.scheduling.enabled=false"
 })
 class PostApiStrictIntegrationTest {
   private static Path tempRoot;
@@ -54,6 +55,9 @@ class PostApiStrictIntegrationTest {
 
   @Autowired
   private MockMvc mockMvc;
+
+  @Autowired
+  private NotificationService notificationService;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -188,6 +192,8 @@ class PostApiStrictIntegrationTest {
     mockMvc.perform(get("/contracts/" + contractId + "/versions/v1"))
         .andExpect(status().isOk());
 
+    notificationService.dispatchPendingDeliveries();
+
     assertAuditLog("CONTRACT_CREATE", "SUCCESS", "/contracts", contractId, "\"initialVersion\":\"v1\"");
     assertTrue(output.toString().contains("event=notification_event"));
     assertTrue(output.toString().contains("event_type=CONTRACT_REGISTERED"));
@@ -234,6 +240,8 @@ class PostApiStrictIntegrationTest {
             .content(versionPayload))
         .andExpect(status().isCreated())
         .andReturn();
+
+    notificationService.dispatchPendingDeliveries();
 
     JsonNode body = readJson(response);
     assertEquals(contractId, body.get("contractId").asText());
@@ -326,6 +334,8 @@ class PostApiStrictIntegrationTest {
             .content(payload))
         .andExpect(status().isUnprocessableEntity())
         .andReturn();
+
+    notificationService.dispatchPendingDeliveries();
 
     JsonNode body = readJson(response);
     assertEquals("COMPATIBILITY_FAILED", body.get("code").asText());

@@ -42,7 +42,8 @@ public class SecurityConfig {
             .hasRole(normalizeRole(writeRole, "WRITER"))
             .requestMatchers(HttpMethod.DELETE, "/checks/**", "/ui/**", "/contracts/**")
             .hasRole(normalizeRole(writeRole, "WRITER"))
-            .requestMatchers("/ui/**", "/checks/**", "/runs/**").authenticated()
+            .requestMatchers("/ui/**", "/checks/**", "/runs/**", "/api/notification-deliveries")
+            .authenticated()
             .anyRequest().permitAll())
         .httpBasic(Customizer.withDefaults())
         .formLogin(form -> form.disable());

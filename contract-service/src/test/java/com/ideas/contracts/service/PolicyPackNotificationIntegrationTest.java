@@ -49,6 +49,9 @@ class PolicyPackNotificationIntegrationTest {
   private CheckRunner checkRunner;
 
   @Autowired
+  private NotificationService notificationService;
+
+  @Autowired
   private MockMvc mockMvc;
 
   @DynamicPropertySource
@@ -76,6 +79,7 @@ class PolicyPackNotificationIntegrationTest {
         "integration-test"));
 
     checkRunner.pollQueue();
+    notificationService.dispatchPendingDeliveries();
 
     CheckRunResponse completed = checkRunStore.findByRunId(created.runId()).orElseThrow();
     assertEquals("FAIL", completed.status());
@@ -105,6 +109,8 @@ class PolicyPackNotificationIntegrationTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(payload))
         .andExpect(status().isInternalServerError());
+
+    notificationService.dispatchPendingDeliveries();
 
     assertTrue(output.toString().contains("event=notification_event"));
     assertTrue(output.toString().contains("event_type=POLICY_PACK_RESOLUTION_FAILED"));

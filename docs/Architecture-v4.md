@@ -115,6 +115,8 @@ V4 starts with:
 4. Generic webhook sink delivery for team-owned automation endpoints.
 5. Disabled-by-default configuration.
 6. Failure isolation so notification delivery cannot corrupt check-run state.
+7. Metadata-store outbox records with per-sink dedupe, retry state, and bounded backoff.
+8. Authenticated delivery-history API and dashboard readiness derived from persisted delivery state.
 
 Initial event types:
 

@@ -5,6 +5,7 @@ import com.ideas.contracts.service.model.CheckRunCreateResponse;
 import com.ideas.contracts.service.model.CheckRunLogResponse;
 import com.ideas.contracts.service.model.CheckRunPageResponse;
 import com.ideas.contracts.service.model.CheckRunResponse;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -30,6 +31,8 @@ public interface CheckRunRepository {
       String commitSha,
       String triggeredBy) {}
 
+  record NotificationEnqueueResult(NotificationDelivery delivery, boolean created) {}
+
   List<CheckRunResponse> list(String contractId, String commitSha);
 
   CheckRunPageResponse listPage(CheckRunQuery query);
@@ -49,6 +52,20 @@ public interface CheckRunRepository {
   CheckRunCreateResponse createQueuedRun(CheckRunCreateRequest request);
 
   void recordAuditLog(AuditLogEntry entry);
+
+  NotificationEnqueueResult enqueueNotificationDelivery(NotificationEvent event, String sinkName);
+
+  Optional<NotificationDelivery> claimNextNotificationDelivery(Instant now, Instant staleClaimBefore);
+
+  boolean markNotificationDeliveryDelivered(String deliveryId, Instant deliveredAt);
+
+  boolean markNotificationDeliveryFailed(
+      String deliveryId,
+      String failureMessage,
+      Instant nextAttemptAt,
+      boolean permanentlyFailed);
+
+  List<NotificationDelivery> listNotificationDeliveries(int limit);
 
   int backfillLegacyRuns(
       Function<String, String> modeResolver,
