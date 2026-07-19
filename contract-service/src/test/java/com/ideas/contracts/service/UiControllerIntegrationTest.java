@@ -1,6 +1,7 @@
 package com.ideas.contracts.service;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -93,7 +94,21 @@ class UiControllerIntegrationTest {
     mockMvc.perform(get("/ui"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("Dashboard")))
+        .andExpect(content().string(containsString("System Status")))
+        .andExpect(content().string(containsString("Metadata store")))
+        .andExpect(content().string(containsString("Artifact store")))
+        .andExpect(content().string(containsString("Notifications")))
         .andExpect(content().string(containsString("ui-run-1")));
+  }
+
+  @Test
+  void operationalStatusEndpointReturnsSafeReadinessDetails() throws Exception {
+    mockMvc.perform(get("/api/operational-status"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("metadata-store")))
+        .andExpect(content().string(containsString("artifact-store")))
+        .andExpect(content().string(containsString("notifications")))
+        .andExpect(content().string(not(containsString("jdbc:sqlite:"))));
   }
 
   @Test

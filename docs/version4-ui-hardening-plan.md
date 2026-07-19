@@ -1,7 +1,7 @@
 # Version 4 UI Hardening Plan
 
 - Plan ID: `PLAN-2026-V4-UI-HARDENING`
-- Status: `Draft`
+- Status: `In progress`
 - Created date: `2026-05-23`
 - Purpose: make the UI a trust, diagnosis, and recovery surface
 
@@ -27,6 +27,13 @@ Existing UI surfaces:
 4. Check detail page with breaking changes, warnings, guidance, execution logs, API command, and CLI rerun command.
 
 These are good foundations. V4 should add failure awareness, notification visibility, and recovery guidance around them.
+
+Current V4 implementation:
+
+1. The dashboard now shows safe readiness for metadata, artifact, notification, and security components.
+2. `/api/operational-status` exposes the same readiness model for automation and future UI views.
+3. Artifact status distinguishes direct availability from configured S3 fallback.
+4. Notification status reports configuration readiness only; delivery history remains deferred until durable outbox persistence exists.
 
 ## 3. P0 UI Ideas
 

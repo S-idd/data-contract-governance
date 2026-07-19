@@ -41,6 +41,22 @@ public interface ArtifactStore {
 
   void deleteVersionIfExists(String contractId, String version);
 
+  /**
+   * Performs a read-only availability probe suitable for operator-facing status views.
+   */
+  default HealthSnapshot healthSnapshot() {
+    try {
+      listContracts();
+      return HealthSnapshot.healthy(backend());
+    } catch (RuntimeException ex) {
+      return HealthSnapshot.unavailable(backend(), ex.getClass().getSimpleName());
+    }
+  }
+
+  default String backend() {
+    return "filesystem";
+  }
+
   default ArtifactReference metadataReference(String contractId) {
     return new ArtifactReference(
         "filesystem",
@@ -62,5 +78,31 @@ public interface ArtifactStore {
       backend = backend.trim();
       key = key.trim();
     }
+  }
+
+  record HealthSnapshot(HealthStatus status, String backend, String detail) {
+    public HealthSnapshot {
+      status = status == null ? HealthStatus.UNAVAILABLE : status;
+      backend = backend == null || backend.isBlank() ? "unknown" : backend.trim();
+      detail = detail == null || detail.isBlank() ? "No detail available." : detail.trim();
+    }
+
+    static HealthSnapshot healthy(String backend) {
+      return new HealthSnapshot(HealthStatus.HEALTHY, backend, "Read access is available.");
+    }
+
+    static HealthSnapshot degraded(String backend, String detail) {
+      return new HealthSnapshot(HealthStatus.DEGRADED, backend, detail);
+    }
+
+    static HealthSnapshot unavailable(String backend, String detail) {
+      return new HealthSnapshot(HealthStatus.UNAVAILABLE, backend, detail);
+    }
+  }
+
+  enum HealthStatus {
+    HEALTHY,
+    DEGRADED,
+    UNAVAILABLE
   }
 }
