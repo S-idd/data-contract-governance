@@ -33,10 +33,15 @@ public class UiController {
 
   private final ContractCatalogService contractCatalogService;
   private final MetadataStore checkRunStore;
+  private final OperationalStatusService operationalStatusService;
 
-  public UiController(ContractCatalogService contractCatalogService, MetadataStore checkRunStore) {
+  public UiController(
+      ContractCatalogService contractCatalogService,
+      MetadataStore checkRunStore,
+      OperationalStatusService operationalStatusService) {
     this.contractCatalogService = contractCatalogService;
     this.checkRunStore = checkRunStore;
+    this.operationalStatusService = operationalStatusService;
   }
 
   @GetMapping
@@ -54,6 +59,9 @@ public class UiController {
     model.addAttribute("filterContractId", safe(contractId));
     model.addAttribute("filterCommitSha", safe(commitSha));
     model.addAttribute("filterStatus", safe(status));
+    model.addAttribute("operationalStatus", operationalStatusService.currentStatus());
+    model.addAttribute("recentFailedChecks", 0L);
+    model.addAttribute("recentActiveChecks", 0L);
 
     try {
       CheckRunQuery query = CheckRunQuery.from(contractId, commitSha, status, 20, 0);
@@ -61,6 +69,15 @@ public class UiController {
       model.addAttribute("recentChecks", page.items());
       model.addAttribute("recentHasMore", page.hasMore());
       model.addAttribute("checkStoreUnavailable", false);
+      model.addAttribute(
+          "recentFailedChecks",
+          page.items().stream().filter(item -> "FAIL".equalsIgnoreCase(item.status())).count());
+      model.addAttribute(
+          "recentActiveChecks",
+          page.items().stream()
+              .filter(item -> "QUEUED".equalsIgnoreCase(item.status())
+                  || "RUNNING".equalsIgnoreCase(item.status()))
+              .count());
     } catch (IllegalArgumentException ex) {
       model.addAttribute("recentChecks", List.of());
       model.addAttribute("recentHasMore", false);

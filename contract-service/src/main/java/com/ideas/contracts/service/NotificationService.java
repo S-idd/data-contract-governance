@@ -3,6 +3,7 @@ package com.ideas.contracts.service;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,53 @@ public class NotificationService {
     }
   }
 
+  public Readiness readiness() {
+    if (!properties.isEnabled()) {
+      return new Readiness(
+          ReadinessStatus.DISABLED,
+          "Notifications are disabled.",
+          "Enable notifications when this environment needs operational alerts.");
+    }
+
+    Set<String> configuredSinks = properties.normalizedSinks();
+    Set<String> registeredSinks = sinks.stream()
+        .map(NotificationSink::name)
+        .filter(name -> name != null && !name.isBlank())
+        .map(name -> name.trim().toLowerCase(Locale.ROOT))
+        .collect(Collectors.toUnmodifiableSet());
+    Set<String> unknownSinks = configuredSinks.stream()
+        .filter(name -> !registeredSinks.contains(name))
+        .collect(Collectors.toUnmodifiableSet());
+    if (!unknownSinks.isEmpty()) {
+      return new Readiness(
+          ReadinessStatus.ACTION_REQUIRED,
+          "Configured notification sinks are not available.",
+          "Use registered sinks: " + registeredSinks.stream().sorted().collect(Collectors.joining(", ")) + ".");
+    }
+
+    if (configuredSinks.contains("webhook")) {
+      NotificationProperties.Webhook webhook = properties.getWebhook();
+      if (!webhook.isEnabled()) {
+        return new Readiness(
+            ReadinessStatus.ACTION_REQUIRED,
+            "Webhook delivery is selected but disabled.",
+            "Enable the webhook sink or remove it from notifications.sinks.");
+      }
+      if (isBlank(webhook.getUrl()) && isBlank(webhook.getUrlEnv())) {
+        return new Readiness(
+            ReadinessStatus.ACTION_REQUIRED,
+            "Webhook delivery is selected but has no URL source.",
+            "Set a webhook URL through a secret environment variable reference.");
+      }
+    }
+
+    return new Readiness(
+        ReadinessStatus.READY,
+        "Notifications are configured for "
+            + configuredSinks.stream().sorted().collect(Collectors.joining(", ")) + ".",
+        "Delivery history is not persisted yet; use service logs for current delivery failures.");
+  }
+
   private void deliverSafely(NotificationEvent event, NotificationSink sink) {
     int maxAttempts = Math.max(1, properties.getRetry().getMaxAttempts());
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -78,5 +126,17 @@ public class NotificationService {
         .replaceAll(
             "(?i)(authorization|password|secret|token|api[-_]?key|access[-_]?key)(\\s*[:=]\\s*)[^\\s,;]+",
             "$1$2[REDACTED]");
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.isBlank();
+  }
+
+  public record Readiness(ReadinessStatus status, String detail, String action) {}
+
+  public enum ReadinessStatus {
+    READY,
+    DISABLED,
+    ACTION_REQUIRED
   }
 }
