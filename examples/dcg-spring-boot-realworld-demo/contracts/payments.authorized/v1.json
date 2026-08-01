@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "paymentId": { "type": "string" },
+    "orderId": { "type": "string" },
+    "amount": { "type": "number" }
+  },
+  "required": ["paymentId", "orderId", "amount"]
+}

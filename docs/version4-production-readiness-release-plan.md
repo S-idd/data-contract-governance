@@ -1,7 +1,7 @@
 # Version 4 Planning: Robust, Secure, Recoverable Platform
 
 - Plan ID: `PLAN-2026-V4`
-- Status: `Draft for review`
+- Status: `In progress`
 - Created date: `2026-05-23`
 - Planning start: `2026-05-25`
 - Planning horizon: `4 weeks`
@@ -36,6 +36,24 @@ By the end of Version 4, a new platform engineer should be able to:
 7. Understand storage support levels, beta/GA boundaries, and the requirements for any future backend.
 8. Trust that security defaults, auth behavior, secret handling, audit logs, notification behavior, and UI guidance are intentional.
 9. Run a production-like Spring Boot demo project through compatible and breaking contract changes during the final V4 validation.
+
+## 2.1 Current Implementation Status
+
+The V4 technical baseline is in progress, not release-ready.
+
+Completed implementation slices include:
+
+1. Durable notification deliveries in the metadata-store outbox, including deduplication, retries, terminal states, stale-worker recovery, redacted diagnostics, and an authenticated delivery-status API.
+2. A separate Spring Boot order-fulfillment demo with starter-backed runtime payload validation.
+3. Compatible and intentionally breaking `orders.created` contract scenarios exercised through the CLI, REST API, embedded UI, and generic WebHook delivery.
+4. A runnable SQLite production-lite recovery drill that verifies hot backup, integrity, restore, service restart, and retrieval of a persisted check run.
+
+Still required before V4 can be called production-ready:
+
+1. S3 clean-smoke and versioned-artifact recovery evidence, plus its final support-label/fallback decision.
+2. S3 GA decision evidence and backend support-label decisions.
+3. Final UI hardening and operational triage coverage.
+4. Clean-checkout rehearsal, live-user feedback, release notes, and acceptance evidence.
 
 ## 3. Strategic Decisions
 
