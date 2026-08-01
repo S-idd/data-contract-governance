@@ -56,7 +56,7 @@ Primary service boundaries:
 |---|---|---|---|
 | PostgreSQL | Production standard | Shared production-like metadata store | Fresh targeted verification, backup/restore drill, secure profile evidence |
 | SQLite | Production-lite | Local development and single-node low-cost deployments | Clear single-node limits, backup/restore drill, startup integrity guidance |
-| MySQL | Beta | MySQL adopters that accept a validation period | External or clean local verification, restore expectations, support notes |
+| MySQL | Beta | MySQL adopters that accept a validation period | External adopter verification and support notes; isolated backup/restore drill is available |
 | MongoDB | Decision-gated | Not implemented | At least two credible adopter requests and a data-model RFC |
 | Cassandra | Research-gated | Not implemented | Research gate outcome and correctness/recovery proposal |
 

@@ -1,7 +1,7 @@
 # Version 4 Notification System Plan
 
 - Plan ID: `PLAN-2026-V4-NOTIFICATIONS`
-- Status: `Draft`
+- Status: `In progress (P0 durable delivery baseline implemented)`
 - Created date: `2026-05-23`
 - Purpose: notify teams when contracts break, policy enforcement fails, or contract lifecycle events are published
 

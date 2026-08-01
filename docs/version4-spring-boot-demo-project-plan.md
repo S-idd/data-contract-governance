@@ -1,7 +1,7 @@
 # Version 4 Spring Boot Demo Project Plan
 
 - Plan ID: `PLAN-2026-V4-SPRING-BOOT-DEMO`
-- Status: `Draft`
+- Status: `In progress`
 - Created date: `2026-05-23`
 - Purpose: define the separate Spring Boot project used to validate V4 production readiness
 
@@ -147,3 +147,17 @@ The demo project is V4-ready when:
 3. Should the demo prioritize SDK or raw REST check submission?
 4. Should WebHook receiver be part of the demo app or a separate tiny Spring Boot service?
 5. How much intentional failure injection should be shown live versus described from rehearsal evidence?
+
+## 9. Current Implementation
+
+The first runnable implementation now lives at `examples/dcg-spring-boot-realworld-demo`.
+
+It includes:
+
+1. A separate Spring Boot order-fulfillment application with starter-backed order and payment payload validation.
+2. `orders.created` contracts for compatible `v1 -> v2` and breaking `v2 -> v3` scenarios.
+3. CLI and REST scenario scripts that wait for persisted `PASS` or `FAIL` check runs.
+4. A local generic WebHook receiver and a breaking-change script that verifies the received event.
+5. A reset script plus a runbook intended for clean rehearsals.
+
+The remaining V4 work is to rehearse the project from a clean checkout, add a chosen recovery demonstration, and capture the live-validation evidence.
