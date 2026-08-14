@@ -14,6 +14,7 @@
     <nav class="nav">
       <a href="/ui">Dashboard</a>
       <a href="/ui/contracts">Contracts</a>
+      <a href="/ui/notifications">Notifications</a>
       <a href="/checks">Checks API</a>
       <span class="request-id" th:text="'Request ID: ' + ${requestId}">Request ID</span>
     </nav>
@@ -59,6 +60,71 @@
         <p class="status-detail" th:text="${component.detail}">Component detail.</p>
         <p class="status-action" th:text="${component.action}">Next safe action.</p>
       </article>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-heading">
+      <div>
+        <h2 class="title" style="font-size:20px;">Notification Deliveries</h2>
+        <p class="subtitle">Recent delivery state from the persisted notification outbox.</p>
+      </div>
+      <a class="button button-secondary" href="/ui/notifications">View History</a>
+    </div>
+    <div class="warning" th:if="${notificationDeliveryUnavailable}" th:text="${notificationDeliveryError}">
+      Notification delivery history is currently unavailable.
+    </div>
+    <div class="metric-grid metric-grid-four" th:if="${!notificationDeliveryUnavailable}">
+      <article class="metric">
+        <div class="muted">Shown</div>
+        <div class="metric-value" th:text="${notificationTotalShown}">0</div>
+      </article>
+      <article class="metric">
+        <div class="muted">Delivered</div>
+        <div class="metric-value" th:text="${notificationDeliveredCount}">0</div>
+      </article>
+      <article class="metric">
+        <div class="muted">Pending</div>
+        <div class="metric-value" th:text="${notificationPendingCount}">0</div>
+      </article>
+      <article class="metric">
+        <div class="muted">Failed</div>
+        <div class="metric-value" th:text="${notificationFailedCount}">0</div>
+      </article>
+    </div>
+    <p class="muted" th:if="${!notificationDeliveryUnavailable and #lists.isEmpty(notificationDeliveries)}">
+      No notification deliveries have been queued in this environment yet.
+    </p>
+    <div class="table-scroll" th:if="${!notificationDeliveryUnavailable and !#lists.isEmpty(notificationDeliveries)}">
+      <table>
+        <thead>
+        <tr>
+          <th>Status</th>
+          <th>Sink</th>
+          <th>Event</th>
+          <th>Contract</th>
+          <th>Created</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="delivery : ${notificationDeliveries}">
+          <td>
+            <span class="pill"
+                  th:classappend="${delivery.status.name() == 'DELIVERED'} ? ' pill-pass' : (${delivery.status.name() == 'FAILED_PERMANENT'} ? ' pill-fail' : (${delivery.status.name() == 'IN_FLIGHT'} ? ' pill-running' : (${delivery.status.name() == 'PENDING' or delivery.status.name() == 'FAILED_RETRYABLE'} ? ' pill-queued' : ' pill-unknown')))"
+                  th:text="${delivery.status}">PENDING</span>
+          </td>
+          <td th:text="${delivery.sinkName}">log</td>
+          <td th:text="${delivery.event.eventType}">CONTRACT_CHECK_FAILED</td>
+          <td>
+            <a th:if="${delivery.event.contractId != null}"
+               th:href="@{/ui/contracts/{contractId}(contractId=${delivery.event.contractId})}"
+               th:text="${delivery.event.contractId}">contract</a>
+            <span th:if="${delivery.event.contractId == null}">-</span>
+          </td>
+          <td th:text="${delivery.createdAt}">created</td>
+        </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 

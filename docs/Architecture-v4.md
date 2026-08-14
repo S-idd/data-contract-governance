@@ -117,6 +117,9 @@ V4 starts with:
 6. Failure isolation so notification delivery cannot corrupt check-run state.
 7. Metadata-store outbox records with per-sink dedupe, retry state, and bounded backoff.
 8. Authenticated delivery-history API and dashboard readiness derived from persisted delivery state.
+9. Embedded `/ui/notifications` history for operator diagnosis without exposing secrets.
+10. Status, contract, sink, and event-type filters for notification triage.
+11. Writer-protected manual retry for failed notification deliveries after sink configuration is corrected.
 
 Initial event types:
 
@@ -128,7 +131,7 @@ Initial event types:
 6. `POLICY_PACK_CONFIG_INVALID`
 7. `NOTIFICATION_DELIVERY_FAILED`
 
-Outbox persistence, bounded retry state, delivery history, and UI exposure are follow-on work after the event and webhook contract are stable.
+Remaining V4 work is focused on release evidence, saved triage workflows, and webhook/outbox GA criteria.
 
 ## 9. UI Trust Surface
 
@@ -153,13 +156,13 @@ V4 can move from draft to accepted only when:
 5. Security baseline tests and docs are reviewed.
 6. Notification event contract has tests for trigger conditions and delivery failure isolation.
 7. UI trust-surface gaps are either implemented or carried forward with owners.
-8. The separate Spring Boot demo project validates CLI, REST/SDK, starter, UI, and notification paths.
+8. The separate Spring Boot demo project validates CLI, REST/SDK, starter, UI, and notification paths. The runnable project is `examples/spring-boot-realworld-demo`; a completed rehearsal is still required as release evidence.
 
 ## 11. Carried Open Questions
 
 1. Should S3 become the recommended production artifact backend after V4?
 2. Should MySQL remain beta until external validation exists?
 3. What exact public promise is acceptable for SQLite production-lite?
-4. Should webhook delivery use a metadata DB outbox in V4 or after V4?
-5. Should notification delivery history appear in the UI before webhook/outbox semantics are stable?
+4. What exact evidence is required before webhook/outbox delivery can move from V4 baseline to GA?
+5. Which notification triage views should be saved or linked from check detail before broader operator adoption?
 6. What is the smallest Spring Boot demo that still proves real adoption?

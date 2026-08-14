@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Controller
 @RequestMapping("/ui")
@@ -34,14 +35,17 @@ public class UiController {
   private final ContractCatalogService contractCatalogService;
   private final MetadataStore checkRunStore;
   private final OperationalStatusService operationalStatusService;
+  private final NotificationService notificationService;
 
   public UiController(
       ContractCatalogService contractCatalogService,
       MetadataStore checkRunStore,
-      OperationalStatusService operationalStatusService) {
+      OperationalStatusService operationalStatusService,
+      NotificationService notificationService) {
     this.contractCatalogService = contractCatalogService;
     this.checkRunStore = checkRunStore;
     this.operationalStatusService = operationalStatusService;
+    this.notificationService = notificationService;
   }
 
   @GetMapping
@@ -62,6 +66,9 @@ public class UiController {
     model.addAttribute("operationalStatus", operationalStatusService.currentStatus());
     model.addAttribute("recentFailedChecks", 0L);
     model.addAttribute("recentActiveChecks", 0L);
+    addNotificationDeliverySummary(
+        model,
+        NotificationDeliveryQuery.from(null, null, null, null, 5));
 
     try {
       CheckRunQuery query = CheckRunQuery.from(contractId, commitSha, status, 20, 0);
@@ -90,6 +97,60 @@ public class UiController {
       model.addAttribute("uiErrorMessage", "Check history store is currently unavailable.");
     }
     return "ui/dashboard";
+  }
+
+  @GetMapping("/notifications")
+  public String notificationDeliveries(
+      @RequestParam(name = "limit", required = false, defaultValue = "50") int limit,
+      @RequestParam(name = "status", required = false) String status,
+      @RequestParam(name = "contractId", required = false) String contractId,
+      @RequestParam(name = "sink", required = false) String sink,
+      @RequestParam(name = "eventType", required = false) String eventType,
+      @RequestParam(name = "retryStatus", required = false) String retryStatus,
+      @RequestParam(name = "retryMessage", required = false) String retryMessage,
+      HttpServletRequest request,
+      Model model) {
+    String requestId = requestId(request);
+    logUiRequest("notification_deliveries", requestId, status, contractId);
+
+    model.addAttribute("requestId", requestId);
+    model.addAttribute("operationalStatus", operationalStatusService.currentStatus());
+    model.addAttribute("notificationRetryStatus", safe(retryStatus));
+    model.addAttribute("notificationRetryMessage", safe(retryMessage));
+    try {
+      addNotificationDeliverySummary(
+          model,
+          NotificationDeliveryQuery.from(status, contractId, sink, eventType, limit));
+    } catch (IllegalArgumentException ex) {
+      addNotificationDeliveryErrorSummary(model, limit, status, contractId, sink, eventType, ex.getMessage());
+    }
+    return "ui/notifications";
+  }
+
+  @PostMapping("/notifications/{deliveryId}/retry")
+  public String retryNotificationDelivery(
+      @PathVariable("deliveryId") String deliveryId,
+      @RequestParam(name = "limit", required = false, defaultValue = "50") int limit,
+      @RequestParam(name = "status", required = false) String status,
+      @RequestParam(name = "contractId", required = false) String contractId,
+      @RequestParam(name = "sink", required = false) String sink,
+      @RequestParam(name = "eventType", required = false) String eventType,
+      HttpServletRequest request) {
+    String requestId = requestId(request);
+    logUiRequest("notification_delivery_retry", requestId, deliveryId, null);
+
+    String retryStatus = "success";
+    String retryMessage = "Notification delivery was queued for retry.";
+    try {
+      if (notificationService.retryDelivery(deliveryId).isEmpty()) {
+        retryStatus = "error";
+        retryMessage = "Notification delivery was not found.";
+      }
+    } catch (IllegalArgumentException ex) {
+      retryStatus = "error";
+      retryMessage = ex.getMessage();
+    }
+    return notificationRedirect(limit, status, contractId, sink, eventType, retryStatus, retryMessage);
   }
 
   @GetMapping("/contracts")
@@ -297,6 +358,110 @@ public class UiController {
         + " --mode BACKWARD"
         + " --contract-id " + checkRun.contractId()
         + " --commit-sha " + safe(checkRun.commitSha());
+  }
+
+  private void addNotificationDeliverySummary(Model model, NotificationDeliveryQuery query) {
+    addNotificationFilterAttributes(model, query.limit(), query.status(), query.contractId(), query.sinkName(),
+        query.eventType());
+    model.addAttribute("notificationDeliveryUnavailable", false);
+    model.addAttribute("notificationDeliveryError", "");
+
+    try {
+      List<NotificationDelivery> deliveries = notificationService.recentDeliveries(query);
+      model.addAttribute("notificationDeliveries", deliveries);
+      model.addAttribute("notificationTotalShown", deliveries.size());
+      model.addAttribute(
+          "notificationFailedCount",
+          deliveries.stream()
+              .filter(delivery -> delivery.status() == NotificationDeliveryStatus.FAILED_PERMANENT
+                  || delivery.status() == NotificationDeliveryStatus.FAILED_RETRYABLE)
+              .count());
+      model.addAttribute(
+          "notificationPendingCount",
+          deliveries.stream()
+              .filter(delivery -> delivery.status() == NotificationDeliveryStatus.PENDING
+                  || delivery.status() == NotificationDeliveryStatus.IN_FLIGHT)
+              .count());
+      model.addAttribute(
+          "notificationDeliveredCount",
+          deliveries.stream()
+              .filter(delivery -> delivery.status() == NotificationDeliveryStatus.DELIVERED)
+              .count());
+    } catch (CheckRunStoreException ex) {
+      model.addAttribute("notificationDeliveries", List.of());
+      model.addAttribute("notificationTotalShown", 0);
+      model.addAttribute("notificationFailedCount", 0L);
+      model.addAttribute("notificationPendingCount", 0L);
+      model.addAttribute("notificationDeliveredCount", 0L);
+      model.addAttribute("notificationDeliveryUnavailable", true);
+      model.addAttribute(
+          "notificationDeliveryError",
+          "Notification delivery history is currently unavailable.");
+    }
+  }
+
+  private void addNotificationDeliveryErrorSummary(
+      Model model,
+      int limit,
+      String status,
+      String contractId,
+      String sink,
+      String eventType,
+      String errorMessage) {
+    addNotificationFilterAttributes(
+        model,
+        Math.max(1, Math.min(100, limit)),
+        safe(status),
+        safe(contractId),
+        safe(sink),
+        safe(eventType));
+    model.addAttribute("notificationDeliveries", List.of());
+    model.addAttribute("notificationTotalShown", 0);
+    model.addAttribute("notificationFailedCount", 0L);
+    model.addAttribute("notificationPendingCount", 0L);
+    model.addAttribute("notificationDeliveredCount", 0L);
+    model.addAttribute("notificationDeliveryUnavailable", false);
+    model.addAttribute("notificationDeliveryError", safe(errorMessage));
+  }
+
+  private void addNotificationFilterAttributes(
+      Model model,
+      int limit,
+      String status,
+      String contractId,
+      String sink,
+      String eventType) {
+    model.addAttribute("notificationDeliveryLimit", limit);
+    model.addAttribute("notificationFilterStatus", safe(status));
+    model.addAttribute("notificationFilterContractId", safe(contractId));
+    model.addAttribute("notificationFilterSink", safe(sink));
+    model.addAttribute("notificationFilterEventType", safe(eventType));
+  }
+
+  private String notificationRedirect(
+      int limit,
+      String status,
+      String contractId,
+      String sink,
+      String eventType,
+      String retryStatus,
+      String retryMessage) {
+    UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/ui/notifications")
+        .queryParam("limit", Math.max(1, Math.min(100, limit)));
+    addQueryParamIfPresent(builder, "status", status);
+    addQueryParamIfPresent(builder, "contractId", contractId);
+    addQueryParamIfPresent(builder, "sink", sink);
+    addQueryParamIfPresent(builder, "eventType", eventType);
+    addQueryParamIfPresent(builder, "retryStatus", retryStatus);
+    addQueryParamIfPresent(builder, "retryMessage", retryMessage);
+    return "redirect:" + builder.build().encode().toUriString();
+  }
+
+  private void addQueryParamIfPresent(UriComponentsBuilder builder, String name, String value) {
+    String normalized = safe(value);
+    if (!normalized.isBlank()) {
+      builder.queryParam(name, normalized);
+    }
   }
 
   private List<String> buildGuidance(CheckRunResponse checkRun) {

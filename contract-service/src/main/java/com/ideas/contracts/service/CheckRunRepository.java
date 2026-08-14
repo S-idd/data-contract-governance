@@ -67,6 +67,12 @@ public interface CheckRunRepository {
 
   List<NotificationDelivery> listNotificationDeliveries(int limit);
 
+  List<NotificationDelivery> listNotificationDeliveries(NotificationDeliveryQuery query);
+
+  Optional<NotificationDelivery> findNotificationDelivery(String deliveryId);
+
+  boolean requeueNotificationDelivery(String deliveryId, Instant nextAttemptAt);
+
   int backfillLegacyRuns(
       Function<String, String> modeResolver,
       String defaultTriggeredBy,
