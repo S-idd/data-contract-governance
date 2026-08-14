@@ -133,6 +133,41 @@ class UiControllerIntegrationTest {
         List.of(),
         java.util.Map.of("checkRun", "/checks/ui-run-1"),
         "CONTRACT_CHECK_FAILED:orders.created:ui-test:v1:v2"), "log");
+
+    checkRunStore.enqueueNotificationDelivery(new NotificationEvent(
+        "ui-contract-registered",
+        NotificationEventType.CONTRACT_REGISTERED,
+        NotificationSeverity.INFO,
+        Instant.parse("2026-03-01T11:00:00Z"),
+        "orders.created",
+        null,
+        null,
+        "v1",
+        "ui-test",
+        "ui",
+        "baseline",
+        "Contract was registered.",
+        List.of(),
+        List.of(),
+        java.util.Map.of("contract", "/contracts/orders.created"),
+        "CONTRACT_REGISTERED:orders.created"), "log");
+    checkRunStore.enqueueNotificationDelivery(new NotificationEvent(
+        "ui-schema-published",
+        NotificationEventType.SCHEMA_VERSION_PUBLISHED,
+        NotificationSeverity.INFO,
+        Instant.parse("2026-03-01T12:00:00Z"),
+        "orders.created",
+        null,
+        "v1",
+        "v2",
+        "ui-test",
+        "ui",
+        "baseline",
+        "Schema version v2 was published.",
+        List.of(),
+        List.of(),
+        java.util.Map.of("contract", "/contracts/orders.created"),
+        "SCHEMA_VERSION_PUBLISHED:orders.created:v2"), "webhook");
   }
 
   @Test
@@ -144,6 +179,8 @@ class UiControllerIntegrationTest {
         .andExpect(content().string(containsString("Metadata store")))
         .andExpect(content().string(containsString("Artifact store")))
         .andExpect(content().string(containsString("Notifications")))
+        .andExpect(content().string(containsString("Recovery Guidance")))
+        .andExpect(content().string(containsString("docs/version4-security-baseline.md")))
         .andExpect(content().string(containsString("ui-run-1")));
   }
 
@@ -179,6 +216,14 @@ class UiControllerIntegrationTest {
   }
 
   @Test
+  void notificationDeliveryEndpointSupportsRunIdFilter() throws Exception {
+    mockMvc.perform(get("/api/notification-deliveries").queryParam("runId", "ui-run-1"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("ui-notification-event")))
+        .andExpect(content().string(not(containsString("ui-notification-rejected"))));
+  }
+
+  @Test
   void notificationDeliveriesPageShowsPersistedOutboxState() throws Exception {
     mockMvc.perform(get("/ui/notifications"))
         .andExpect(status().isOk())
@@ -204,6 +249,14 @@ class UiControllerIntegrationTest {
   }
 
   @Test
+  void notificationDeliveriesPageSupportsRunIdFilter() throws Exception {
+    mockMvc.perform(get("/ui/notifications").queryParam("runId", "ui-run-1"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("ui-notification-event")))
+        .andExpect(content().string(not(containsString("ui-notification-rejected"))));
+  }
+
+  @Test
   void contractsPageSupportsSearch() throws Exception {
     mockMvc.perform(get("/ui/contracts").queryParam("q", "orders"))
         .andExpect(status().isOk())
@@ -215,6 +268,11 @@ class UiControllerIntegrationTest {
     mockMvc.perform(get("/ui/contracts/orders.created"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("orders.created")))
+        .andExpect(content().string(containsString("Version Timeline")))
+        .andExpect(content().string(containsString("Latest Compatibility Check")))
+        .andExpect(content().string(containsString("Lifecycle Activity")))
+        .andExpect(content().string(containsString("CONTRACT_REGISTERED")))
+        .andExpect(content().string(containsString("SCHEMA_VERSION_PUBLISHED")))
         .andExpect(content().string(containsString("ui-run-1")));
   }
 
@@ -223,6 +281,9 @@ class UiControllerIntegrationTest {
     mockMvc.perform(get("/ui/checks/ui-run-1"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("Developer Guidance")))
+        .andExpect(content().string(containsString("Related Notifications")))
+        .andExpect(content().string(containsString("/ui/notifications?runId=ui-run-1")))
+        .andExpect(content().string(containsString("CONTRACT_CHECK_FAILED")))
         .andExpect(content().string(containsString("compatible transitional field type")));
   }
 

@@ -668,6 +668,10 @@ public class CheckRunStore implements MetadataStore {
       sql.append(" AND UPPER(event_type) = ?");
       params.add(resolvedQuery.eventType());
     }
+    if (resolvedQuery.runId() != null) {
+      sql.append(" AND run_id = ?");
+      params.add(resolvedQuery.runId());
+    }
     sql.append(" ORDER BY created_at DESC, delivery_id DESC LIMIT ?");
     params.add(resolvedQuery.limit());
 

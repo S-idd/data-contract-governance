@@ -78,13 +78,77 @@
   </section>
 
   <section class="card">
-    <h2 class="title" style="font-size:20px;">Available Versions</h2>
-    <ul class="list">
-      <li th:each="version : ${contract.versions}">
-        <a th:href="@{/contracts/{contractId}/versions/{version}(contractId=${contract.contractId},version=${version})}"
-           th:text="${version}">v1</a>
-      </li>
-    </ul>
+    <h2 class="title" style="font-size:20px;">Version Timeline</h2>
+    <p class="subtitle">Published versions and the newest compatibility result for each candidate version.</p>
+    <table>
+      <thead>
+      <tr>
+        <th>Version</th>
+        <th>Release</th>
+        <th>Latest Compatibility Check</th>
+        <th>Checked At</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="entry : ${versionTimeline}">
+        <td>
+          <a th:href="@{/contracts/{contractId}/versions/{version}(contractId=${contract.contractId},version=${entry.version})}"
+             th:text="${entry.version}">v1</a>
+        </td>
+        <td>
+          <span class="pill pill-pass" th:if="${entry.latest}">LATEST</span>
+          <span class="muted" th:if="${!entry.latest}">Published</span>
+        </td>
+        <td>
+          <a th:if="${entry.latestCheck != null}"
+             th:href="@{/ui/checks/{runId}(runId=${entry.latestCheck.runId})}">
+            <span class="pill"
+                  th:classappend="${entry.latestCheck.status == 'PASS'} ? ' pill-pass' : (${entry.latestCheck.status == 'FAIL'} ? ' pill-fail' : (${entry.latestCheck.status == 'RUNNING'} ? ' pill-running' : (${entry.latestCheck.status == 'QUEUED'} ? ' pill-queued' : ' pill-unknown')))"
+                  th:text="${entry.latestCheck.status != null ? entry.latestCheck.status : 'UNKNOWN'}">STATUS</span>
+          </a>
+          <span class="muted" th:if="${entry.latestCheck == null}">No compatibility check recorded.</span>
+        </td>
+        <td th:text="${entry.latestCheck != null ? entry.latestCheck.createdAt : '-'}">-</td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2 class="title" style="font-size:20px;">Lifecycle Activity</h2>
+    <p class="subtitle">Recorded contract registration and schema-publication events with safe delivery state.</p>
+    <div class="warning" th:if="${lifecycleDeliveriesUnavailable}">
+      Lifecycle activity is currently unavailable because notification history cannot be read.
+    </div>
+    <p class="muted" th:if="${!lifecycleDeliveriesUnavailable and #lists.isEmpty(lifecycleDeliveries)}">
+      No lifecycle events have been queued for this contract in this environment.
+    </p>
+    <div class="table-scroll" th:if="${!lifecycleDeliveriesUnavailable and !#lists.isEmpty(lifecycleDeliveries)}">
+      <table>
+        <thead>
+        <tr>
+          <th>Event</th>
+          <th>Version</th>
+          <th>Sink</th>
+          <th>Delivery</th>
+          <th>Created</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="delivery : ${lifecycleDeliveries}">
+          <td th:text="${delivery.event.eventType}">SCHEMA_VERSION_PUBLISHED</td>
+          <td th:text="${delivery.event.candidateVersion != null ? delivery.event.candidateVersion : '-'}">v1</td>
+          <td th:text="${delivery.sinkName}">log</td>
+          <td>
+            <span class="pill"
+                  th:classappend="${delivery.status.name() == 'DELIVERED'} ? ' pill-pass' : (${delivery.status.name() == 'FAILED_PERMANENT'} ? ' pill-fail' : (${delivery.status.name() == 'IN_FLIGHT'} ? ' pill-running' : (${delivery.status.name() == 'PENDING' or delivery.status.name() == 'FAILED_RETRYABLE'} ? ' pill-queued' : ' pill-unknown')))"
+                  th:text="${delivery.status}">PENDING</span>
+          </td>
+          <td th:text="${delivery.createdAt}">created</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <section class="card">

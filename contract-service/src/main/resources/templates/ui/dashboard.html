@@ -63,6 +63,31 @@
     </div>
   </section>
 
+  <section class="card" th:if="${!#lists.isEmpty(recoveryGuidance)}" aria-labelledby="recovery-guidance-heading">
+    <div class="section-heading">
+      <div>
+        <h2 id="recovery-guidance-heading" class="title" style="font-size:20px;">Recovery Guidance</h2>
+        <p class="subtitle">Safe next steps for components that need attention in this environment.</p>
+      </div>
+    </div>
+    <div class="status-grid">
+      <article class="status-item" th:each="guide : ${recoveryGuidance}">
+        <div class="status-item-heading">
+          <h3 th:text="${guide.label}">Component</h3>
+          <span class="operational-status"
+                th:classappend="' operational-status-' + ${#strings.toLowerCase(guide.status)}"
+                th:text="${#strings.replace(guide.status, '_', ' ')}">Action required</span>
+        </div>
+        <p class="status-detail" th:text="${guide.detail}">Component detail.</p>
+        <p class="status-action" th:text="${guide.action}">Next safe action.</p>
+        <p class="muted table-note" th:text="'Runbook: ' + ${guide.runbookPath}">Runbook path.</p>
+        <a class="button button-secondary button-small"
+           th:if="${guide.actionHref != null}"
+           th:href="${guide.actionHref}">Open safe action</a>
+      </article>
+    </div>
+  </section>
+
   <section class="card">
     <div class="section-heading">
       <div>

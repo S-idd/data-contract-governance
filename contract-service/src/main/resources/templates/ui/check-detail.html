@@ -78,6 +78,50 @@
     </ul>
   </section>
 
+  <section class="card" th:if="${checkRun != null and checkRun.status == 'FAIL'}">
+    <div class="section-heading">
+      <div>
+        <h2 class="title" style="font-size:20px;">Related Notifications</h2>
+        <p class="subtitle">Redacted delivery status for alerts created by this failed check.</p>
+      </div>
+      <a class="button button-secondary" th:href="@{/ui/notifications(runId=${checkRun.runId})}">View History</a>
+    </div>
+    <div class="warning" th:if="${checkNotificationDeliveriesUnavailable}">
+      Notification delivery history is currently unavailable. Restore metadata-store access before relying on alert status.
+    </div>
+    <p class="muted" th:if="${!checkNotificationDeliveriesUnavailable and #lists.isEmpty(checkNotificationDeliveries)}">
+      No notification delivery has been queued for this check run.
+    </p>
+    <div class="table-scroll" th:if="${!checkNotificationDeliveriesUnavailable and !#lists.isEmpty(checkNotificationDeliveries)}">
+      <table>
+        <thead>
+        <tr>
+          <th>Status</th>
+          <th>Sink</th>
+          <th>Event</th>
+          <th>Attempts</th>
+          <th>Next Attempt</th>
+          <th>Failure</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="delivery : ${checkNotificationDeliveries}">
+          <td>
+            <span class="pill"
+                  th:classappend="${delivery.status.name() == 'DELIVERED'} ? ' pill-pass' : (${delivery.status.name() == 'FAILED_PERMANENT'} ? ' pill-fail' : (${delivery.status.name() == 'IN_FLIGHT'} ? ' pill-running' : (${delivery.status.name() == 'PENDING' or delivery.status.name() == 'FAILED_RETRYABLE'} ? ' pill-queued' : ' pill-unknown')))"
+                  th:text="${delivery.status}">PENDING</span>
+          </td>
+          <td th:text="${delivery.sinkName}">webhook</td>
+          <td th:text="${delivery.event.eventType}">CONTRACT_CHECK_FAILED</td>
+          <td th:text="${delivery.attemptCount}">0</td>
+          <td th:text="${delivery.nextAttemptAt != null ? delivery.nextAttemptAt : '-'}">-</td>
+          <td th:text="${delivery.failureMessage != null ? delivery.failureMessage : '-'}">-</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="card" th:if="${checkRun != null}">
     <h2 class="title" style="font-size:20px;">Execution Logs</h2>
     <p class="subtitle">Latest events from the check runner.</p>
