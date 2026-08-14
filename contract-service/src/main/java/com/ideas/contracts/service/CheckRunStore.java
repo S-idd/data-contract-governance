@@ -641,13 +641,40 @@ public class CheckRunStore implements MetadataStore {
 
   @Override
   public List<NotificationDelivery> listNotificationDeliveries(int limit) {
+    return listNotificationDeliveries(NotificationDeliveryQuery.from(null, null, null, null, limit));
+  }
+
+  @Override
+  public List<NotificationDelivery> listNotificationDeliveries(NotificationDeliveryQuery query) {
     ensureInitialized();
-    int boundedLimit = Math.max(1, Math.min(100, limit));
+    NotificationDeliveryQuery resolvedQuery = query == null
+        ? NotificationDeliveryQuery.from(null, null, null, null, null)
+        : query;
+    StringBuilder sql = new StringBuilder(CheckRunSqlQueries.LIST_NOTIFICATION_DELIVERIES_BASE);
+    List<Object> params = new ArrayList<>();
+    if (resolvedQuery.status() != null) {
+      sql.append(" AND UPPER(status) = ?");
+      params.add(resolvedQuery.status());
+    }
+    if (resolvedQuery.contractId() != null) {
+      sql.append(" AND contract_id = ?");
+      params.add(resolvedQuery.contractId());
+    }
+    if (resolvedQuery.sinkName() != null) {
+      sql.append(" AND LOWER(sink_name) = ?");
+      params.add(resolvedQuery.sinkName());
+    }
+    if (resolvedQuery.eventType() != null) {
+      sql.append(" AND UPPER(event_type) = ?");
+      params.add(resolvedQuery.eventType());
+    }
+    sql.append(" ORDER BY created_at DESC, delivery_id DESC LIMIT ?");
+    params.add(resolvedQuery.limit());
+
     try (Connection connection = openConnection();
-         PreparedStatement statement = connection.prepareStatement(
-             CheckRunSqlQueries.LIST_NOTIFICATION_DELIVERIES)) {
+         PreparedStatement statement = connection.prepareStatement(sql.toString())) {
       applyQueryTimeout(statement);
-      statement.setInt(1, boundedLimit);
+      bindParams(statement, params);
       try (ResultSet resultSet = statement.executeQuery()) {
         List<NotificationDelivery> deliveries = new ArrayList<>();
         while (resultSet.next()) {
@@ -658,6 +685,54 @@ public class CheckRunStore implements MetadataStore {
     } catch (SQLException error) {
       logDbFailure("list_notification_deliveries", error, null, null);
       throw new CheckRunStoreException("Failed to list notification deliveries.", error);
+    }
+  }
+
+  @Override
+  public Optional<NotificationDelivery> findNotificationDelivery(String deliveryId) {
+    ensureInitialized();
+    String normalizedDeliveryId = trimToEmpty(deliveryId);
+    if (normalizedDeliveryId.isBlank()) {
+      throw new IllegalArgumentException("deliveryId must not be blank.");
+    }
+
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(
+             CheckRunSqlQueries.FIND_NOTIFICATION_DELIVERY_BY_ID)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, normalizedDeliveryId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next()
+            ? Optional.of(mapNotificationDelivery(resultSet))
+            : Optional.empty();
+      }
+    } catch (SQLException error) {
+      logDbFailure("find_notification_delivery", error, null, null);
+      throw new CheckRunStoreException("Failed to find notification delivery.", error);
+    }
+  }
+
+  @Override
+  public boolean requeueNotificationDelivery(String deliveryId, Instant nextAttemptAt) {
+    ensureInitialized();
+    String normalizedDeliveryId = trimToEmpty(deliveryId);
+    if (normalizedDeliveryId.isBlank()) {
+      throw new IllegalArgumentException("deliveryId must not be blank.");
+    }
+    Instant scheduledAt = nextAttemptAt == null ? Instant.now() : nextAttemptAt;
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(
+             CheckRunSqlQueries.REQUEUE_NOTIFICATION_DELIVERY)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, NotificationDeliveryStatus.PENDING.name());
+      statement.setString(2, scheduledAt.toString());
+      statement.setString(3, normalizedDeliveryId);
+      statement.setString(4, NotificationDeliveryStatus.FAILED_RETRYABLE.name());
+      statement.setString(5, NotificationDeliveryStatus.FAILED_PERMANENT.name());
+      return statement.executeUpdate() > 0;
+    } catch (SQLException error) {
+      logDbFailure("requeue_notification_delivery", error, null, null);
+      throw new CheckRunStoreException("Failed to requeue notification delivery.", error);
     }
   }
 

@@ -18,6 +18,7 @@
     <module>contract-validation-spring-boot-starter</module>
     <module>contract-sdk</module>
     <module>examples/dcg-spring-boot-realworld-demo</module>
+    <module>examples/spring-boot-realworld-demo</module>
   </modules>
 
   <properties>

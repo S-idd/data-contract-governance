@@ -34,15 +34,20 @@ public class SecurityConfig {
     http
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-            .requestMatchers(HttpMethod.POST, "/checks/**", "/ui/**", "/contracts/**")
+            .requestMatchers(HttpMethod.POST, "/checks/**", "/ui/**", "/contracts/**",
+                "/api/notification-deliveries/**")
             .hasRole(normalizeRole(writeRole, "WRITER"))
-            .requestMatchers(HttpMethod.PUT, "/checks/**", "/ui/**", "/contracts/**")
+            .requestMatchers(HttpMethod.PUT, "/checks/**", "/ui/**", "/contracts/**",
+                "/api/notification-deliveries/**")
             .hasRole(normalizeRole(writeRole, "WRITER"))
-            .requestMatchers(HttpMethod.PATCH, "/checks/**", "/ui/**", "/contracts/**")
+            .requestMatchers(HttpMethod.PATCH, "/checks/**", "/ui/**", "/contracts/**",
+                "/api/notification-deliveries/**")
             .hasRole(normalizeRole(writeRole, "WRITER"))
-            .requestMatchers(HttpMethod.DELETE, "/checks/**", "/ui/**", "/contracts/**")
+            .requestMatchers(HttpMethod.DELETE, "/checks/**", "/ui/**", "/contracts/**",
+                "/api/notification-deliveries/**")
             .hasRole(normalizeRole(writeRole, "WRITER"))
-            .requestMatchers("/ui/**", "/checks/**", "/runs/**", "/api/notification-deliveries")
+            .requestMatchers("/ui/**", "/checks/**", "/runs/**",
+                "/api/notification-deliveries", "/api/notification-deliveries/**")
             .authenticated()
             .anyRequest().permitAll())
         .httpBasic(Customizer.withDefaults())

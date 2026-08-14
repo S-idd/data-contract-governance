@@ -153,6 +153,25 @@ public class NotificationService {
     return metadataStore.listNotificationDeliveries(limit);
   }
 
+  public List<NotificationDelivery> recentDeliveries(NotificationDeliveryQuery query) {
+    return metadataStore.listNotificationDeliveries(query);
+  }
+
+  public java.util.Optional<NotificationDelivery> retryDelivery(String deliveryId) {
+    NotificationDelivery current = metadataStore.findNotificationDelivery(deliveryId).orElse(null);
+    if (current == null) {
+      return java.util.Optional.empty();
+    }
+    if (current.status() != NotificationDeliveryStatus.FAILED_RETRYABLE
+        && current.status() != NotificationDeliveryStatus.FAILED_PERMANENT) {
+      throw new IllegalArgumentException("Only failed notification deliveries can be retried.");
+    }
+    if (!metadataStore.requeueNotificationDelivery(current.deliveryId(), Instant.now())) {
+      throw new IllegalArgumentException("Only failed notification deliveries can be retried.");
+    }
+    return metadataStore.findNotificationDelivery(current.deliveryId());
+  }
+
   @Scheduled(fixedDelayString = "${notifications.dispatch.poll-interval-ms:5000}")
   public void dispatchPendingDeliveries() {
     if (!properties.isEnabled()) {

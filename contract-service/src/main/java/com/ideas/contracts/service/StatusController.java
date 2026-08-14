@@ -8,10 +8,14 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api")
@@ -59,7 +63,24 @@ public class StatusController {
       description = "Returns authenticated, redacted delivery history for operational diagnosis.")
   @ApiResponse(responseCode = "200", description = "Recent notification deliveries")
   public List<NotificationDelivery> notificationDeliveries(
-      @RequestParam(name = "limit", required = false, defaultValue = "20") int limit) {
-    return notificationService.recentDeliveries(limit);
+      @RequestParam(name = "limit", required = false, defaultValue = "20") int limit,
+      @RequestParam(name = "status", required = false) String status,
+      @RequestParam(name = "contractId", required = false) String contractId,
+      @RequestParam(name = "sink", required = false) String sink,
+      @RequestParam(name = "eventType", required = false) String eventType) {
+    return notificationService.recentDeliveries(
+        NotificationDeliveryQuery.from(status, contractId, sink, eventType, limit));
+  }
+
+  @PostMapping("/notification-deliveries/{deliveryId}/retry")
+  @Operation(
+      summary = "Retry notification delivery",
+      description = "Requeues a failed notification delivery for immediate dispatcher pickup.")
+  @ApiResponse(responseCode = "200", description = "Requeued notification delivery")
+  public NotificationDelivery retryNotificationDelivery(
+      @PathVariable("deliveryId") String deliveryId) {
+    return notificationService.retryDelivery(deliveryId)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Notification delivery not found: " + deliveryId));
   }
 }

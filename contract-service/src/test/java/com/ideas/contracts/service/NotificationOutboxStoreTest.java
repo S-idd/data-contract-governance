@@ -73,14 +73,77 @@ class NotificationOutboxStoreTest {
     assertEquals(2, reclaimed.attemptCount());
   }
 
+  @Test
+  void filtersAndRequeuesFailedNotificationDeliveries() {
+    CheckStoreProperties properties = new CheckStoreProperties();
+    properties.setPath(tempDir.resolve("notification-filter-retry.db").toString());
+    CheckRunStore store = new CheckRunStore(properties);
+    store.initialize();
+
+    MetadataStore.NotificationEnqueueResult failed = store.enqueueNotificationDelivery(
+        sampleEvent(
+            "event-rejected",
+            NotificationEventType.CONTRACT_VERSION_REJECTED,
+            "orders.created",
+            "run-rejected",
+            "CONTRACT_VERSION_REJECTED:orders.created:v3"),
+        "webhook");
+    store.enqueueNotificationDelivery(
+        sampleEvent(
+            "event-check",
+            NotificationEventType.CONTRACT_CHECK_FAILED,
+            "users.created",
+            "run-check",
+            "CONTRACT_CHECK_FAILED:users.created:v1:v2"),
+        "log");
+
+    Instant claimedAt = Instant.now();
+    NotificationDelivery claim = store.claimNextNotificationDelivery(
+        claimedAt, claimedAt.minusSeconds(60)).orElseThrow();
+    assertEquals(failed.delivery().deliveryId(), claim.deliveryId());
+    assertTrue(store.markNotificationDeliveryFailed(claim.deliveryId(), "HTTP status 500", null, true));
+
+    List<NotificationDelivery> filtered = store.listNotificationDeliveries(
+        NotificationDeliveryQuery.from(
+            "FAILED_PERMANENT",
+            "orders.created",
+            "webhook",
+            "CONTRACT_VERSION_REJECTED",
+            10));
+    assertEquals(1, filtered.size());
+    assertEquals(failed.delivery().deliveryId(), filtered.get(0).deliveryId());
+    assertEquals(NotificationDeliveryStatus.FAILED_PERMANENT, filtered.get(0).status());
+
+    Instant retryAt = claimedAt.plusSeconds(5);
+    assertTrue(store.requeueNotificationDelivery(failed.delivery().deliveryId(), retryAt));
+    NotificationDelivery requeued = store.findNotificationDelivery(failed.delivery().deliveryId()).orElseThrow();
+    assertEquals(NotificationDeliveryStatus.PENDING, requeued.status());
+    assertEquals(retryAt, requeued.nextAttemptAt());
+    assertFalse(store.requeueNotificationDelivery(failed.delivery().deliveryId(), retryAt.plusSeconds(1)));
+  }
+
   private NotificationEvent sampleEvent() {
-    return new NotificationEvent(
+    return sampleEvent(
         "event-1",
         NotificationEventType.CONTRACT_CHECK_FAILED,
-        NotificationSeverity.HIGH,
-        Instant.parse("2026-05-23T00:00:00Z"),
         "orders.created",
         "run-1",
+        "CONTRACT_CHECK_FAILED:orders.created:abc123:v1:v2");
+  }
+
+  private NotificationEvent sampleEvent(
+      String eventId,
+      NotificationEventType eventType,
+      String contractId,
+      String runId,
+      String dedupeKey) {
+    return new NotificationEvent(
+        eventId,
+        eventType,
+        NotificationSeverity.HIGH,
+        Instant.parse("2026-05-23T00:00:00Z"),
+        contractId,
+        runId,
         "v1",
         "v2",
         "abc123",
@@ -89,7 +152,7 @@ class NotificationOutboxStoreTest {
         "Compatibility check failed.",
         List.of("Field type changed: orderId"),
         List.of(),
-        java.util.Map.of("checkRun", "/checks/run-1"),
-        "CONTRACT_CHECK_FAILED:orders.created:abc123:v1:v2");
+        java.util.Map.of("checkRun", "/checks/" + runId),
+        dedupeKey);
   }
 }

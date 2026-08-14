@@ -7,6 +7,7 @@ Quick start: `docs/how-to-run.md`.
 V4 Spring Boot demo: `examples/dcg-spring-boot-realworld-demo/README.md`.
 
 V4 recovery drill: `docs/version4-recovery-and-incident-runbook.md`.
+V4 production-readiness entry points: `docs/Architecture-v4.md`, `docs/version4-production-readiness-release-plan.md`, and `examples/spring-boot-realworld-demo/README.md` for the separate Spring Boot validation rehearsal.
 
 ## Prerequisites
 - Java 21
