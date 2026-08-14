@@ -70,6 +70,15 @@ Minimum rollback drill:
 3. Validate `flyway_schema_history`, `/actuator/health`, `/checks`, and a write path.
 4. If rollback is needed, stop writers, restore the backup, redeploy the previous app build, and verify health and check history.
 
+V4 isolated recovery drill:
+
+```bash
+./mvnw -pl contract-service -am package
+bash scripts/demo/run-mysql-recovery-drill.sh
+```
+
+The drill provisions a disposable `mysql:8.4` container, writes a check through contract-service, backs up the source database with `mysqldump --single-transaction`, restores it into a different database, and verifies the original check through the authenticated API after service restart.
+
 MySQL example:
 
 ```bash

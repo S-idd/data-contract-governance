@@ -1,7 +1,7 @@
 # Version 4 Notification System Plan
 
 - Plan ID: `PLAN-2026-V4-NOTIFICATIONS`
-- Status: `Draft`
+- Status: `In progress (P0 durable delivery baseline implemented)`
 - Created date: `2026-05-23`
 - Purpose: notify teams when contracts break, policy enforcement fails, or contract lifecycle events are published
 
@@ -109,7 +109,9 @@ Current V4 baseline:
 3. `webhook` delivery posts the same event envelope as JSON when notifications and webhook delivery are explicitly enabled.
 4. Webhook URL and authorization header values can be resolved through environment-variable indirection.
 5. Webhook failures are isolated from the persisted contract or check-run decision and logged by the notification boundary.
-6. Outbox persistence, retry state, delivery history, and UI visibility remain follow-on reliability work.
+6. Events are persisted as one deduplicated delivery record per sink in the metadata-store outbox.
+7. A scheduled dispatcher delivers records asynchronously with bounded exponential backoff, terminal failure state, and stale-claim recovery after a worker crash.
+8. Authenticated `GET /api/notification-deliveries` exposes redacted delivery state for operator diagnosis; dashboard readiness reflects retryable and permanent failures.
 
 P1 candidates:
 
@@ -133,6 +135,8 @@ Minimum reliability behavior:
 2. Delivery attempts must be visible in logs or API/UI later.
 3. Duplicate notifications should be reduced with a stable `dedupeKey`.
 4. Retried events must not lose the original failure context.
+
+Current V4 implementation also uses the internal `IN_FLIGHT` state while a single worker claims a delivery. It is not a terminal state and is surfaced as degraded readiness if it remains visible during diagnosis.
 
 ## 8. Security Requirements
 

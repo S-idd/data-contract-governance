@@ -67,13 +67,13 @@ Open UI:
 
 Default credentials (from `config/compose.env.example`):
 
-- username: `admin`
-- password: `change-me`
+- username: `dcg-compose-admin`
+- password: `dcg-compose-demo-password`
 
 ## 5) Verify Write Path
 
 ```bash
-curl -u admin:change-me \
+curl -u dcg-compose-admin:dcg-compose-demo-password \
   -H "Content-Type: application/json" \
   -d '{"contractId":"orders.created","baseVersion":"v1","candidateVersion":"v2","mode":"BACKWARD","commitSha":"compose-local","triggeredBy":"compose"}' \
   http://localhost:8080/checks

@@ -3,6 +3,7 @@ package com.ideas.contracts.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -67,6 +69,31 @@ class CheckControllerDbFailureIntegrationTest {
     assertEquals(503, response.getResponse().getStatus());
     JsonNode payload = objectMapper.readTree(response.getResponse().getContentAsString());
     assertEquals("DOWN", payload.get("status").asText());
+  }
+
+  @Test
+  void checkWriteReturnsStructured503WhenStoreIsUnavailable() throws Exception {
+    MvcResult response = mockMvc.perform(post("/checks")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "contractId": "orders.created",
+                  "baseVersion": "v1",
+                  "candidateVersion": "v2",
+                  "mode": "BACKWARD",
+                  "commitSha": "unavailable-store-write",
+                  "triggeredBy": "recovery-test"
+                }
+                """))
+        .andExpect(status().isServiceUnavailable())
+        .andReturn();
+
+    JsonNode payload = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertEquals(503, payload.get("status").asInt());
+    assertEquals("CHECK_STORE_UNAVAILABLE", payload.get("code").asText());
+    assertEquals("Check history store is currently unavailable.", payload.get("message").asText());
+    assertEquals("/checks", payload.get("path").asText());
+    assertTrue(!response.getResponse().getContentAsString().contains(unavailableDbPath.toString()));
   }
 
   private static synchronized void ensureTestPaths() {

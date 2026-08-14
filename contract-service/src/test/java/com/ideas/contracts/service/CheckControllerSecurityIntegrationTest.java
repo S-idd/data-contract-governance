@@ -80,6 +80,16 @@ class CheckControllerSecurityIntegrationTest {
   }
 
   @Test
+  void notificationDeliveryHistoryRequiresBasicAuthWhenEnabled() throws Exception {
+    mockMvc.perform(get("/api/notification-deliveries"))
+        .andExpect(status().isUnauthorized());
+
+    mockMvc.perform(get("/api/notification-deliveries")
+            .header("Authorization", basicAuthHeader("tester", "secret")))
+        .andExpect(status().isOk());
+  }
+
+  @Test
   void createCheckRunWritesAuditLogWhenAuthorized() throws Exception {
     String payload = """
         {
@@ -110,6 +120,67 @@ class CheckControllerSecurityIntegrationTest {
       assertEquals("CHECK_RUN_CREATE", rs.getString("action"));
       assertEquals("SUCCESS", rs.getString("status"));
       assertTrue(rs.getString("resource_id") != null && !rs.getString("resource_id").isBlank());
+    }
+  }
+
+  @Test
+  void contractWritesCreateSuccessfulAuditEntriesWhenAuthorized() throws Exception {
+    String contractId = "payments.audit";
+    String createPayload = """
+        {
+          "contractId": "payments.audit",
+          "ownerTeam": "payments",
+          "domain": "finance",
+          "compatibilityMode": "BACKWARD",
+          "initialVersion": "v1",
+          "schema": {
+            "type": "object",
+            "properties": { "paymentId": { "type": "string" } },
+            "required": ["paymentId"]
+          }
+        }
+        """;
+    String versionPayload = """
+        {
+          "version": "v2",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "paymentId": { "type": "string" },
+              "currency": { "type": "string" }
+            },
+            "required": ["paymentId"]
+          }
+        }
+        """;
+
+    mockMvc.perform(post("/contracts")
+            .header("Authorization", basicAuthHeader("tester", "secret"))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(createPayload))
+        .andExpect(status().isCreated());
+    mockMvc.perform(post("/contracts/" + contractId + "/versions")
+            .header("Authorization", basicAuthHeader("tester", "secret"))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(versionPayload))
+        .andExpect(status().isCreated());
+
+    try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + checksDbPath);
+         PreparedStatement statement = connection.prepareStatement("""
+             SELECT action, status
+             FROM audit_logs
+             WHERE resource_id = ?
+             ORDER BY created_at ASC
+             """)) {
+      statement.setString(1, contractId);
+      try (ResultSet rs = statement.executeQuery()) {
+        assertTrue(rs.next());
+        assertEquals("CONTRACT_CREATE", rs.getString("action"));
+        assertEquals("SUCCESS", rs.getString("status"));
+        assertTrue(rs.next());
+        assertEquals("CONTRACT_VERSION_CREATE", rs.getString("action"));
+        assertEquals("SUCCESS", rs.getString("status"));
+      }
     }
   }
 

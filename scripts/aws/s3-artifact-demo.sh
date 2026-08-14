@@ -162,9 +162,6 @@ load_saved_env() {
     if [[ -n "${DCG_CONTRACT_ID:-}" ]]; then
       CONTRACT_ID="$DCG_CONTRACT_ID"
     fi
-    if [[ -n "${DCG_APP_USERNAME:-}" ]]; then
-      APP_USER="$DCG_APP_USERNAME"
-    fi
     if [[ -n "${DCG_APP_PASSWORD:-}" ]]; then
       APP_PASSWORD="$DCG_APP_PASSWORD"
     fi
@@ -185,7 +182,6 @@ export DCG_S3_BUCKET="$BUCKET"
 export DCG_S3_PREFIX="$PREFIX"
 export DCG_SERVICE_URL="$SERVICE_URL"
 export DCG_CONTRACT_ID="$CONTRACT_ID"
-export DCG_APP_USERNAME="$APP_USER"
 EOF
   log "Saved env file: $ENV_FILE"
 }
@@ -344,7 +340,8 @@ seed_contract() {
 
   log "Seeding contract $CONTRACT_ID (v1 then v2)"
 
-  readarray -t create_lines < <(http_post_json "$SERVICE_URL/contracts" "{
+  local create_response create_status create_body
+  create_response="$(http_post_json "$SERVICE_URL/contracts" "{
   \"contractId\": \"$CONTRACT_ID\",
   \"ownerTeam\": \"platform\",
   \"domain\": \"analytics\",
@@ -362,16 +359,17 @@ seed_contract() {
       \"metadata\": {\"type\":\"object\"}
     }
   }
-}")
+}")"
 
-  local create_status="${create_lines[0]}"
-  local create_body="${create_lines[1]}"
+  create_status="${create_response%%$'\n'*}"
+  create_body="${create_response#*$'\n'}"
   printf 'create-contract status=%s\n%s\n' "$create_status" "$create_body"
   if [[ "$create_status" != "201" && "$create_status" != "409" ]]; then
     die "Contract create failed with HTTP $create_status"
   fi
 
-  readarray -t version_lines < <(http_post_json "$SERVICE_URL/contracts/$CONTRACT_ID/versions" "{
+  local version_response version_status version_body
+  version_response="$(http_post_json "$SERVICE_URL/contracts/$CONTRACT_ID/versions" "{
   \"version\": \"v2\",
   \"schema\": {
     \"type\": \"object\",
@@ -385,13 +383,13 @@ seed_contract() {
       \"app_version\": {\"type\":\"string\"}
     }
   }
-}")
+}")"
 
-  local version_status="${version_lines[0]}"
-  local version_body="${version_lines[1]}"
+  version_status="${version_response%%$'\n'*}"
+  version_body="${version_response#*$'\n'}"
   printf 'create-version status=%s\n%s\n' "$version_status" "$version_body"
   if [[ "$version_status" != "201" ]]; then
-    if [[ "$version_status" == "400" && "$version_body" == *"Version already exists"* ]]; then
+    if [[ "$version_status" == "400" && ( "$version_body" == *"Version already exists"* || "$version_body" == *"New version must be greater than existing latest version v2."* ) ]]; then
       log "Version v2 already exists; continuing"
     else
       die "Contract version create failed with HTTP $version_status"
@@ -422,7 +420,7 @@ delete_batch() {
   count="$(aws s3api list-object-versions \
     --profile "$PROFILE" \
     --bucket "$BUCKET" \
-    --query "length(${query_root}[])" \
+    --query "length(${query_root} || \`[]\`)" \
     --output text)"
 
   if [[ "$count" == "None" || "$count" == "0" ]]; then

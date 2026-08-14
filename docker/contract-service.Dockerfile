@@ -10,6 +10,7 @@ COPY contract-cli/pom.xml contract-cli/pom.xml
 COPY contract-service/pom.xml contract-service/pom.xml
 COPY contract-validation-spring-boot-starter/pom.xml contract-validation-spring-boot-starter/pom.xml
 COPY contract-sdk/pom.xml contract-sdk/pom.xml
+COPY examples/dcg-spring-boot-realworld-demo/pom.xml examples/dcg-spring-boot-realworld-demo/pom.xml
 
 RUN chmod +x mvnw
 COPY contract-core/src contract-core/src

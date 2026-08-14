@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.time.Instant;
+import java.util.List;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.BeforeAll;
@@ -38,6 +40,9 @@ class UiControllerIntegrationTest {
 
   @Autowired
   private MockMvc mockMvc;
+
+  @Autowired
+  private CheckRunStore checkRunStore;
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
@@ -87,6 +92,24 @@ class UiControllerIntegrationTest {
       insert.setString(9, "2026-03-01T12:00:00Z");
       insert.executeUpdate();
     }
+
+    checkRunStore.enqueueNotificationDelivery(new NotificationEvent(
+        "ui-notification-event",
+        NotificationEventType.CONTRACT_CHECK_FAILED,
+        NotificationSeverity.HIGH,
+        Instant.parse("2026-03-01T12:00:00Z"),
+        "orders.created",
+        "ui-run-1",
+        "v1",
+        "v2",
+        "ui-test",
+        "ui",
+        "baseline",
+        "Compatibility check failed.",
+        List.of("Field type changed: orderId (string -> integer)"),
+        List.of(),
+        java.util.Map.of("checkRun", "/checks/ui-run-1"),
+        "CONTRACT_CHECK_FAILED:orders.created:ui-test:v1:v2"), "log");
   }
 
   @Test
@@ -109,6 +132,14 @@ class UiControllerIntegrationTest {
         .andExpect(content().string(containsString("artifact-store")))
         .andExpect(content().string(containsString("notifications")))
         .andExpect(content().string(not(containsString("jdbc:sqlite:"))));
+  }
+
+  @Test
+  void notificationDeliveryEndpointReturnsPersistedDeliveryState() throws Exception {
+    mockMvc.perform(get("/api/notification-deliveries"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("ui-notification-event")))
+        .andExpect(content().string(containsString("PENDING")));
   }
 
   @Test
