@@ -53,14 +53,35 @@ public class SecurityConfig {
 
   @Bean
   public UserDetailsService userDetailsService(
+      @Value("${app.security.enabled:false}") boolean securityEnabled,
+      @Value("${app.security.require-non-default-credentials:false}") boolean requireNonDefaultCredentials,
       @Value("${app.security.username:admin}") String username,
       @Value("${app.security.password:change-me}") String password,
       @Value("${app.security.roles:USER,WRITER}") String roles) {
+    validateCredentials(securityEnabled, requireNonDefaultCredentials, username, password);
     return new InMemoryUserDetailsManager(
         User.withUsername(username)
             .password("{noop}" + password)
             .roles(parseRoles(roles))
             .build());
+  }
+
+  static void validateCredentials(
+      boolean securityEnabled,
+      boolean requireNonDefaultCredentials,
+      String username,
+      String password) {
+    if (!securityEnabled || !requireNonDefaultCredentials) {
+      return;
+    }
+    if (username == null || username.isBlank() || password == null || password.isBlank()) {
+      throw new IllegalStateException(
+          "Shared profiles require APP_SECURITY_USERNAME and APP_SECURITY_PASSWORD to be set.");
+    }
+    if ("admin".equals(username.trim()) || "change-me".equals(password)) {
+      throw new IllegalStateException(
+          "Shared profiles must not use the default app security credentials. Set unique APP_SECURITY_USERNAME and APP_SECURITY_PASSWORD values.");
+    }
   }
 
   private String[] parseRoles(String roles) {

@@ -50,8 +50,8 @@ Notes:
 
 Default credentials (from `config/compose.env.example`):
 
-- Username: `admin`
-- Password: `change-me`
+- Username: `dcg-compose-admin`
+- Password: `dcg-compose-demo-password`
 
 ## 4) Manual Path (if you prefer explicit commands)
 
@@ -64,7 +64,7 @@ curl -fsS http://localhost:8080/actuator/health
 Submit a sample check run:
 
 ```bash
-curl -fsS -u admin:change-me \
+curl -fsS -u dcg-compose-admin:dcg-compose-demo-password \
   -H "Content-Type: application/json" \
   -d '{
     "contractId":"orders.created",

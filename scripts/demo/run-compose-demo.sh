@@ -60,8 +60,8 @@ source "$ENV_FILE"
 set +a
 
 APP_PORT="${DCG_SERVICE_PORT:-8080}"
-APP_USER="${DCG_APP_USERNAME:-admin}"
-APP_PASSWORD="${DCG_APP_PASSWORD:-change-me}"
+APP_USER="${DCG_APP_USERNAME:-dcg-compose-admin}"
+APP_PASSWORD="${DCG_APP_PASSWORD:-dcg-compose-demo-password}"
 BASE_URL="http://localhost:${APP_PORT}"
 HEALTH_URL="$BASE_URL/actuator/health"
 

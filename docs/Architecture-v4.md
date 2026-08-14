@@ -65,7 +65,7 @@ Primary service boundaries:
 | Backend | V4 Label | Intended Use | V4 Requirement Before Stronger Label |
 |---|---|---|---|
 | Filesystem | Supported local/default | Local development, demos, simple deployments | Clear backup guidance and artifact path documentation |
-| S3 | Beta to GA candidate | Production artifact storage | Clean smoke evidence, versioning restore guidance, fallback decision, IAM/cost guidance |
+| S3 | Beta | Production artifact storage | Local S3-compatible versioning recovery and fallback-disabled behavior are verified; clean AWS smoke, IAM/error evidence, cost guidance, and a support-label decision remain |
 
 ## 5. Supported Backend Combinations
 
@@ -84,10 +84,10 @@ V4 keeps local development low-friction while making shared profiles explicit.
 Required baseline:
 
 1. Write routes require the configured writer role when security is enabled.
-2. Production-like profiles must not normalize default credentials.
+2. `prod` and `sqlite-prod-lite` fail startup when app credentials are blank or use the demo `admin` / `change-me` values.
 3. Secrets are supplied through environment variables, secret env references, or provider chains.
 4. Audit logs cover contract writes and check submissions.
-5. Documentation must not ask users to paste cloud secrets into chat, screenshots, or tracked files.
+5. Documentation includes staged application and database credential rotation without asking users to paste cloud secrets into chat, screenshots, or tracked files.
 
 ## 7. Recovery Baseline
 

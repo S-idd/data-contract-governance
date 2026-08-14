@@ -102,6 +102,22 @@ Until that additional evidence exists, do not call MySQL GA or use it as the onl
 
 S3 remains a beta-to-GA candidate. The bucket used by the S3 demo has versioning enabled. Restore both the schema and its checksum from matching known-good object versions; restoring only one creates an inconsistent artifact pair.
 
+The isolated local drill uses MinIO to prove the same S3 API behavior without AWS credentials. It creates a versioned bucket, writes a contract with fallback disabled, deletes the current schema object, confirms the API returns `404` instead of serving the local cache, restores the schema and checksum pair from known-good object versions, and reads the version again.
+
+```bash
+./mvnw -pl contract-service -am package
+bash scripts/demo/run-s3-recovery-drill.sh
+```
+
+Expected completion includes:
+
+```text
+PASS: fallback-disabled missing-object check returned 404 and the restored schema is readable.
+S3 versioning, object-pair recovery, and application read checks completed.
+```
+
+The script needs Docker Desktop, Java 21, `curl`, AWS CLI v2, and `lsof`. It creates a disposable local MinIO container and does not use AWS credentials. Set `DCG_S3_RECOVERY_KEEP_WORK_DIR=true` to retain the service log and restored object files after the drill.
+
 ```bash
 export BUCKET=<artifact-bucket>
 export KEY="contracts/<contract-id>/versions/<version>/schema.json"
@@ -123,7 +139,27 @@ aws s3 cp /tmp/dcg-schema.sha256 "s3://$BUCKET/$CHECKSUM_KEY"
 
 Then restart or retry the affected service request with `CONTRACTS_ARTIFACT_S3_FALLBACK_ENABLED=false`, and verify the contract version through the API. The broader S3 setup, IAM, and smoke flow is in [week13-s3-beta-runbook.md](week13-s3-beta-runbook.md).
 
-## 6. Incident Checklists
+## 6. Failure-Path Verification
+
+The focused service suite verifies the user-visible behavior when recovery is not yet complete:
+
+```bash
+./mvnw -pl contract-service -am \
+  -Dtest=CheckControllerDbFailureIntegrationTest,CheckControllerPostgresAuthFailureIntegrationTest,CheckControllerPostgresNetworkFailureIntegrationTest,CheckRunStoreMigrationRollbackTest,S3ArtifactStoreTest \
+  -Dsurefire.failIfNoSpecifiedTests=false \
+  test
+```
+
+It proves the following operational contracts:
+
+1. Metadata-store read and write failures return a structured `503` with `CHECK_STORE_UNAVAILABLE`, a request ID, and no database path or credential value.
+2. Invalid PostgreSQL credentials and an unreachable PostgreSQL endpoint follow the same safe response contract.
+3. A damaged SQLite migration target can be restored from a known-good backup and return the original check run and logs.
+4. A failed S3 artifact write rolls back its local cache when fallback is disabled; missing S3 artifacts do not silently use that cache.
+
+Startup failures remain intentional in strict profiles: database initialization fails fast when configured, while `prod` and `sqlite-prod-lite` reject missing or demo application credentials before accepting traffic.
+
+## 7. Incident Checklists
 
 ### Metadata Database Unavailable
 
@@ -165,7 +201,7 @@ Then restart or retry the affected service request with `CONTRACTS_ARTIFACT_S3_F
 4. Restore the last known-good schema and checksum pair, or delete only the newly-created incomplete version after approval.
 5. Retry the contract write with its original idempotency/commit context, then read the version and run a compatibility check.
 
-## 7. Recovery Evidence Record
+## 8. Recovery Evidence Record
 
 For every drill or real incident, record:
 

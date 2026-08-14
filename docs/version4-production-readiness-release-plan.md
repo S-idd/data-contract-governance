@@ -47,10 +47,13 @@ Completed implementation slices include:
 2. A separate Spring Boot order-fulfillment demo with starter-backed runtime payload validation.
 3. Compatible and intentionally breaking `orders.created` contract scenarios exercised through the CLI, REST API, embedded UI, and generic WebHook delivery.
 4. A runnable SQLite production-lite recovery drill that verifies hot backup, integrity, restore, service restart, and retrieval of a persisted check run.
+5. Shared-profile credential validation, writer-route authorization coverage, successful write audit coverage, and staged credential-rotation guidance.
+6. Recovery failure-path coverage for unavailable metadata-store reads and writes, PostgreSQL credential/network failures, migration rollback, and S3 artifact rollback, with operator runbook commands.
+7. A clean-start first-user adoption runbook with green-path, policy-enforcement, backend-evidence, feedback, and cleanup commands. Feedback sessions remain to be captured.
 
 Still required before V4 can be called production-ready:
 
-1. S3 clean-smoke and versioned-artifact recovery evidence, plus its final support-label/fallback decision.
+1. Clean AWS S3 smoke and versioned-artifact recovery evidence, plus its final support-label decision. The local S3-compatible recovery drill and fallback-disabled behavior are implemented; AWS operating evidence remains required.
 2. S3 GA decision evidence and backend support-label decisions.
 3. Final UI hardening and operational triage coverage.
 4. Clean-checkout rehearsal, live-user feedback, release notes, and acceptance evidence.
