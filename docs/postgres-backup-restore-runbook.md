@@ -3,6 +3,18 @@
 - Last updated: `2026-03-31`
 - Scope: `contracts` database, `dcg_dev` style per-environment schemas
 
+## 0. Isolated V4 Drill
+
+For a non-destructive local proof using Docker Desktop, run:
+
+```bash
+cd /path/to/data-contract-governance
+./mvnw -pl contract-service -am package
+bash scripts/demo/run-postgres-recovery-drill.sh
+```
+
+The drill starts a fresh PostgreSQL container, writes one check into a disposable schema, restores a custom-format backup into a separate database, and verifies the persisted check through contract-service after restart. It removes all drill resources on success.
+
 ## 1. Preconditions
 
 1. PostgreSQL service is reachable.
@@ -75,6 +87,9 @@ psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$RESTORE_DB" -c \
 
 psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$RESTORE_DB" -c \
   "select count(*) as check_runs from $DCG_SCHEMA.check_runs;"
+
+psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$RESTORE_DB" -c \
+  "select count(*) as notification_deliveries from $DCG_SCHEMA.notification_deliveries;"
 
 psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$RESTORE_DB" -c \
   "select version, description, success from $DCG_SCHEMA.flyway_schema_history order by installed_rank;"

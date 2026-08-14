@@ -73,6 +73,70 @@ final class CheckRunSqlQueries {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       """;
 
+  static final String INSERT_NOTIFICATION_DELIVERY = """
+      INSERT INTO notification_deliveries (
+        delivery_id, event_id, event_type, severity, occurred_at,
+        contract_id, run_id, base_version, candidate_version, commit_sha, triggered_by,
+        policy_pack, summary, breaking_changes, warnings, links, dedupe_key, sink_name,
+        status, attempt_count, created_at, last_attempt_at, delivered_at, next_attempt_at,
+        failure_message
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      """;
+
+  static final String FIND_NOTIFICATION_DELIVERY_BY_DEDUPE = """
+      SELECT delivery_id, event_id, event_type, severity, occurred_at,
+             contract_id, run_id, base_version, candidate_version, commit_sha, triggered_by,
+             policy_pack, summary, breaking_changes, warnings, links, dedupe_key, sink_name,
+             status, attempt_count, created_at, last_attempt_at, delivered_at, next_attempt_at,
+             failure_message
+      FROM notification_deliveries
+      WHERE dedupe_key = ? AND sink_name = ?
+      LIMIT 1
+      """;
+
+  static final String SELECT_NEXT_NOTIFICATION_DELIVERY = """
+      SELECT delivery_id, event_id, event_type, severity, occurred_at,
+             contract_id, run_id, base_version, candidate_version, commit_sha, triggered_by,
+             policy_pack, summary, breaking_changes, warnings, links, dedupe_key, sink_name,
+             status, attempt_count, created_at, last_attempt_at, delivered_at, next_attempt_at,
+             failure_message
+      FROM notification_deliveries
+      WHERE ((status = ? OR status = ?)
+          AND (next_attempt_at IS NULL OR next_attempt_at <= ?))
+         OR (status = ? AND last_attempt_at <= ?)
+      ORDER BY created_at ASC, delivery_id ASC
+      LIMIT 1
+      """;
+
+  static final String CLAIM_NOTIFICATION_DELIVERY = """
+      UPDATE notification_deliveries
+      SET status = ?, attempt_count = attempt_count + 1, last_attempt_at = ?
+      WHERE delivery_id = ? AND status = ?
+      """;
+
+  static final String MARK_NOTIFICATION_DELIVERY_DELIVERED = """
+      UPDATE notification_deliveries
+      SET status = ?, delivered_at = ?, next_attempt_at = NULL
+      WHERE delivery_id = ? AND status = ?
+      """;
+
+  static final String MARK_NOTIFICATION_DELIVERY_FAILED = """
+      UPDATE notification_deliveries
+      SET status = ?, failure_message = ?, next_attempt_at = ?
+      WHERE delivery_id = ? AND status = ?
+      """;
+
+  static final String LIST_NOTIFICATION_DELIVERIES = """
+      SELECT delivery_id, event_id, event_type, severity, occurred_at,
+             contract_id, run_id, base_version, candidate_version, commit_sha, triggered_by,
+             policy_pack, summary, breaking_changes, warnings, links, dedupe_key, sink_name,
+             status, attempt_count, created_at, last_attempt_at, delivered_at, next_attempt_at,
+             failure_message
+      FROM notification_deliveries
+      ORDER BY created_at DESC, delivery_id DESC
+      LIMIT ?
+      """;
+
   static final String SELECT_LEGACY_RUNS_FOR_BACKFILL = """
       SELECT run_id, contract_id, base_version, candidate_version, commit_sha, created_at, status,
              triggered_by, compatibility_mode, input_hash, started_at, finished_at

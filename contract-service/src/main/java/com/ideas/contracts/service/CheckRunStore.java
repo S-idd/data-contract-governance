@@ -59,10 +59,11 @@ public class CheckRunStore implements MetadataStore {
   private static final String STATUS_QUEUED = "QUEUED";
   private static final String STATUS_RUNNING = "RUNNING";
   private static final String LATEST_DEFAULT_MIGRATION_RESOURCE =
-      "db/migration/V6__add_check_run_operational_indexes.sql";
+      "db/migration/V7__create_notification_deliveries.sql";
   private static final String LATEST_MYSQL_MIGRATION_RESOURCE =
-      "db/migration-mysql/V6__add_check_run_operational_indexes.sql";
+      "db/migration-mysql/V7__create_notification_deliveries.sql";
   private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
+  private static final TypeReference<Map<String, String>> STRING_MAP_TYPE = new TypeReference<>() {};
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunStore.class);
 
   private final String jdbcUrl;
@@ -473,6 +474,190 @@ public class CheckRunStore implements MetadataStore {
       statement.executeUpdate();
     } catch (Exception e) {
       logDbFailure("record_audit_log", e, null, null);
+    }
+  }
+
+  @Override
+  public NotificationEnqueueResult enqueueNotificationDelivery(
+      NotificationEvent event, String sinkName) {
+    ensureInitialized();
+    if (event == null) {
+      throw new IllegalArgumentException("event must not be null.");
+    }
+    if (event.eventType() == null || event.severity() == null) {
+      throw new IllegalArgumentException("notification event type and severity must be set.");
+    }
+    String normalizedSinkName = trimToEmpty(sinkName).toLowerCase(Locale.ROOT);
+    if (normalizedSinkName.isBlank()) {
+      throw new IllegalArgumentException("sinkName must not be blank.");
+    }
+
+    Instant now = Instant.now();
+    NotificationDelivery delivery = new NotificationDelivery(
+        UUID.randomUUID().toString(),
+        event,
+        normalizedSinkName,
+        NotificationDeliveryStatus.PENDING,
+        0,
+        now,
+        null,
+        null,
+        now,
+        null);
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(
+             CheckRunSqlQueries.INSERT_NOTIFICATION_DELIVERY)) {
+      applyQueryTimeout(statement);
+      bindNotificationDelivery(statement, delivery);
+      statement.executeUpdate();
+      return new NotificationEnqueueResult(delivery, true);
+    } catch (SQLException error) {
+      Optional<NotificationDelivery> existing = findNotificationDeliveryByDedupe(
+          event.dedupeKey(), normalizedSinkName);
+      if (existing.isPresent()) {
+        return new NotificationEnqueueResult(existing.get(), false);
+      }
+      logDbFailure("enqueue_notification_delivery", error, event.contractId(), event.commitSha());
+      throw new CheckRunStoreException("Failed to enqueue notification delivery.", error);
+    }
+  }
+
+  @Override
+  public Optional<NotificationDelivery> claimNextNotificationDelivery(
+      Instant now, Instant staleClaimBefore) {
+    ensureInitialized();
+    Instant claimedAt = now == null ? Instant.now() : now;
+    Instant staleBefore = staleClaimBefore == null ? claimedAt : staleClaimBefore;
+
+    for (int attempt = 0; attempt < 3; attempt++) {
+      try (Connection connection = openConnection()) {
+        connection.setAutoCommit(false);
+        NotificationDelivery candidate = null;
+        try (PreparedStatement select = connection.prepareStatement(
+            CheckRunSqlQueries.SELECT_NEXT_NOTIFICATION_DELIVERY)) {
+          applyQueryTimeout(select);
+          select.setString(1, NotificationDeliveryStatus.PENDING.name());
+          select.setString(2, NotificationDeliveryStatus.FAILED_RETRYABLE.name());
+          select.setString(3, claimedAt.toString());
+          select.setString(4, NotificationDeliveryStatus.IN_FLIGHT.name());
+          select.setString(5, staleBefore.toString());
+          try (ResultSet resultSet = select.executeQuery()) {
+            if (resultSet.next()) {
+              candidate = mapNotificationDelivery(resultSet);
+            }
+          }
+        }
+
+        if (candidate == null) {
+          connection.commit();
+          return Optional.empty();
+        }
+
+        try (PreparedStatement update = connection.prepareStatement(
+            CheckRunSqlQueries.CLAIM_NOTIFICATION_DELIVERY)) {
+          applyQueryTimeout(update);
+          update.setString(1, NotificationDeliveryStatus.IN_FLIGHT.name());
+          update.setString(2, claimedAt.toString());
+          update.setString(3, candidate.deliveryId());
+          update.setString(4, candidate.status().name());
+          if (update.executeUpdate() == 0) {
+            connection.rollback();
+            continue;
+          }
+        }
+        connection.commit();
+        return Optional.of(new NotificationDelivery(
+            candidate.deliveryId(),
+            candidate.event(),
+            candidate.sinkName(),
+            NotificationDeliveryStatus.IN_FLIGHT,
+            candidate.attemptCount() + 1,
+            candidate.createdAt(),
+            claimedAt,
+            candidate.deliveredAt(),
+            candidate.nextAttemptAt(),
+            candidate.failureMessage()));
+      } catch (SQLException error) {
+        logDbFailure("claim_notification_delivery", error, null, null);
+        throw new CheckRunStoreException("Failed to claim notification delivery.", error);
+      }
+    }
+
+    return Optional.empty();
+  }
+
+  @Override
+  public boolean markNotificationDeliveryDelivered(String deliveryId, Instant deliveredAt) {
+    ensureInitialized();
+    String normalizedDeliveryId = trimToEmpty(deliveryId);
+    if (normalizedDeliveryId.isBlank()) {
+      throw new IllegalArgumentException("deliveryId must not be blank.");
+    }
+    Instant completedAt = deliveredAt == null ? Instant.now() : deliveredAt;
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(
+             CheckRunSqlQueries.MARK_NOTIFICATION_DELIVERY_DELIVERED)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, NotificationDeliveryStatus.DELIVERED.name());
+      statement.setString(2, completedAt.toString());
+      statement.setString(3, normalizedDeliveryId);
+      statement.setString(4, NotificationDeliveryStatus.IN_FLIGHT.name());
+      return statement.executeUpdate() > 0;
+    } catch (SQLException error) {
+      logDbFailure("mark_notification_delivery_delivered", error, null, null);
+      throw new CheckRunStoreException("Failed to mark notification delivery as delivered.", error);
+    }
+  }
+
+  @Override
+  public boolean markNotificationDeliveryFailed(
+      String deliveryId,
+      String failureMessage,
+      Instant nextAttemptAt,
+      boolean permanentlyFailed) {
+    ensureInitialized();
+    String normalizedDeliveryId = trimToEmpty(deliveryId);
+    if (normalizedDeliveryId.isBlank()) {
+      throw new IllegalArgumentException("deliveryId must not be blank.");
+    }
+    NotificationDeliveryStatus status = permanentlyFailed
+        ? NotificationDeliveryStatus.FAILED_PERMANENT
+        : NotificationDeliveryStatus.FAILED_RETRYABLE;
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(
+             CheckRunSqlQueries.MARK_NOTIFICATION_DELIVERY_FAILED)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, status.name());
+      statement.setString(2, nullIfBlank(failureMessage));
+      statement.setString(3, nextAttemptAt == null ? null : nextAttemptAt.toString());
+      statement.setString(4, normalizedDeliveryId);
+      statement.setString(5, NotificationDeliveryStatus.IN_FLIGHT.name());
+      return statement.executeUpdate() > 0;
+    } catch (SQLException error) {
+      logDbFailure("mark_notification_delivery_failed", error, null, null);
+      throw new CheckRunStoreException("Failed to mark notification delivery as failed.", error);
+    }
+  }
+
+  @Override
+  public List<NotificationDelivery> listNotificationDeliveries(int limit) {
+    ensureInitialized();
+    int boundedLimit = Math.max(1, Math.min(100, limit));
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(
+             CheckRunSqlQueries.LIST_NOTIFICATION_DELIVERIES)) {
+      applyQueryTimeout(statement);
+      statement.setInt(1, boundedLimit);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<NotificationDelivery> deliveries = new ArrayList<>();
+        while (resultSet.next()) {
+          deliveries.add(mapNotificationDelivery(resultSet));
+        }
+        return deliveries;
+      }
+    } catch (SQLException error) {
+      logDbFailure("list_notification_deliveries", error, null, null);
+      throw new CheckRunStoreException("Failed to list notification deliveries.", error);
     }
   }
 
@@ -1310,6 +1495,121 @@ public class CheckRunStore implements MetadataStore {
       return objectMapper.writeValueAsString(values);
     } catch (JsonProcessingException e) {
       throw new IllegalStateException("Failed to serialize check run details.", e);
+    }
+  }
+
+  private String toJsonMap(Map<String, String> values) {
+    if (values == null || values.isEmpty()) {
+      return "{}";
+    }
+    try {
+      return objectMapper.writeValueAsString(values);
+    } catch (JsonProcessingException error) {
+      throw new IllegalStateException("Failed to serialize notification links.", error);
+    }
+  }
+
+  private Map<String, String> parseLinks(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return Map.of();
+    }
+    try {
+      Map<String, String> values = objectMapper.readValue(raw, STRING_MAP_TYPE);
+      return values == null ? Map.of() : Map.copyOf(values);
+    } catch (Exception ignored) {
+      return Map.of();
+    }
+  }
+
+  private void bindNotificationDelivery(PreparedStatement statement, NotificationDelivery delivery)
+      throws SQLException {
+    NotificationEvent event = delivery.event();
+    int index = 1;
+    statement.setString(index++, delivery.deliveryId());
+    statement.setString(index++, event.eventId());
+    statement.setString(index++, event.eventType().name());
+    statement.setString(index++, event.severity().name());
+    statement.setString(index++, event.occurredAt().toString());
+    statement.setString(index++, event.contractId());
+    statement.setString(index++, event.runId());
+    statement.setString(index++, event.baseVersion());
+    statement.setString(index++, event.candidateVersion());
+    statement.setString(index++, event.commitSha());
+    statement.setString(index++, event.triggeredBy());
+    statement.setString(index++, event.policyPack());
+    statement.setString(index++, event.summary());
+    statement.setString(index++, toJsonArray(event.breakingChanges()));
+    statement.setString(index++, toJsonArray(event.warnings()));
+    statement.setString(index++, toJsonMap(event.links()));
+    statement.setString(index++, event.dedupeKey());
+    statement.setString(index++, delivery.sinkName());
+    statement.setString(index++, delivery.status().name());
+    statement.setInt(index++, delivery.attemptCount());
+    statement.setString(index++, delivery.createdAt().toString());
+    statement.setString(index++, delivery.lastAttemptAt() == null ? null : delivery.lastAttemptAt().toString());
+    statement.setString(index++, delivery.deliveredAt() == null ? null : delivery.deliveredAt().toString());
+    statement.setString(index++, delivery.nextAttemptAt() == null ? null : delivery.nextAttemptAt().toString());
+    statement.setString(index, delivery.failureMessage());
+  }
+
+  private Optional<NotificationDelivery> findNotificationDeliveryByDedupe(
+      String dedupeKey, String sinkName) {
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(
+             CheckRunSqlQueries.FIND_NOTIFICATION_DELIVERY_BY_DEDUPE)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, dedupeKey);
+      statement.setString(2, sinkName);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next()
+            ? Optional.of(mapNotificationDelivery(resultSet))
+            : Optional.empty();
+      }
+    } catch (SQLException ignored) {
+      return Optional.empty();
+    }
+  }
+
+  private NotificationDelivery mapNotificationDelivery(ResultSet resultSet) throws SQLException {
+    NotificationEvent event = new NotificationEvent(
+        resultSet.getString("event_id"),
+        NotificationEventType.valueOf(resultSet.getString("event_type")),
+        NotificationSeverity.valueOf(resultSet.getString("severity")),
+        parseInstant(resultSet.getString("occurred_at")),
+        resultSet.getString("contract_id"),
+        resultSet.getString("run_id"),
+        resultSet.getString("base_version"),
+        resultSet.getString("candidate_version"),
+        resultSet.getString("commit_sha"),
+        resultSet.getString("triggered_by"),
+        resultSet.getString("policy_pack"),
+        resultSet.getString("summary"),
+        parseDetails(resultSet.getString("breaking_changes")),
+        parseDetails(resultSet.getString("warnings")),
+        parseLinks(resultSet.getString("links")),
+        resultSet.getString("dedupe_key"));
+    return new NotificationDelivery(
+        resultSet.getString("delivery_id"),
+        event,
+        resultSet.getString("sink_name"),
+        NotificationDeliveryStatus.valueOf(resultSet.getString("status")),
+        resultSet.getInt("attempt_count"),
+        parseInstant(resultSet.getString("created_at")),
+        parseInstant(resultSet.getString("last_attempt_at")),
+        parseInstant(resultSet.getString("delivered_at")),
+        parseInstant(resultSet.getString("next_attempt_at")),
+        resultSet.getString("failure_message"));
+  }
+
+  private Instant parseInstant(String value) {
+    String normalized = trimToEmpty(value);
+    if (normalized.isBlank()) {
+      return null;
+    }
+    try {
+      return Instant.parse(normalized);
+    } catch (Exception ignored) {
+      return null;
     }
   }
 

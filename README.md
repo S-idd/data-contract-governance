@@ -4,6 +4,10 @@ Open-source Java/Spring Boot tooling to prevent breaking schema changes before m
 
 Quick start: `docs/how-to-run.md`.
 
+V4 Spring Boot demo: `examples/dcg-spring-boot-realworld-demo/README.md`.
+
+V4 recovery drill: `docs/version4-recovery-and-incident-runbook.md`.
+
 ## Prerequisites
 - Java 21
 - Maven 3.9+

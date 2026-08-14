@@ -12,8 +12,8 @@
 
 The compose stack uses HTTP Basic auth when `APP_SECURITY_ENABLED=true`.
 
-- App UI/API username: `admin`
-- App UI/API password: `change-me`
+- App UI/API username: `dcg-compose-admin`
+- App UI/API password: `dcg-compose-demo-password`
 - UI: `http://localhost:8080/ui`
 - Swagger: `http://localhost:8080/swagger-ui/index.html`
 
@@ -53,8 +53,8 @@ curl -fsS http://localhost:8080/actuator/health
 
 ```bash
 export BASE_URL="http://localhost:8080"
-export DCG_AUTH_USER="${DCG_AUTH_USER:-admin}"
-export DCG_AUTH_PASSWORD="${DCG_AUTH_PASSWORD:-change-me}"
+export DCG_AUTH_USER="${DCG_AUTH_USER:-dcg-compose-admin}"
+export DCG_AUTH_PASSWORD="${DCG_AUTH_PASSWORD:-dcg-compose-demo-password}"
 export CONTRACT_ID="payments.completed.$(date +%s)"
 ```
 

@@ -43,6 +43,9 @@ class CheckRunnerIntegrationTest {
   @Autowired
   private CheckRunner checkRunner;
 
+  @Autowired
+  private NotificationService notificationService;
+
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
     ensurePaths();
@@ -80,6 +83,7 @@ class CheckRunnerIntegrationTest {
         "integration-test"));
 
     checkRunner.pollQueue();
+    notificationService.dispatchPendingDeliveries();
 
     CheckRunResponse completed = checkRunStore.findByRunId(created.runId()).orElseThrow();
     assertEquals("PASS", completed.status());
@@ -97,6 +101,7 @@ class CheckRunnerIntegrationTest {
         "integration-test"));
 
     checkRunner.pollQueue();
+    notificationService.dispatchPendingDeliveries();
 
     CheckRunResponse completed = checkRunStore.findByRunId(created.runId()).orElseThrow();
     assertEquals("FAIL", completed.status());

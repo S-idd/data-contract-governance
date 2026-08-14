@@ -86,7 +86,19 @@ Weekly deep check:
 sqlite3 "$CHECKS_DB_PATH" "PRAGMA integrity_check;"
 ```
 
-## 7) When Not To Use SQLite
+## 7) V4 Recovery Drill
+
+Run the non-destructive V4 recovery drill before calling a production-lite deployment recoverable:
+
+```bash
+cd /path/to/data-contract-governance
+./mvnw -pl contract-service -am package
+bash scripts/demo/run-sqlite-recovery-drill.sh
+```
+
+The drill starts an isolated `sqlite-prod-lite` service, takes a hot backup, simulates temporary database loss, restores the backup, and verifies the original check run after restart. See `docs/version4-recovery-and-incident-runbook.md` for incident response guidance.
+
+## 8) When Not To Use SQLite
 
 Do **not** use SQLite when you need:
 

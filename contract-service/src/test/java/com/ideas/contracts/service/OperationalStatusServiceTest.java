@@ -22,7 +22,8 @@ class OperationalStatusServiceTest {
     NotificationProperties properties = new NotificationProperties();
     properties.setEnabled(true);
     properties.setSinks(List.of("webhook"));
-    NotificationService notifications = new NotificationService(properties, List.of(new LogSink()));
+    NotificationService notifications = new NotificationService(
+        properties, List.of(new LogSink()), metadataStore);
 
     OperationalStatusResponse response = new OperationalStatusService(
         metadataStore, artifactStore, notifications, false).currentStatus();

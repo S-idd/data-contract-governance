@@ -56,7 +56,7 @@ Primary service boundaries:
 |---|---|---|---|
 | PostgreSQL | Production standard | Shared production-like metadata store | Fresh targeted verification, backup/restore drill, secure profile evidence |
 | SQLite | Production-lite | Local development and single-node low-cost deployments | Clear single-node limits, backup/restore drill, startup integrity guidance |
-| MySQL | Beta | MySQL adopters that accept a validation period | External or clean local verification, restore expectations, support notes |
+| MySQL | Beta | MySQL adopters that accept a validation period | External adopter verification and support notes; isolated backup/restore drill is available |
 | MongoDB | Decision-gated | Not implemented | At least two credible adopter requests and a data-model RFC |
 | Cassandra | Research-gated | Not implemented | Research gate outcome and correctness/recovery proposal |
 
@@ -65,7 +65,7 @@ Primary service boundaries:
 | Backend | V4 Label | Intended Use | V4 Requirement Before Stronger Label |
 |---|---|---|---|
 | Filesystem | Supported local/default | Local development, demos, simple deployments | Clear backup guidance and artifact path documentation |
-| S3 | Beta to GA candidate | Production artifact storage | Clean smoke evidence, versioning restore guidance, fallback decision, IAM/cost guidance |
+| S3 | Beta | Production artifact storage | Local S3-compatible versioning recovery and fallback-disabled behavior are verified; clean AWS smoke, IAM/error evidence, cost guidance, and a support-label decision remain |
 
 ## 5. Supported Backend Combinations
 
@@ -84,10 +84,10 @@ V4 keeps local development low-friction while making shared profiles explicit.
 Required baseline:
 
 1. Write routes require the configured writer role when security is enabled.
-2. Production-like profiles must not normalize default credentials.
+2. `prod` and `sqlite-prod-lite` fail startup when app credentials are blank or use the demo `admin` / `change-me` values.
 3. Secrets are supplied through environment variables, secret env references, or provider chains.
 4. Audit logs cover contract writes and check submissions.
-5. Documentation must not ask users to paste cloud secrets into chat, screenshots, or tracked files.
+5. Documentation includes staged application and database credential rotation without asking users to paste cloud secrets into chat, screenshots, or tracked files.
 
 ## 7. Recovery Baseline
 
@@ -115,6 +115,8 @@ V4 starts with:
 4. Generic webhook sink delivery for team-owned automation endpoints.
 5. Disabled-by-default configuration.
 6. Failure isolation so notification delivery cannot corrupt check-run state.
+7. Metadata-store outbox records with per-sink dedupe, retry state, and bounded backoff.
+8. Authenticated delivery-history API and dashboard readiness derived from persisted delivery state.
 
 Initial event types:
 

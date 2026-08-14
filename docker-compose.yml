@@ -58,8 +58,8 @@ services:
       CHECKS_DB_SSL_ENABLED: "false"
       APP_UI_ENABLED: "true"
       APP_SECURITY_ENABLED: "true"
-      APP_SECURITY_USERNAME: ${DCG_APP_USERNAME:-admin}
-      APP_SECURITY_PASSWORD: ${DCG_APP_PASSWORD:-change-me}
+      APP_SECURITY_USERNAME: ${DCG_APP_USERNAME:-dcg-compose-admin}
+      APP_SECURITY_PASSWORD: ${DCG_APP_PASSWORD:-dcg-compose-demo-password}
       APP_SECURITY_ROLES: USER,WRITER
       APP_SECURITY_WRITE_ROLE: WRITER
       JAVA_OPTS: -XX:InitialRAMPercentage=25 -XX:MaxRAMPercentage=75
