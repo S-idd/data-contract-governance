@@ -154,6 +154,32 @@ class S3ArtifactStoreTest {
   }
 
   @Test
+  void readSchemaDoesNotUseLocalCacheForMissingS3ObjectWhenFallbackIsDisabled() throws Exception {
+    S3Client s3Client = Mockito.mock(S3Client.class);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
+        .thenThrow(S3Exception.builder().statusCode(404).message("S3 object missing").build());
+
+    Path fallbackRoot = tempDir.resolve("contracts-fallback");
+    newFallbackStore(fallbackRoot).createContract(createRequest("orders.created", "v1"));
+    S3ArtifactStore store = newStore(s3Client, fallbackRoot, false);
+
+    assertTrue(store.readSchema("orders.created", "v1").isEmpty());
+  }
+
+  @Test
+  void readSchemaDoesNotTreatS3AccessDeniedAsMissingWhenFallbackIsDisabled() throws Exception {
+    S3Client s3Client = Mockito.mock(S3Client.class);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
+        .thenThrow(S3Exception.builder().statusCode(403).message("S3 access denied").build());
+
+    Path fallbackRoot = tempDir.resolve("contracts-fallback");
+    newFallbackStore(fallbackRoot).createContract(createRequest("orders.created", "v1"));
+    S3ArtifactStore store = newStore(s3Client, fallbackRoot, false);
+
+    assertThrows(S3Exception.class, () -> store.readSchema("orders.created", "v1"));
+  }
+
+  @Test
   void listVersionsParsesS3VersionPrefixes() {
     S3Client s3Client = Mockito.mock(S3Client.class);
     ListObjectsV2Response response = ListObjectsV2Response.builder()

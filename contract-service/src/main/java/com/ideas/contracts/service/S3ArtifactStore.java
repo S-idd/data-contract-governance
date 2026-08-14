@@ -143,8 +143,10 @@ public class S3ArtifactStore implements ArtifactStore {
       writeLocalFile(metadataPath, payload);
       return Optional.of(schemaLoader.loadMetadata(metadataPath, normalizedContractId));
     } catch (RuntimeException ex) {
-      if (isMissingObject(ex)) {
-        return fallbackStore.readMetadata(normalizedContractId);
+      if (isNotFound(ex)) {
+        return fallbackEnabled
+            ? fallbackStore.readMetadata(normalizedContractId)
+            : Optional.empty();
       }
       return fallbackOrThrow(
           "read_metadata",
@@ -185,8 +187,10 @@ public class S3ArtifactStore implements ArtifactStore {
       writeLocalFile(schemaPath, payload);
       return Optional.of(jsonMapper.readTree(payload));
     } catch (RuntimeException ex) {
-      if (isMissingObject(ex)) {
-        return fallbackStore.readSchema(normalizedContractId, normalizedVersion);
+      if (isNotFound(ex)) {
+        return fallbackEnabled
+            ? fallbackStore.readSchema(normalizedContractId, normalizedVersion)
+            : Optional.empty();
       }
       return fallbackOrThrow(
           "read_schema",
@@ -212,8 +216,8 @@ public class S3ArtifactStore implements ArtifactStore {
               .build());
       return true;
     } catch (RuntimeException ex) {
-      if (isMissingObject(ex)) {
-        return fallbackStore.contractExists(normalizedContractId);
+      if (isNotFound(ex)) {
+        return fallbackEnabled && fallbackStore.contractExists(normalizedContractId);
       }
       return fallbackOrThrow(
           "contract_exists",
@@ -257,7 +261,9 @@ public class S3ArtifactStore implements ArtifactStore {
         }
         continuationToken = response.nextContinuationToken();
       } while (continuationToken != null);
-      return max == 0L ? fallbackStore.contractLastModified(normalizedContractId) : max;
+      return max == 0L && fallbackEnabled
+          ? fallbackStore.contractLastModified(normalizedContractId)
+          : max;
     } catch (RuntimeException ex) {
       return fallbackOrThrow(
           "contract_last_modified",
@@ -466,7 +472,7 @@ public class S3ArtifactStore implements ArtifactStore {
       continuationToken = response.nextContinuationToken();
     } while (continuationToken != null);
 
-    if (versions.isEmpty()) {
+    if (versions.isEmpty() && fallbackEnabled) {
       return fallbackStore.listVersions(contractId);
     }
     return versions.stream().distinct().sorted(VERSION_COMPARATOR).toList();
@@ -612,13 +618,12 @@ public class S3ArtifactStore implements ArtifactStore {
     }
   }
 
-  private boolean isMissingObject(RuntimeException ex) {
+  private boolean isNotFound(RuntimeException ex) {
     if (ex instanceof NoSuchKeyException) {
       return true;
     }
     if (ex instanceof S3Exception s3Exception) {
-      int status = s3Exception.statusCode();
-      return status == 404 || status == 403;
+      return s3Exception.statusCode() == 404;
     }
     return false;
   }
