@@ -6,12 +6,15 @@ import com.ideas.contracts.service.model.CheckRunCreateRequest;
 import com.ideas.contracts.service.model.CheckRunCreateResponse;
 import com.ideas.contracts.service.model.ContractDetailResponse;
 import com.ideas.contracts.service.model.ContractSummaryResponse;
+import com.ideas.contracts.service.model.OperationalStatusResponse.ComponentStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -63,7 +66,9 @@ public class UiController {
     model.addAttribute("filterContractId", safe(contractId));
     model.addAttribute("filterCommitSha", safe(commitSha));
     model.addAttribute("filterStatus", safe(status));
-    model.addAttribute("operationalStatus", operationalStatusService.currentStatus());
+    var operationalStatus = operationalStatusService.currentStatus();
+    model.addAttribute("operationalStatus", operationalStatus);
+    model.addAttribute("recoveryGuidance", buildRecoveryGuidance(operationalStatus.components()));
     model.addAttribute("recentFailedChecks", 0L);
     model.addAttribute("recentActiveChecks", 0L);
     addNotificationDeliverySummary(
@@ -106,6 +111,7 @@ public class UiController {
       @RequestParam(name = "contractId", required = false) String contractId,
       @RequestParam(name = "sink", required = false) String sink,
       @RequestParam(name = "eventType", required = false) String eventType,
+      @RequestParam(name = "runId", required = false) String runId,
       @RequestParam(name = "retryStatus", required = false) String retryStatus,
       @RequestParam(name = "retryMessage", required = false) String retryMessage,
       HttpServletRequest request,
@@ -120,9 +126,10 @@ public class UiController {
     try {
       addNotificationDeliverySummary(
           model,
-          NotificationDeliveryQuery.from(status, contractId, sink, eventType, limit));
+          NotificationDeliveryQuery.from(status, contractId, sink, eventType, runId, limit));
     } catch (IllegalArgumentException ex) {
-      addNotificationDeliveryErrorSummary(model, limit, status, contractId, sink, eventType, ex.getMessage());
+      addNotificationDeliveryErrorSummary(
+          model, limit, status, contractId, sink, eventType, runId, ex.getMessage());
     }
     return "ui/notifications";
   }
@@ -135,6 +142,7 @@ public class UiController {
       @RequestParam(name = "contractId", required = false) String contractId,
       @RequestParam(name = "sink", required = false) String sink,
       @RequestParam(name = "eventType", required = false) String eventType,
+      @RequestParam(name = "runId", required = false) String runId,
       HttpServletRequest request) {
     String requestId = requestId(request);
     logUiRequest("notification_delivery_retry", requestId, deliveryId, null);
@@ -150,7 +158,7 @@ public class UiController {
       retryStatus = "error";
       retryMessage = ex.getMessage();
     }
-    return notificationRedirect(limit, status, contractId, sink, eventType, retryStatus, retryMessage);
+    return notificationRedirect(limit, status, contractId, sink, eventType, runId, retryStatus, retryMessage);
   }
 
   @GetMapping("/contracts")
@@ -274,6 +282,7 @@ public class UiController {
       model.addAttribute("checkLogs", checkLogs);
       model.addAttribute("checkStoreUnavailable", false);
       model.addAttribute("uiErrorMessage", "");
+      addCheckNotificationSummary(model, checkRun.runId());
     } catch (CheckRunStoreException ex) {
       response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
       model.addAttribute("checkRun", null);
@@ -283,6 +292,7 @@ public class UiController {
       model.addAttribute("checkLogs", List.of());
       model.addAttribute("checkStoreUnavailable", true);
       model.addAttribute("uiErrorMessage", "Check history store is currently unavailable.");
+      addCheckNotificationErrorSummary(model);
     }
     return "ui/check-detail";
   }
@@ -313,12 +323,15 @@ public class UiController {
         canRunCheck ? "" : "At least two versions are required to run a compatibility check.");
 
     model.addAttribute("checks", List.of());
+    model.addAttribute("versionTimeline", buildVersionTimeline(versions, List.of()));
     model.addAttribute("checkStoreUnavailable", false);
     model.addAttribute("uiErrorMessage", "");
+    addLifecycleDeliverySummary(model, detail.contractId());
     try {
-      var page = checkRunStore.listPage(CheckRunQuery.from(detail.contractId(), null, null, 20, 0));
+      var page = checkRunStore.listPage(CheckRunQuery.from(detail.contractId(), null, null, 200, 0));
       model.addAttribute("checks", page.items());
       model.addAttribute("checksHasMore", page.hasMore());
+      model.addAttribute("versionTimeline", buildVersionTimeline(versions, page.items()));
     } catch (CheckRunStoreException ex) {
       model.addAttribute("checkStoreUnavailable", true);
       model.addAttribute("uiErrorMessage", "Check history store is currently unavailable.");
@@ -351,6 +364,50 @@ public class UiController {
     return versions.get(versions.size() - 2);
   }
 
+  private List<VersionTimelineEntry> buildVersionTimeline(
+      List<String> versions,
+      List<CheckRunResponse> checks) {
+    if (versions == null || versions.isEmpty()) {
+      return List.of();
+    }
+    Map<String, CheckRunResponse> latestChecksByCandidate = new HashMap<>();
+    if (checks != null) {
+      for (CheckRunResponse check : checks) {
+        if (check != null && check.candidateVersion() != null && !check.candidateVersion().isBlank()) {
+          latestChecksByCandidate.putIfAbsent(check.candidateVersion(), check);
+        }
+      }
+    }
+    int latestIndex = versions.size() - 1;
+    List<VersionTimelineEntry> timeline = new ArrayList<>();
+    for (int index = 0; index < versions.size(); index++) {
+      String version = versions.get(index);
+      timeline.add(new VersionTimelineEntry(
+          version,
+          index == latestIndex,
+          latestChecksByCandidate.get(version)));
+    }
+    return List.copyOf(timeline);
+  }
+
+  private void addLifecycleDeliverySummary(Model model, String contractId) {
+    try {
+      List<NotificationDelivery> deliveries = new ArrayList<>();
+      deliveries.addAll(notificationService.recentDeliveries(
+          NotificationDeliveryQuery.from(
+              null, contractId, null, NotificationEventType.CONTRACT_REGISTERED.name(), 10)));
+      deliveries.addAll(notificationService.recentDeliveries(
+          NotificationDeliveryQuery.from(
+              null, contractId, null, NotificationEventType.SCHEMA_VERSION_PUBLISHED.name(), 10)));
+      deliveries.sort(Comparator.comparing(NotificationDelivery::createdAt).reversed());
+      model.addAttribute("lifecycleDeliveries", List.copyOf(deliveries));
+      model.addAttribute("lifecycleDeliveriesUnavailable", false);
+    } catch (CheckRunStoreException ex) {
+      model.addAttribute("lifecycleDeliveries", List.of());
+      model.addAttribute("lifecycleDeliveriesUnavailable", true);
+    }
+  }
+
   private String buildCliSnippet(CheckRunResponse checkRun) {
     return "java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat"
         + " --base contracts/" + checkRun.contractId() + "/" + checkRun.baseVersion() + ".json"
@@ -360,9 +417,49 @@ public class UiController {
         + " --commit-sha " + safe(checkRun.commitSha());
   }
 
+  private List<RecoveryGuidance> buildRecoveryGuidance(List<ComponentStatus> components) {
+    if (components == null || components.isEmpty()) {
+      return List.of();
+    }
+    return components.stream()
+        .filter(component -> component != null && !"HEALTHY".equalsIgnoreCase(component.status()))
+        .map(component -> new RecoveryGuidance(
+            component.label(),
+            component.status(),
+            component.detail(),
+            component.action(),
+            recoveryRunbook(component.id()),
+            recoveryActionHref(component.id())))
+        .toList();
+  }
+
+  private String recoveryRunbook(String componentId) {
+    return switch (safe(componentId)) {
+      case "metadata-store" -> "docs/version4-recovery-and-incident-runbook.md";
+      case "artifact-store" -> "docs/version4-recovery-and-incident-runbook.md";
+      case "notifications" -> "docs/version4-notification-system-plan.md";
+      case "security" -> "docs/version4-security-baseline.md";
+      default -> "docs/version4-production-readiness-release-plan.md";
+    };
+  }
+
+  private String recoveryActionHref(String componentId) {
+    return switch (safe(componentId)) {
+      case "metadata-store" -> "/actuator/health";
+      case "notifications" -> "/ui/notifications";
+      default -> null;
+    };
+  }
+
   private void addNotificationDeliverySummary(Model model, NotificationDeliveryQuery query) {
-    addNotificationFilterAttributes(model, query.limit(), query.status(), query.contractId(), query.sinkName(),
-        query.eventType());
+    addNotificationFilterAttributes(
+        model,
+        query.limit(),
+        query.status(),
+        query.contractId(),
+        query.sinkName(),
+        query.eventType(),
+        query.runId());
     model.addAttribute("notificationDeliveryUnavailable", false);
     model.addAttribute("notificationDeliveryError", "");
 
@@ -400,6 +497,23 @@ public class UiController {
     }
   }
 
+  private void addCheckNotificationSummary(Model model, String runId) {
+    try {
+      model.addAttribute(
+          "checkNotificationDeliveries",
+          notificationService.recentDeliveries(
+              NotificationDeliveryQuery.from(null, null, null, null, runId, 20)));
+      model.addAttribute("checkNotificationDeliveriesUnavailable", false);
+    } catch (CheckRunStoreException ex) {
+      addCheckNotificationErrorSummary(model);
+    }
+  }
+
+  private void addCheckNotificationErrorSummary(Model model) {
+    model.addAttribute("checkNotificationDeliveries", List.of());
+    model.addAttribute("checkNotificationDeliveriesUnavailable", true);
+  }
+
   private void addNotificationDeliveryErrorSummary(
       Model model,
       int limit,
@@ -407,6 +521,7 @@ public class UiController {
       String contractId,
       String sink,
       String eventType,
+      String runId,
       String errorMessage) {
     addNotificationFilterAttributes(
         model,
@@ -414,7 +529,8 @@ public class UiController {
         safe(status),
         safe(contractId),
         safe(sink),
-        safe(eventType));
+        safe(eventType),
+        safe(runId));
     model.addAttribute("notificationDeliveries", List.of());
     model.addAttribute("notificationTotalShown", 0);
     model.addAttribute("notificationFailedCount", 0L);
@@ -430,12 +546,14 @@ public class UiController {
       String status,
       String contractId,
       String sink,
-      String eventType) {
+      String eventType,
+      String runId) {
     model.addAttribute("notificationDeliveryLimit", limit);
     model.addAttribute("notificationFilterStatus", safe(status));
     model.addAttribute("notificationFilterContractId", safe(contractId));
     model.addAttribute("notificationFilterSink", safe(sink));
     model.addAttribute("notificationFilterEventType", safe(eventType));
+    model.addAttribute("notificationFilterRunId", safe(runId));
   }
 
   private String notificationRedirect(
@@ -444,6 +562,7 @@ public class UiController {
       String contractId,
       String sink,
       String eventType,
+      String runId,
       String retryStatus,
       String retryMessage) {
     UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/ui/notifications")
@@ -452,6 +571,7 @@ public class UiController {
     addQueryParamIfPresent(builder, "contractId", contractId);
     addQueryParamIfPresent(builder, "sink", sink);
     addQueryParamIfPresent(builder, "eventType", eventType);
+    addQueryParamIfPresent(builder, "runId", runId);
     addQueryParamIfPresent(builder, "retryStatus", retryStatus);
     addQueryParamIfPresent(builder, "retryMessage", retryMessage);
     return "redirect:" + builder.build().encode().toUriString();
@@ -515,4 +635,17 @@ public class UiController {
         safe(arg1).isBlank() ? "-" : safe(arg1),
         safe(arg2).isBlank() ? "-" : safe(arg2));
   }
+
+  private record RecoveryGuidance(
+      String label,
+      String status,
+      String detail,
+      String action,
+      String runbookPath,
+      String actionHref) {}
+
+  private record VersionTimelineEntry(
+      String version,
+      boolean latest,
+      CheckRunResponse latestCheck) {}
 }

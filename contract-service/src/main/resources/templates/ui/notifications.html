@@ -98,6 +98,11 @@
                th:value="${notificationFilterContractId}" placeholder="orders.created">
       </label>
       <label>
+        <span class="muted">Run ID</span>
+        <input class="input" type="text" name="runId"
+               th:value="${notificationFilterRunId}" placeholder="run-id">
+      </label>
+      <label>
         <span class="muted">Sink</span>
         <input class="input" type="text" name="sink" th:value="${notificationFilterSink}" placeholder="log">
       </label>
@@ -193,6 +198,7 @@
                   th:action="@{/ui/notifications/{deliveryId}/retry(deliveryId=${delivery.deliveryId})}">
               <input type="hidden" name="status" th:value="${notificationFilterStatus}">
               <input type="hidden" name="contractId" th:value="${notificationFilterContractId}">
+              <input type="hidden" name="runId" th:value="${notificationFilterRunId}">
               <input type="hidden" name="sink" th:value="${notificationFilterSink}">
               <input type="hidden" name="eventType" th:value="${notificationFilterEventType}">
               <input type="hidden" name="limit" th:value="${notificationDeliveryLimit}">

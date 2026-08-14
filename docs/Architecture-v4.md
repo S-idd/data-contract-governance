@@ -1,6 +1,6 @@
 # Architecture v4
 
-- Status: `Draft baseline`
+- Status: `Active V4 baseline`
 - Version scope: V4 production-readiness implementation
 - Primary plan: `docs/version4-production-readiness-release-plan.md`
 - Decision log: `docs/version4-architecture-decisions.md`
@@ -19,6 +19,8 @@ V4 turns the existing broad platform into a trustworthy production-readiness bas
 8. Artifact persistence through filesystem and S3 paths.
 
 V4 does not expand the product by adding another backend or schema format. V4 proves that the current system can be operated, secured, recovered, and explained by a new adopter.
+
+V4 backend scope is fixed: PostgreSQL, SQLite, and MySQL are metadata-store options; filesystem and S3 are artifact-store options. MongoDB and Cassandra are explicitly out of scope for V4.
 
 ## 2. Component Model
 
@@ -57,8 +59,8 @@ Primary service boundaries:
 | PostgreSQL | Production standard | Shared production-like metadata store | Fresh targeted verification, backup/restore drill, secure profile evidence |
 | SQLite | Production-lite | Local development and single-node low-cost deployments | Clear single-node limits, backup/restore drill, startup integrity guidance |
 | MySQL | Beta | MySQL adopters that accept a validation period | External adopter verification and support notes; isolated backup/restore drill is available |
-| MongoDB | Decision-gated | Not implemented | At least two credible adopter requests and a data-model RFC |
-| Cassandra | Research-gated | Not implemented | Research gate outcome and correctness/recovery proposal |
+| MongoDB | Out of V4 scope | Not implemented | Reconsider only in a future version with adopter demand and a data-model RFC |
+| Cassandra | Out of V4 scope | Not implemented | Reconsider only in a future version with a correctness and recovery proposal |
 
 ## 4. Artifact Backend Support Matrix
 

@@ -7,6 +7,7 @@ public record NotificationDeliveryQuery(
     String contractId,
     String sinkName,
     String eventType,
+    String runId,
     int limit) {
   public static final int DEFAULT_LIMIT = 50;
   public static final int MAX_LIMIT = 100;
@@ -17,8 +18,18 @@ public record NotificationDeliveryQuery(
       String sinkName,
       String eventType,
       Integer limit) {
+    return from(status, contractId, sinkName, eventType, null, limit);
+  }
+
+  public static NotificationDeliveryQuery from(
+      String status,
+      String contractId,
+      String sinkName,
+      String eventType,
+      String runId,
+      Integer limit) {
     int resolvedLimit = limit == null ? DEFAULT_LIMIT : limit;
-    return new NotificationDeliveryQuery(status, contractId, sinkName, eventType, resolvedLimit);
+    return new NotificationDeliveryQuery(status, contractId, sinkName, eventType, runId, resolvedLimit);
   }
 
   public NotificationDeliveryQuery {
@@ -26,6 +37,7 @@ public record NotificationDeliveryQuery(
     eventType = normalizeEnumValue(eventType, "eventType");
     contractId = trimToNull(contractId);
     sinkName = normalizeSinkName(sinkName);
+    runId = trimToNull(runId);
     if (limit < 1 || limit > MAX_LIMIT) {
       throw new IllegalArgumentException("limit must be between 1 and " + MAX_LIMIT + ".");
     }
