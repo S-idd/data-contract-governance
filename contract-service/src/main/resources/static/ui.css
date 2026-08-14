@@ -54,6 +54,7 @@ a:hover {
 
 .nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   align-items: center;
 }
@@ -87,6 +88,10 @@ a:hover {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.metric-grid-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .metric {
   border-left: 3px solid var(--accent);
   padding: 2px 0 2px 12px;
@@ -95,6 +100,7 @@ a:hover {
 .section-heading,
 .status-item-heading {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
@@ -176,6 +182,10 @@ a:hover {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
+}
+
+.filter-row {
+  margin: 12px 0;
 }
 
 .metric-value {
@@ -267,6 +277,7 @@ th {
   }
 
   .metric-grid,
+  .metric-grid-four,
   .status-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -274,8 +285,13 @@ th {
 
 @media (max-width: 560px) {
   .metric-grid,
+  .metric-grid-four,
   .status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .inline-form {
+    width: 100%;
   }
 }
 
@@ -289,6 +305,9 @@ th {
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #0b625d;
   border-radius: 8px;
   background: var(--accent);
@@ -296,6 +315,33 @@ th {
   padding: 9px 12px;
   cursor: pointer;
   font-weight: 600;
+}
+
+.button-secondary {
+  background: #fff;
+  color: var(--accent);
+}
+
+.button-small {
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.inline-form {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-note {
+  margin-top: 4px;
+  font-size: 12px;
+  max-width: 420px;
+  word-break: break-word;
 }
 
 .code {

@@ -94,6 +94,29 @@ class UiControllerIntegrationTest {
     }
 
     checkRunStore.enqueueNotificationDelivery(new NotificationEvent(
+        "ui-notification-rejected",
+        NotificationEventType.CONTRACT_VERSION_REJECTED,
+        NotificationSeverity.HIGH,
+        Instant.parse("2026-03-01T12:00:00Z"),
+        "orders.created",
+        null,
+        null,
+        "v3",
+        "ui-test-rejected",
+        "ui",
+        "baseline",
+        "Contract version was rejected.",
+        List.of("Field removed: orderId"),
+        List.of(),
+        java.util.Map.of("contract", "/contracts/orders.created"),
+        "CONTRACT_VERSION_REJECTED:orders.created:v3"), "webhook");
+    Instant failedClaimAt = Instant.now();
+    NotificationDelivery failedClaim = checkRunStore.claimNextNotificationDelivery(
+        failedClaimAt, failedClaimAt.minusSeconds(60)).orElseThrow();
+    checkRunStore.markNotificationDeliveryFailed(
+        failedClaim.deliveryId(), "HTTP status 500", null, true);
+
+    checkRunStore.enqueueNotificationDelivery(new NotificationEvent(
         "ui-notification-event",
         NotificationEventType.CONTRACT_CHECK_FAILED,
         NotificationSeverity.HIGH,
@@ -140,6 +163,44 @@ class UiControllerIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("ui-notification-event")))
         .andExpect(content().string(containsString("PENDING")));
+  }
+
+  @Test
+  void notificationDeliveryEndpointSupportsFilters() throws Exception {
+    mockMvc.perform(get("/api/notification-deliveries")
+            .queryParam("status", "FAILED_PERMANENT")
+            .queryParam("contractId", "orders.created")
+            .queryParam("sink", "webhook")
+            .queryParam("eventType", "CONTRACT_VERSION_REJECTED"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("ui-notification-rejected")))
+        .andExpect(content().string(containsString("FAILED_PERMANENT")))
+        .andExpect(content().string(not(containsString("ui-notification-event"))));
+  }
+
+  @Test
+  void notificationDeliveriesPageShowsPersistedOutboxState() throws Exception {
+    mockMvc.perform(get("/ui/notifications"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Notification Deliveries")))
+        .andExpect(content().string(containsString("ui-notification-event")))
+        .andExpect(content().string(containsString("CONTRACT_CHECK_FAILED")))
+        .andExpect(content().string(containsString("PENDING")))
+        .andExpect(content().string(containsString("orders.created")));
+  }
+
+  @Test
+  void notificationDeliveriesPageSupportsFiltersAndRetryAction() throws Exception {
+    mockMvc.perform(get("/ui/notifications")
+            .queryParam("status", "FAILED_PERMANENT")
+            .queryParam("contractId", "orders.created")
+            .queryParam("sink", "webhook")
+            .queryParam("eventType", "CONTRACT_VERSION_REJECTED"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("ui-notification-rejected")))
+        .andExpect(content().string(containsString("FAILED_PERMANENT")))
+        .andExpect(content().string(containsString("Retry")))
+        .andExpect(content().string(not(containsString("ui-notification-event"))));
   }
 
   @Test

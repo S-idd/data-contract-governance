@@ -33,7 +33,10 @@ Current V4 implementation:
 1. The dashboard now shows safe readiness for metadata, artifact, notification, and security components.
 2. `/api/operational-status` exposes the same readiness model for automation and future UI views.
 3. Artifact status distinguishes direct availability from configured S3 fallback.
-4. Notification status reports configuration readiness only; delivery history remains deferred until durable outbox persistence exists.
+4. Notification status reports configuration readiness and recent persisted delivery state.
+5. `/ui/notifications` exposes redacted delivery history from the durable outbox, including sink, event type, status, attempts, retry timing, and failure reason.
+6. Notification history can be filtered by status, contract ID, sink, and event type.
+7. Failed notification deliveries can be manually queued for retry after sink configuration is fixed.
 
 ## 3. P0 UI Ideas
 
@@ -101,7 +104,7 @@ Each panel should show:
 ## 4. P1 UI Ideas
 
 1. Backend support matrix page: Postgres, SQLite, MySQL, filesystem, S3, and research-gated stores.
-2. Notification event history page after outbox persistence exists.
+2. Saved notification triage views after V4 history usage is validated.
 3. Policy-pack explorer showing rule severity by pack.
 4. Saved filters for failed checks by owner team/domain.
 5. Export/share check detail as compact JSON or Markdown for PR comments.
@@ -134,7 +137,7 @@ Before V4 UI changes are accepted:
 3. Check detail renders failed checks with breaking changes and guidance.
 4. Contract detail renders one-version and multi-version states.
 5. Check-store unavailable state is visible and actionable.
-6. Notification disabled, delivered, and failed states have planned UI coverage.
+6. Notification disabled, delivered, pending, retryable, failed, filtered, and manual-retry states have UI coverage.
 7. Mobile and desktop layouts do not hide critical actions.
 8. UI text does not expose secrets or raw credential values.
 

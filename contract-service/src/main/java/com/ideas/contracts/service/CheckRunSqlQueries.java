@@ -94,6 +94,17 @@ final class CheckRunSqlQueries {
       LIMIT 1
       """;
 
+  static final String FIND_NOTIFICATION_DELIVERY_BY_ID = """
+      SELECT delivery_id, event_id, event_type, severity, occurred_at,
+             contract_id, run_id, base_version, candidate_version, commit_sha, triggered_by,
+             policy_pack, summary, breaking_changes, warnings, links, dedupe_key, sink_name,
+             status, attempt_count, created_at, last_attempt_at, delivered_at, next_attempt_at,
+             failure_message
+      FROM notification_deliveries
+      WHERE delivery_id = ?
+      LIMIT 1
+      """;
+
   static final String SELECT_NEXT_NOTIFICATION_DELIVERY = """
       SELECT delivery_id, event_id, event_type, severity, occurred_at,
              contract_id, run_id, base_version, candidate_version, commit_sha, triggered_by,
@@ -126,15 +137,20 @@ final class CheckRunSqlQueries {
       WHERE delivery_id = ? AND status = ?
       """;
 
-  static final String LIST_NOTIFICATION_DELIVERIES = """
+  static final String REQUEUE_NOTIFICATION_DELIVERY = """
+      UPDATE notification_deliveries
+      SET status = ?, next_attempt_at = ?, delivered_at = NULL
+      WHERE delivery_id = ? AND status IN (?, ?)
+      """;
+
+  static final String LIST_NOTIFICATION_DELIVERIES_BASE = """
       SELECT delivery_id, event_id, event_type, severity, occurred_at,
              contract_id, run_id, base_version, candidate_version, commit_sha, triggered_by,
              policy_pack, summary, breaking_changes, warnings, links, dedupe_key, sink_name,
              status, attempt_count, created_at, last_attempt_at, delivered_at, next_attempt_at,
              failure_message
       FROM notification_deliveries
-      ORDER BY created_at DESC, delivery_id DESC
-      LIMIT ?
+      WHERE 1=1
       """;
 
   static final String SELECT_LEGACY_RUNS_FOR_BACKFILL = """

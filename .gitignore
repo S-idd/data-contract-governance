@@ -32,3 +32,6 @@ desktop.ini
 
 # Local generated smoke-test contracts
 contracts/payments.completed.*/
+
+# V4 Spring Boot demo runtime state
+examples/spring-boot-realworld-demo/.runtime/

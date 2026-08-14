@@ -112,6 +112,8 @@ Current V4 baseline:
 6. Events are persisted as one deduplicated delivery record per sink in the metadata-store outbox.
 7. A scheduled dispatcher delivers records asynchronously with bounded exponential backoff, terminal failure state, and stale-claim recovery after a worker crash.
 8. Authenticated `GET /api/notification-deliveries` exposes redacted delivery state for operator diagnosis; dashboard readiness reflects retryable and permanent failures.
+9. Delivery history can be filtered by status, contract ID, sink, and event type through the API and UI.
+10. Failed deliveries can be manually queued for retry through a writer-protected API/UI action after sink configuration is fixed.
 
 P1 candidates:
 

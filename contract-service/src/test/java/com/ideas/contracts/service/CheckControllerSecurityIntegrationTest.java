@@ -90,6 +90,27 @@ class CheckControllerSecurityIntegrationTest {
   }
 
   @Test
+  void notificationDeliveryUiRequiresBasicAuthWhenEnabled() throws Exception {
+    mockMvc.perform(get("/ui/notifications"))
+        .andExpect(status().isUnauthorized());
+
+    mockMvc.perform(get("/ui/notifications")
+            .header("Authorization", basicAuthHeader("tester", "secret")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Notification Deliveries")));
+  }
+
+  @Test
+  void notificationDeliveryRetryRequiresBasicAuthWhenEnabled() throws Exception {
+    mockMvc.perform(post("/api/notification-deliveries/missing/retry"))
+        .andExpect(status().isUnauthorized());
+
+    mockMvc.perform(post("/api/notification-deliveries/missing/retry")
+            .header("Authorization", basicAuthHeader("tester", "secret")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
   void createCheckRunWritesAuditLogWhenAuthorized() throws Exception {
     String payload = """
         {

@@ -139,6 +139,30 @@ class NotificationServiceTest {
     verify(store).markNotificationDeliveryDelivered(eq(delivery.deliveryId()), any());
   }
 
+  @Test
+  void retryDeliveryRequeuesFailedDelivery() {
+    NotificationProperties properties = enabledProperties("webhook");
+    MetadataStore store = mock(MetadataStore.class);
+    NotificationDelivery failed = sampleDelivery(
+        "webhook",
+        NotificationDeliveryStatus.FAILED_PERMANENT,
+        3);
+    NotificationDelivery requeued = sampleDelivery(
+        "webhook",
+        NotificationDeliveryStatus.PENDING,
+        3);
+    when(store.findNotificationDelivery("delivery-1"))
+        .thenReturn(Optional.of(failed), Optional.of(requeued));
+    when(store.requeueNotificationDelivery(eq("delivery-1"), any())).thenReturn(true);
+
+    NotificationService service = new NotificationService(properties, List.of(new RecordingSink("webhook")), store);
+    Optional<NotificationDelivery> result = service.retryDelivery("delivery-1");
+
+    assertTrue(result.isPresent());
+    assertEquals(NotificationDeliveryStatus.PENDING, result.get().status());
+    verify(store).requeueNotificationDelivery(eq("delivery-1"), any());
+  }
+
   private NotificationProperties enabledProperties(String sinkName) {
     NotificationProperties properties = new NotificationProperties();
     properties.setEnabled(true);
@@ -148,11 +172,18 @@ class NotificationServiceTest {
   }
 
   private NotificationDelivery sampleDelivery(String sinkName, int attemptCount) {
+    return sampleDelivery(sinkName, NotificationDeliveryStatus.IN_FLIGHT, attemptCount);
+  }
+
+  private NotificationDelivery sampleDelivery(
+      String sinkName,
+      NotificationDeliveryStatus status,
+      int attemptCount) {
     return new NotificationDelivery(
         "delivery-1",
         sampleEvent(),
         sinkName,
-        NotificationDeliveryStatus.IN_FLIGHT,
+        status,
         attemptCount,
         Instant.parse("2026-05-23T00:00:00Z"),
         Instant.parse("2026-05-23T00:00:01Z"),

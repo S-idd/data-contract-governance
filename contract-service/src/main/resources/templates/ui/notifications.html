@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notification Deliveries</title>
+  <link rel="stylesheet" href="/ui.css">
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <div class="brand">Data Contract Governance</div>
+    <nav class="nav">
+      <a href="/ui">Dashboard</a>
+      <a href="/ui/contracts">Contracts</a>
+      <a href="/ui/notifications">Notifications</a>
+      <a href="/api/notification-deliveries">Deliveries API</a>
+      <span class="request-id" th:text="'Request ID: ' + ${requestId}">Request ID</span>
+    </nav>
+  </header>
+
+  <section class="dashboard-overview">
+    <h1 class="title">Notification Deliveries</h1>
+    <p class="subtitle">Persisted outbox state for alert delivery, retries, and failed sinks.</p>
+    <div class="metric-grid metric-grid-four">
+      <article class="metric">
+        <div class="muted">Shown</div>
+        <div class="metric-value" th:text="${notificationTotalShown}">0</div>
+      </article>
+      <article class="metric">
+        <div class="muted">Delivered</div>
+        <div class="metric-value" th:text="${notificationDeliveredCount}">0</div>
+      </article>
+      <article class="metric">
+        <div class="muted">Pending</div>
+        <div class="metric-value" th:text="${notificationPendingCount}">0</div>
+      </article>
+      <article class="metric">
+        <div class="muted">Failed</div>
+        <div class="metric-value" th:text="${notificationFailedCount}">0</div>
+      </article>
+    </div>
+  </section>
+
+  <section class="status-section" aria-labelledby="notification-status-heading">
+    <div class="section-heading">
+      <div>
+        <h2 id="notification-status-heading" class="section-title">Notification Status</h2>
+        <p class="subtitle">Current readiness signal from configuration and recent persisted delivery state.</p>
+      </div>
+    </div>
+    <div class="status-grid">
+      <article class="status-item"
+               th:each="component : ${operationalStatus.components}"
+               th:if="${component.id == 'notifications'}">
+        <div class="status-item-heading">
+          <h3 th:text="${component.label}">Notifications</h3>
+          <span class="operational-status"
+                th:classappend="' operational-status-' + ${#strings.toLowerCase(component.status)}"
+                th:text="${#strings.replace(component.status, '_', ' ')}">Healthy</span>
+        </div>
+        <p class="status-detail" th:text="${component.detail}">Notification detail.</p>
+        <p class="status-action" th:text="${component.action}">Next safe action.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-heading">
+      <div>
+        <h2 class="title" style="font-size:20px;">Recent Deliveries</h2>
+        <p class="subtitle">Newest records first. Delivery payloads are represented by safe event metadata.</p>
+      </div>
+    </div>
+
+    <div class="ok" th:if="${notificationRetryStatus == 'success'}" th:text="${notificationRetryMessage}">
+      Notification delivery was queued for retry.
+    </div>
+    <div class="warning" th:if="${notificationRetryStatus == 'error'}" th:text="${notificationRetryMessage}">
+      Notification delivery could not be retried.
+    </div>
+
+    <form method="get" action="/ui/notifications" class="row filter-row">
+      <label>
+        <span class="muted">Status</span>
+        <select class="select" name="status">
+          <option value="" th:selected="${notificationFilterStatus == ''}">Any</option>
+          <option value="PENDING" th:selected="${notificationFilterStatus == 'PENDING'}">PENDING</option>
+          <option value="IN_FLIGHT" th:selected="${notificationFilterStatus == 'IN_FLIGHT'}">IN_FLIGHT</option>
+          <option value="DELIVERED" th:selected="${notificationFilterStatus == 'DELIVERED'}">DELIVERED</option>
+          <option value="FAILED_RETRYABLE" th:selected="${notificationFilterStatus == 'FAILED_RETRYABLE'}">FAILED_RETRYABLE</option>
+          <option value="FAILED_PERMANENT" th:selected="${notificationFilterStatus == 'FAILED_PERMANENT'}">FAILED_PERMANENT</option>
+        </select>
+      </label>
+      <label>
+        <span class="muted">Contract ID</span>
+        <input class="input" type="text" name="contractId"
+               th:value="${notificationFilterContractId}" placeholder="orders.created">
+      </label>
+      <label>
+        <span class="muted">Sink</span>
+        <input class="input" type="text" name="sink" th:value="${notificationFilterSink}" placeholder="log">
+      </label>
+      <label>
+        <span class="muted">Event Type</span>
+        <select class="select" name="eventType">
+          <option value="" th:selected="${notificationFilterEventType == ''}">Any</option>
+          <option value="CONTRACT_CHECK_FAILED" th:selected="${notificationFilterEventType == 'CONTRACT_CHECK_FAILED'}">CONTRACT_CHECK_FAILED</option>
+          <option value="CONTRACT_VERSION_REJECTED" th:selected="${notificationFilterEventType == 'CONTRACT_VERSION_REJECTED'}">CONTRACT_VERSION_REJECTED</option>
+          <option value="CONTRACT_REGISTERED" th:selected="${notificationFilterEventType == 'CONTRACT_REGISTERED'}">CONTRACT_REGISTERED</option>
+          <option value="SCHEMA_VERSION_PUBLISHED" th:selected="${notificationFilterEventType == 'SCHEMA_VERSION_PUBLISHED'}">SCHEMA_VERSION_PUBLISHED</option>
+          <option value="POLICY_PACK_RESOLUTION_FAILED" th:selected="${notificationFilterEventType == 'POLICY_PACK_RESOLUTION_FAILED'}">POLICY_PACK_RESOLUTION_FAILED</option>
+          <option value="POLICY_PACK_CONFIG_INVALID" th:selected="${notificationFilterEventType == 'POLICY_PACK_CONFIG_INVALID'}">POLICY_PACK_CONFIG_INVALID</option>
+          <option value="NOTIFICATION_DELIVERY_FAILED" th:selected="${notificationFilterEventType == 'NOTIFICATION_DELIVERY_FAILED'}">NOTIFICATION_DELIVERY_FAILED</option>
+        </select>
+      </label>
+      <label>
+        <span class="muted">Limit</span>
+        <select class="select" name="limit">
+          <option value="20" th:selected="${notificationDeliveryLimit == 20}">20</option>
+          <option value="50" th:selected="${notificationDeliveryLimit == 50}">50</option>
+          <option value="100" th:selected="${notificationDeliveryLimit == 100}">100</option>
+        </select>
+      </label>
+      <div style="display:flex;align-items:flex-end;">
+        <button class="button" type="submit">Apply Filters</button>
+      </div>
+    </form>
+
+    <div class="warning"
+         th:if="${notificationDeliveryUnavailable or (notificationDeliveryError != null and notificationDeliveryError != '')}"
+         th:text="${notificationDeliveryError}">
+      Notification delivery history is currently unavailable.
+    </div>
+    <p class="muted"
+       th:if="${!notificationDeliveryUnavailable
+           and (notificationDeliveryError == null or notificationDeliveryError == '')
+           and #lists.isEmpty(notificationDeliveries)}">
+      No notification deliveries have been queued in this environment yet.
+    </p>
+
+    <div class="table-scroll" th:if="${!notificationDeliveryUnavailable and !#lists.isEmpty(notificationDeliveries)}">
+      <table>
+        <thead>
+        <tr>
+          <th>Status</th>
+          <th>Sink</th>
+          <th>Event</th>
+          <th>Severity</th>
+          <th>Contract</th>
+          <th>Run</th>
+          <th>Attempts</th>
+          <th>Next Attempt</th>
+          <th>Created</th>
+          <th>Failure</th>
+          <th>Action</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="delivery : ${notificationDeliveries}">
+          <td>
+            <span class="pill"
+                  th:classappend="${delivery.status.name() == 'DELIVERED'} ? ' pill-pass' : (${delivery.status.name() == 'FAILED_PERMANENT'} ? ' pill-fail' : (${delivery.status.name() == 'IN_FLIGHT'} ? ' pill-running' : (${delivery.status.name() == 'PENDING' or delivery.status.name() == 'FAILED_RETRYABLE'} ? ' pill-queued' : ' pill-unknown')))"
+                  th:text="${delivery.status}">PENDING</span>
+          </td>
+          <td th:text="${delivery.sinkName}">log</td>
+          <td>
+            <div th:text="${delivery.event.eventType}">CONTRACT_CHECK_FAILED</div>
+            <div class="muted table-note" th:text="'Event ID: ' + ${delivery.event.eventId}">Event ID</div>
+            <div class="muted table-note" th:text="${delivery.event.summary}">Compatibility check failed.</div>
+            <div class="muted table-note" th:text="'Dedupe: ' + ${delivery.event.dedupeKey}">Dedupe key</div>
+          </td>
+          <td th:text="${delivery.event.severity}">HIGH</td>
+          <td>
+            <a th:if="${delivery.event.contractId != null}"
+               th:href="@{/ui/contracts/{contractId}(contractId=${delivery.event.contractId})}"
+               th:text="${delivery.event.contractId}">contract</a>
+            <span th:if="${delivery.event.contractId == null}">-</span>
+          </td>
+          <td>
+            <a th:if="${delivery.event.runId != null}"
+               th:href="@{/ui/checks/{runId}(runId=${delivery.event.runId})}"
+               th:text="${delivery.event.runId}">run</a>
+            <span th:if="${delivery.event.runId == null}">-</span>
+          </td>
+          <td th:text="${delivery.attemptCount}">0</td>
+          <td th:text="${delivery.nextAttemptAt != null ? delivery.nextAttemptAt : '-'}">-</td>
+          <td th:text="${delivery.createdAt}">created</td>
+          <td th:text="${delivery.failureMessage != null ? delivery.failureMessage : '-'}">-</td>
+          <td>
+            <form method="post"
+                  th:if="${delivery.status.name() == 'FAILED_RETRYABLE' or delivery.status.name() == 'FAILED_PERMANENT'}"
+                  th:action="@{/ui/notifications/{deliveryId}/retry(deliveryId=${delivery.deliveryId})}">
+              <input type="hidden" name="status" th:value="${notificationFilterStatus}">
+              <input type="hidden" name="contractId" th:value="${notificationFilterContractId}">
+              <input type="hidden" name="sink" th:value="${notificationFilterSink}">
+              <input type="hidden" name="eventType" th:value="${notificationFilterEventType}">
+              <input type="hidden" name="limit" th:value="${notificationDeliveryLimit}">
+              <button class="button button-secondary button-small" type="submit">Retry</button>
+            </form>
+            <span class="muted"
+                  th:if="${delivery.status.name() != 'FAILED_RETRYABLE' and delivery.status.name() != 'FAILED_PERMANENT'}">-</span>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+</body>
+</html>
