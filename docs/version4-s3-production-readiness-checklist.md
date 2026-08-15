@@ -27,12 +27,20 @@ This evidence is necessary, but it is not an AWS production validation. S3 remai
 - [x] Missing S3 schema returns `404` rather than falling back to the local cache when fallback is disabled.
 - [x] `prod` and `sqlite-prod-lite` profiles default S3 fallback reads to disabled, so production-like deployments do not silently mask S3 failures with a local cache.
 - [x] Local S3-compatible versioning and object-pair restore drill is scripted.
-- [ ] Clean AWS smoke run records bucket, region, prefix, object keys, and sanitized service logs.
+- [x] Clean AWS smoke run records bucket, region, prefix, object keys, and sanitized service logs.
 - [ ] AWS IAM denial checks distinguish missing object, bad credentials, wrong region, missing bucket, and denied permission.
-- [ ] Restore of a schema and matching checksum is performed in an AWS versioned bucket and verified through the API.
+- [x] Restore of a schema and matching checksum is performed in an AWS versioned bucket and verified through the API.
 - [ ] Lifecycle, retention, encryption, KMS, and cost ownership are approved by the operating team.
 - [ ] At least two adopter feedback sessions confirm setup and recovery documentation are usable without maintainer intervention.
 - [ ] Maintainers record the Beta, RC, or GA support decision in `docs/Architecture-v4.md` and the release plan.
+
+### AWS evidence: 2026-08-15
+
+- Bucket: `dcg-demo`; region: `eu-north-1`; prefix: `contracts`.
+- The service ran with `CONTRACTS_ARTIFACT_BACKEND=s3` and fallback reads disabled.
+- A clean `s3.smoke.20260815` contract prefix produced `metadata.yaml`, v1/v2 `schema.json`, and matching `schema.sha256` objects.
+- Bucket versioning was enabled. The v2 schema was delete-marked, restored from its prior version, and read successfully through the API after the service was recreated, proving the restored artifact was not served from a process cache.
+- Evidence intentionally excludes credential values, account identifiers, and service secrets.
 
 ## 4. Promotion Decision
 
