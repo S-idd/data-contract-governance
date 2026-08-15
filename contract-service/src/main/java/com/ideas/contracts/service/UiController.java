@@ -328,8 +328,8 @@ public class UiController {
     model.addAttribute("uiErrorMessage", "");
     addLifecycleDeliverySummary(model, detail.contractId());
     try {
-      var page = checkRunStore.listPage(CheckRunQuery.from(detail.contractId(), null, null, 200, 0));
-      model.addAttribute("checks", page.items());
+    var page = checkRunStore.listPage(CheckRunQuery.from(detail.contractId(), null, null, 200, 0));
+    model.addAttribute("checks", page.items());
       model.addAttribute("checksHasMore", page.hasMore());
       model.addAttribute("versionTimeline", buildVersionTimeline(versions, page.items()));
     } catch (CheckRunStoreException ex) {

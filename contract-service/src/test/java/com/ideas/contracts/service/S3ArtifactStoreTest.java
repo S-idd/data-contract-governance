@@ -12,9 +12,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.ideas.contracts.core.DefaultSchemaLoader;
+import com.ideas.contracts.core.ExecutionException;
 import com.ideas.contracts.service.model.CreateContractRequest;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -26,6 +30,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -112,6 +117,24 @@ class S3ArtifactStoreTest {
   }
 
   @Test
+  void unsupportedS3EncryptionConfigurationFailsFast() {
+    S3Client s3Client = Mockito.mock(S3Client.class);
+
+    IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> new S3ArtifactStore(
+        s3Client,
+        "dcg-artifacts-test",
+        new ArtifactKeyStrategy("contracts"),
+        newFallbackStore(tempDir.resolve("contracts-cache")),
+        false,
+        "AES128",
+        "",
+        new ObjectMapper(),
+        new DefaultSchemaLoader()));
+
+    assertTrue(error.getMessage().contains("server-side-encryption must be one of"));
+  }
+
+  @Test
   void createContractRollsBackLocalCacheWhenS3WriteFailsAndFallbackIsDisabled() {
     S3Client s3Client = Mockito.mock(S3Client.class);
     when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
@@ -129,7 +152,10 @@ class S3ArtifactStoreTest {
         new ObjectMapper(),
         new DefaultSchemaLoader());
 
-    assertThrows(S3Exception.class, () -> store.createContract(createRequest("orders.created", "v1")));
+    ExecutionException error = assertThrows(
+        ExecutionException.class,
+        () -> store.createContract(createRequest("orders.created", "v1")));
+    assertTrue(error.getMessage().contains("S3 request failed"));
     assertTrue(Files.notExists(cacheRoot.resolve("orders.created")));
   }
 
@@ -176,7 +202,23 @@ class S3ArtifactStoreTest {
     newFallbackStore(fallbackRoot).createContract(createRequest("orders.created", "v1"));
     S3ArtifactStore store = newStore(s3Client, fallbackRoot, false);
 
-    assertThrows(S3Exception.class, () -> store.readSchema("orders.created", "v1"));
+    ExecutionException error = assertThrows(
+        ExecutionException.class,
+        () -> store.readSchema("orders.created", "v1"));
+    assertTrue(error.getMessage().contains("Access to the configured S3 bucket was denied"));
+  }
+
+  @Test
+  void healthSnapshotExplainsMissingBucketWrongRegionAndRejectedCredentials() {
+    assertS3HealthDetail(
+        s3Exception(404, "NoSuchBucket"),
+        "configured S3 bucket was not found");
+    assertS3HealthDetail(
+        s3Exception(301, "PermanentRedirect"),
+        "configured AWS Region does not match");
+    assertS3HealthDetail(
+        s3Exception(403, "InvalidAccessKeyId"),
+        "AWS credentials were rejected");
   }
 
   @Test
@@ -199,9 +241,12 @@ class S3ArtifactStoreTest {
   @Test
   void readSchemaUsesS3PayloadWhenAvailable() throws Exception {
     S3Client s3Client = Mockito.mock(S3Client.class);
-    byte[] payload = "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"}}}".getBytes();
-    ResponseBytes<GetObjectResponse> bytes = ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), payload);
-    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(bytes);
+    byte[] payload = "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"}}}"
+        .getBytes(StandardCharsets.UTF_8);
+    ResponseBytes<GetObjectResponse> schemaBytes = responseBytes(payload);
+    ResponseBytes<GetObjectResponse> checksumBytes = responseBytes(
+        (sha256Hex(payload) + "\n").getBytes(StandardCharsets.UTF_8));
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(schemaBytes, checksumBytes);
 
     Path fallbackRoot = tempDir.resolve("contracts-fallback");
     S3ArtifactStore store = newStore(s3Client, fallbackRoot, true);
@@ -209,6 +254,24 @@ class S3ArtifactStoreTest {
     assertTrue(schema.isPresent());
     assertEquals("object", schema.orElseThrow().path("type").asText());
     assertTrue(Files.exists(fallbackRoot.resolve("orders.created").resolve("v3.json")));
+  }
+
+  @Test
+  void readSchemaRejectsCorruptedS3ArtifactBeforeCachingIt() {
+    S3Client s3Client = Mockito.mock(S3Client.class);
+    byte[] payload = "{\"type\":\"object\"}".getBytes(StandardCharsets.UTF_8);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(
+        responseBytes(payload),
+        responseBytes("0".repeat(64).getBytes(StandardCharsets.UTF_8)));
+
+    Path fallbackRoot = tempDir.resolve("contracts-fallback");
+    S3ArtifactStore store = newStore(s3Client, fallbackRoot, false);
+
+    ExecutionException error = assertThrows(
+        ExecutionException.class,
+        () -> store.readSchema("orders.created", "v1"));
+    assertTrue(error.getMessage().contains("schema checksum does not match"));
+    assertTrue(Files.notExists(fallbackRoot.resolve("orders.created").resolve("v1.json")));
   }
 
   private S3ArtifactStore newStore(S3Client s3Client, Path fallbackRoot, boolean fallbackEnabled) {
@@ -222,6 +285,35 @@ class S3ArtifactStoreTest {
         "",
         new ObjectMapper(),
         new DefaultSchemaLoader());
+  }
+
+  private void assertS3HealthDetail(S3Exception exception, String expectedDetail) {
+    S3Client s3Client = Mockito.mock(S3Client.class);
+    when(s3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenThrow(exception);
+    S3ArtifactStore store = newStore(s3Client, tempDir.resolve("contracts-health"), false);
+
+    ArtifactStore.HealthSnapshot snapshot = store.healthSnapshot();
+    assertEquals(ArtifactStore.HealthStatus.UNAVAILABLE, snapshot.status());
+    assertTrue(snapshot.detail().contains(expectedDetail));
+  }
+
+  private S3Exception s3Exception(int statusCode, String errorCode) {
+    S3Exception.Builder builder = S3Exception.builder();
+    builder.statusCode(statusCode);
+    builder.awsErrorDetails(AwsErrorDetails.builder().errorCode(errorCode).build());
+    return (S3Exception) builder.build();
+  }
+
+  private ResponseBytes<GetObjectResponse> responseBytes(byte[] payload) {
+    return ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), payload);
+  }
+
+  private String sha256Hex(byte[] payload) {
+    try {
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(payload));
+    } catch (Exception ex) {
+      throw new AssertionError("Unable to calculate test checksum", ex);
+    }
   }
 
   private FilesystemArtifactStore newFallbackStore(Path fallbackRoot) {
