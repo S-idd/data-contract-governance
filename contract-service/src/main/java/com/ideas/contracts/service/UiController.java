@@ -10,8 +10,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -272,6 +274,11 @@ public class UiController {
       model.addAttribute("curlSnippet", "curl \"http://localhost:8080/checks/" + checkRun.runId() + "\"");
       model.addAttribute("cliSnippet", buildCliSnippet(checkRun));
       model.addAttribute("checkLogs", checkLogs);
+      model.addAttribute(
+          "notificationDeliveries",
+          checkRunStore.listNotificationDeliveries(
+              NotificationDeliveryQuery.from(null, null, null, null, runId, 20)));
+      model.addAttribute("notificationDeliveriesUnavailable", false);
       model.addAttribute("checkStoreUnavailable", false);
       model.addAttribute("uiErrorMessage", "");
     } catch (CheckRunStoreException ex) {
@@ -281,6 +288,8 @@ public class UiController {
       model.addAttribute("curlSnippet", "");
       model.addAttribute("cliSnippet", "");
       model.addAttribute("checkLogs", List.of());
+      model.addAttribute("notificationDeliveries", List.of());
+      model.addAttribute("notificationDeliveriesUnavailable", true);
       model.addAttribute("checkStoreUnavailable", true);
       model.addAttribute("uiErrorMessage", "Check history store is currently unavailable.");
     }
@@ -312,19 +321,41 @@ public class UiController {
         "runCheckDisabledReason",
         canRunCheck ? "" : "At least two versions are required to run a compatibility check.");
 
-    model.addAttribute("checks", List.of());
+    List<CheckRunResponse> checks = List.of();
+    model.addAttribute("checks", checks);
     model.addAttribute("checkStoreUnavailable", false);
     model.addAttribute("uiErrorMessage", "");
     try {
       var page = checkRunStore.listPage(CheckRunQuery.from(detail.contractId(), null, null, 20, 0));
-      model.addAttribute("checks", page.items());
+      checks = page.items();
+      model.addAttribute("checks", checks);
       model.addAttribute("checksHasMore", page.hasMore());
     } catch (CheckRunStoreException ex) {
       model.addAttribute("checkStoreUnavailable", true);
       model.addAttribute("uiErrorMessage", "Check history store is currently unavailable.");
       model.addAttribute("checksHasMore", false);
     }
+    model.addAttribute("versionTimeline", buildVersionTimeline(versions, checks));
     return "ui/contract-detail";
+  }
+
+  private List<VersionTimelineEntry> buildVersionTimeline(
+      List<String> versions, List<CheckRunResponse> checks) {
+    Map<String, CheckRunResponse> latestCheckByCandidateVersion = new LinkedHashMap<>();
+    for (CheckRunResponse check : checks) {
+      if (check != null && check.candidateVersion() != null && !check.candidateVersion().isBlank()) {
+        latestCheckByCandidateVersion.putIfAbsent(check.candidateVersion(), check);
+      }
+    }
+    return versions.stream()
+        .map(version -> {
+          CheckRunResponse latestCheck = latestCheckByCandidateVersion.get(version);
+          return new VersionTimelineEntry(
+              version,
+              latestCheck == null ? "" : safe(latestCheck.status()),
+              latestCheck == null ? "" : safe(latestCheck.runId()));
+        })
+        .toList();
   }
 
   private String resolveCandidateVersion(List<String> versions, String selectedCandidate) {
@@ -515,4 +546,6 @@ public class UiController {
         safe(arg1).isBlank() ? "-" : safe(arg1),
         safe(arg2).isBlank() ? "-" : safe(arg2));
   }
+
+  private record VersionTimelineEntry(String version, String latestCheckStatus, String latestRunId) {}
 }

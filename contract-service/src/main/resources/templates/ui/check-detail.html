@@ -93,6 +93,41 @@
     </div>
   </section>
 
+  <section class="card" th:if="${checkRun != null}">
+    <h2 class="title" style="font-size:20px;">Notification Deliveries</h2>
+    <p class="subtitle">Delivery state for notifications linked to this check run.</p>
+    <p class="warning" th:if="${notificationDeliveriesUnavailable}">
+      Notification delivery history is currently unavailable. Restore metadata-store access before relying on alerts.
+    </p>
+    <p class="muted" th:if="${!notificationDeliveriesUnavailable and #lists.isEmpty(notificationDeliveries)}">
+      No notification deliveries have been recorded for this check. This is normal when notifications are disabled or this run has not produced a notification event.
+    </p>
+    <table th:if="${!notificationDeliveriesUnavailable and !#lists.isEmpty(notificationDeliveries)}">
+      <thead>
+      <tr>
+        <th>Event</th>
+        <th>Sink</th>
+        <th>Status</th>
+        <th>Attempts</th>
+        <th>Next Attempt</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="delivery : ${notificationDeliveries}">
+        <td th:text="${delivery.event.eventType}">CONTRACT_CHECK_FAILED</td>
+        <td th:text="${delivery.sinkName}">webhook</td>
+        <td>
+          <span class="pill"
+                th:classappend="${delivery.status.name() == 'DELIVERED'} ? ' pill-pass' : (${delivery.status.name().startsWith('FAILED')} ? ' pill-fail' : (${delivery.status.name() == 'IN_FLIGHT'} ? ' pill-running' : ' pill-queued'))"
+                th:text="${delivery.status}">PENDING</span>
+        </td>
+        <td th:text="${delivery.attemptCount}">0</td>
+        <td th:text="${delivery.nextAttemptAt != null ? delivery.nextAttemptAt : '-'}">-</td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+
   <section class="grid-two" th:if="${checkRun != null}">
     <article class="card">
       <h2 class="title" style="font-size:20px;">API Command</h2>

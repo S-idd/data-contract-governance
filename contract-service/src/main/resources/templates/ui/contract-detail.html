@@ -78,13 +78,36 @@
   </section>
 
   <section class="card">
-    <h2 class="title" style="font-size:20px;">Available Versions</h2>
-    <ul class="list">
-      <li th:each="version : ${contract.versions}">
-        <a th:href="@{/contracts/{contractId}/versions/{version}(contractId=${contract.contractId},version=${version})}"
-           th:text="${version}">v1</a>
-      </li>
-    </ul>
+    <h2 class="title" style="font-size:20px;">Version Timeline</h2>
+    <p class="subtitle">Published schema versions and the latest compatibility check where each version was the candidate.</p>
+    <table>
+      <thead>
+      <tr>
+        <th>Version</th>
+        <th>Latest Check</th>
+        <th>Check Run</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="entry : ${versionTimeline}">
+        <td><a th:href="@{/contracts/{contractId}/versions/{version}(contractId=${contract.contractId},version=${entry.version})}"
+               th:text="${entry.version}">v1</a></td>
+        <td>
+          <span class="pill"
+                th:if="${entry.latestCheckStatus != ''}"
+                th:classappend="${entry.latestCheckStatus == 'PASS'} ? ' pill-pass' : (${entry.latestCheckStatus == 'FAIL'} ? ' pill-fail' : (${entry.latestCheckStatus == 'RUNNING'} ? ' pill-running' : ' pill-queued'))"
+                th:text="${entry.latestCheckStatus}">PASS</span>
+          <span class="muted" th:if="${entry.latestCheckStatus == ''}">No check yet</span>
+        </td>
+        <td>
+          <a th:if="${entry.latestRunId != ''}"
+             th:href="@{/ui/checks/{runId}(runId=${entry.latestRunId})}"
+             th:text="${entry.latestRunId}">run-id</a>
+          <span class="muted" th:if="${entry.latestRunId == ''}">-</span>
+        </td>
+      </tr>
+      </tbody>
+    </table>
   </section>
 
   <section class="card">

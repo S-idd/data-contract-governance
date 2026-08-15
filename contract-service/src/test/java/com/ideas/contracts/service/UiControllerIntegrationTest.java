@@ -179,6 +179,14 @@ class UiControllerIntegrationTest {
   }
 
   @Test
+  void notificationDeliveryEndpointCanFilterByCheckRun() throws Exception {
+    mockMvc.perform(get("/api/notification-deliveries").queryParam("runId", "ui-run-1"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("ui-notification-event")))
+        .andExpect(content().string(not(containsString("ui-notification-rejected"))));
+  }
+
+  @Test
   void notificationDeliveriesPageShowsPersistedOutboxState() throws Exception {
     mockMvc.perform(get("/ui/notifications"))
         .andExpect(status().isOk())
@@ -215,6 +223,8 @@ class UiControllerIntegrationTest {
     mockMvc.perform(get("/ui/contracts/orders.created"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("orders.created")))
+        .andExpect(content().string(containsString("Version Timeline")))
+        .andExpect(content().string(containsString("FAIL")))
         .andExpect(content().string(containsString("ui-run-1")));
   }
 
@@ -223,6 +233,8 @@ class UiControllerIntegrationTest {
     mockMvc.perform(get("/ui/checks/ui-run-1"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("Developer Guidance")))
+        .andExpect(content().string(containsString("Notification Deliveries")))
+        .andExpect(content().string(containsString("PENDING")))
         .andExpect(content().string(containsString("compatible transitional field type")));
   }
 

@@ -25,6 +25,7 @@ This evidence is necessary, but it is not an AWS production validation. S3 remai
 
 - [x] S3 object key and checksum behavior covered by focused service tests.
 - [x] Missing S3 schema returns `404` rather than falling back to the local cache when fallback is disabled.
+- [x] `prod` and `sqlite-prod-lite` profiles default S3 fallback reads to disabled, so production-like deployments do not silently mask S3 failures with a local cache.
 - [x] Local S3-compatible versioning and object-pair restore drill is scripted.
 - [ ] Clean AWS smoke run records bucket, region, prefix, object keys, and sanitized service logs.
 - [ ] AWS IAM denial checks distinguish missing object, bad credentials, wrong region, missing bucket, and denied permission.

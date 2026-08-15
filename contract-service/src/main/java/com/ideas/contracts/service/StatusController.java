@@ -67,9 +67,10 @@ public class StatusController {
       @RequestParam(name = "status", required = false) String status,
       @RequestParam(name = "contractId", required = false) String contractId,
       @RequestParam(name = "sink", required = false) String sink,
-      @RequestParam(name = "eventType", required = false) String eventType) {
+      @RequestParam(name = "eventType", required = false) String eventType,
+      @RequestParam(name = "runId", required = false) String runId) {
     return notificationService.recentDeliveries(
-        NotificationDeliveryQuery.from(status, contractId, sink, eventType, limit));
+        NotificationDeliveryQuery.from(status, contractId, sink, eventType, runId, limit));
   }
 
   @PostMapping("/notification-deliveries/{deliveryId}/retry")
