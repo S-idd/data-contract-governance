@@ -13,6 +13,9 @@ ENV_FILE="/tmp/dcg-s3-demo.env"
 FORCE_NO_PROMPT=0
 APP_USER="${DCG_APP_USERNAME:-admin}"
 APP_PASSWORD="${DCG_APP_PASSWORD:-change-me}"
+PROFILE_EXPLICIT=0
+REGION_EXPLICIT=0
+PREFIX_EXPLICIT=0
 
 usage() {
   cat <<'EOF'
@@ -61,6 +64,10 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
 }
 
+aws_cli() {
+  aws --profile "$PROFILE" --region "$REGION" "$@"
+}
+
 parse_args() {
   if [[ $# -lt 1 ]]; then
     usage
@@ -80,11 +87,13 @@ parse_args() {
       --profile)
         [[ $# -ge 2 ]] || die "--profile requires a value"
         PROFILE="$2"
+        PROFILE_EXPLICIT=1
         shift 2
         ;;
       --region)
         [[ $# -ge 2 ]] || die "--region requires a value"
         REGION="$2"
+        REGION_EXPLICIT=1
         shift 2
         ;;
       --bucket)
@@ -95,6 +104,7 @@ parse_args() {
       --prefix)
         [[ $# -ge 2 ]] || die "--prefix requires a value"
         PREFIX="$2"
+        PREFIX_EXPLICIT=1
         shift 2
         ;;
       --service-url)
@@ -138,22 +148,19 @@ parse_args() {
 }
 
 load_saved_env() {
-  if [[ -n "$BUCKET" ]]; then
-    return
-  fi
   if [[ -f "$ENV_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$ENV_FILE"
     if [[ -z "$BUCKET" && -n "${DCG_S3_BUCKET:-}" ]]; then
       BUCKET="$DCG_S3_BUCKET"
     fi
-    if [[ -z "$PREFIX" && -n "${DCG_S3_PREFIX:-}" ]]; then
+    if [[ "$PREFIX_EXPLICIT" -eq 0 && -n "${DCG_S3_PREFIX:-}" ]]; then
       PREFIX="$DCG_S3_PREFIX"
     fi
-    if [[ -z "$REGION" && -n "${AWS_REGION:-}" ]]; then
+    if [[ "$REGION_EXPLICIT" -eq 0 && -n "${AWS_REGION:-}" ]]; then
       REGION="$AWS_REGION"
     fi
-    if [[ -z "$PROFILE" && -n "${AWS_PROFILE:-}" ]]; then
+    if [[ "$PROFILE_EXPLICIT" -eq 0 && -n "${AWS_PROFILE:-}" ]]; then
       PROFILE="$AWS_PROFILE"
     fi
     if [[ -n "${DCG_SERVICE_URL:-}" ]]; then
@@ -188,13 +195,13 @@ EOF
 
 generate_bucket_name() {
   local account_id timestamp
-  account_id="$(aws sts get-caller-identity --profile "$PROFILE" --query Account --output text)"
+  account_id="$(aws_cli sts get-caller-identity --query Account --output text)"
   timestamp="$(date +%Y%m%d%H%M%S)"
   BUCKET="dcg-artifacts-${account_id}-${timestamp}"
 }
 
 bucket_exists() {
-  aws s3api head-bucket --profile "$PROFILE" --bucket "$BUCKET" >/dev/null 2>&1
+  aws_cli s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1
 }
 
 create_bucket_if_needed() {
@@ -204,40 +211,33 @@ create_bucket_if_needed() {
   fi
 
   if [[ "$REGION" == "us-east-1" ]]; then
-    aws s3api create-bucket \
-      --profile "$PROFILE" \
+    aws_cli s3api create-bucket \
       --bucket "$BUCKET" >/dev/null
   else
-    aws s3api create-bucket \
-      --profile "$PROFILE" \
+    aws_cli s3api create-bucket \
       --bucket "$BUCKET" \
-      --region "$REGION" \
       --create-bucket-configuration "LocationConstraint=$REGION" >/dev/null
   fi
   log "Created bucket: $BUCKET"
 }
 
 configure_bucket() {
-  aws s3api put-public-access-block \
-    --profile "$PROFILE" \
+  aws_cli s3api put-public-access-block \
     --bucket "$BUCKET" \
     --public-access-block-configuration \
       BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 
-  aws s3api put-bucket-ownership-controls \
-    --profile "$PROFILE" \
+  aws_cli s3api put-bucket-ownership-controls \
     --bucket "$BUCKET" \
     --ownership-controls \
       "Rules=[{ObjectOwnership=BucketOwnerEnforced}]"
 
-  aws s3api put-bucket-encryption \
-    --profile "$PROFILE" \
+  aws_cli s3api put-bucket-encryption \
     --bucket "$BUCKET" \
     --server-side-encryption-configuration \
       "Rules=[{ApplyServerSideEncryptionByDefault={SSEAlgorithm=AES256}}]"
 
-  aws s3api put-bucket-versioning \
-    --profile "$PROFILE" \
+  aws_cli s3api put-bucket-versioning \
     --bucket "$BUCKET" \
     --versioning-configuration Status=Enabled
 
@@ -253,9 +253,9 @@ seed_raw_sample() {
 {"user_id":"u_1002","event_type":"view","timestamp":"2026-05-13T12:00:08Z","page":"/pricing","session_id":"s_9002","metadata":{"device":"desktop","country":"IN"}}
 JSON
 
-  aws s3api put-object --profile "$PROFILE" --bucket "$BUCKET" --key "raw/user-events/year=2026/month=05/.keep" >/dev/null
-  aws s3api put-object --profile "$PROFILE" --bucket "$BUCKET" --key "$PREFIX/.keep" >/dev/null
-  aws s3 cp --profile "$PROFILE" "$sample_file" "s3://$BUCKET/raw/user-events/year=2026/month=05/events_001.json" >/dev/null
+  aws_cli s3api put-object --bucket "$BUCKET" --key "raw/user-events/year=2026/month=05/.keep" >/dev/null
+  aws_cli s3api put-object --bucket "$BUCKET" --key "$PREFIX/.keep" >/dev/null
+  aws_cli s3 cp "$sample_file" "s3://$BUCKET/raw/user-events/year=2026/month=05/events_001.json" >/dev/null
   rm -f "$sample_file"
 
   log "Uploaded sample raw data to s3://$BUCKET/raw/user-events/year=2026/month=05/"
@@ -403,7 +403,7 @@ verify() {
   ensure_bucket_for_non_setup
 
   log "Listing S3 objects in s3://$BUCKET/"
-  aws s3 ls --profile "$PROFILE" "s3://$BUCKET/" --recursive
+  aws_cli s3 ls "s3://$BUCKET/" --recursive
 
   if curl -fsS "$SERVICE_URL/actuator/health" >/dev/null 2>&1; then
     log "Service is up; fetching contract detail"
@@ -417,8 +417,7 @@ verify() {
 delete_batch() {
   local query_root="$1"
   local count batch_json
-  count="$(aws s3api list-object-versions \
-    --profile "$PROFILE" \
+  count="$(aws_cli s3api list-object-versions \
     --bucket "$BUCKET" \
     --query "length(${query_root} || \`[]\`)" \
     --output text)"
@@ -427,14 +426,12 @@ delete_batch() {
     return 1
   fi
 
-  batch_json="$(aws s3api list-object-versions \
-    --profile "$PROFILE" \
+  batch_json="$(aws_cli s3api list-object-versions \
     --bucket "$BUCKET" \
     --query "{Objects: ${query_root}[].{Key:Key,VersionId:VersionId}}" \
     --output json)"
 
-  aws s3api delete-objects \
-    --profile "$PROFILE" \
+  aws_cli s3api delete-objects \
     --bucket "$BUCKET" \
     --delete "$batch_json" >/dev/null
   return 0
@@ -471,10 +468,8 @@ cleanup() {
     fi
   done
 
-  aws s3api delete-bucket \
-    --profile "$PROFILE" \
-    --bucket "$BUCKET" \
-    --region "$REGION"
+  aws_cli s3api delete-bucket \
+    --bucket "$BUCKET"
   log "Deleted bucket: $BUCKET"
 }
 

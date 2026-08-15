@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$DEMO_DIR/../.." && pwd)"
 RUNTIME_DIR="$DEMO_DIR/.runtime"
 SERVICE_PORT="${DCG_DEMO_SERVICE_PORT:-8080}"
 APP_PORT="${DEMO_APP_PORT:-8081}"
+SERVICE_JAR="$ROOT_DIR/contract-service/target/contract-service-0.1.0-SNAPSHOT.jar"
 
 if ! command -v lsof >/dev/null 2>&1; then
   echo "Missing required command: lsof" >&2
@@ -23,11 +24,13 @@ echo "Starting contract-service on port $SERVICE_PORT..."
 echo "Runtime metadata and artifacts: $RUNTIME_DIR"
 
 cd "$ROOT_DIR"
+./mvnw -pl contract-service -am clean package -DskipTests
+
 SERVER_PORT="$SERVICE_PORT" \
 CONTRACTS_ROOT="$RUNTIME_DIR/contracts" \
 CHECKS_DB_PATH="$RUNTIME_DIR/checks.db" \
 CONTRACTS_VALIDATION_STRICT_MODE=false \
-CHECKS_RUNNER_POLL_INTERVAL=1s \
+CHECKS_RUNNER_POLL_INTERVAL=1000 \
 NOTIFICATIONS_ENABLED=true \
 NOTIFICATIONS_SINKS=webhook \
 NOTIFICATIONS_WEBHOOK_ENABLED=true \
@@ -35,4 +38,4 @@ NOTIFICATIONS_WEBHOOK_URL="http://localhost:$APP_PORT/demo/webhooks" \
 NOTIFICATIONS_DISPATCH_POLL_INTERVAL_MS=1000 \
 APP_UI_ENABLED=true \
 APP_SECURITY_ENABLED=false \
-mvn -pl contract-service -am org.springframework.boot:spring-boot-maven-plugin:run
+exec java -jar "$SERVICE_JAR"

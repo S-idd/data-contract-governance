@@ -13,11 +13,9 @@ if ! command -v curl >/dev/null 2>&1 || ! command -v java >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -f "$CLI_JAR" ]]; then
-  echo "Building the CLI fat jar..."
-  cd "$ROOT_DIR"
-  mvn -pl contract-cli -am package -DskipTests
-fi
+echo "Building the CLI fat jar from clean sources..."
+cd "$ROOT_DIR"
+./mvnw -pl contract-cli -am clean package -DskipTests
 
 echo "Running the compatible change through the CLI..."
 java -jar "$CLI_JAR" check-compat \
