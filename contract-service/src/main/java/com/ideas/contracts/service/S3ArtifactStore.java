@@ -10,6 +10,7 @@ import com.ideas.contracts.core.SchemaLoader;
 import com.ideas.contracts.service.model.CreateContractRequest;
 import com.ideas.contracts.service.model.CreateContractVersionRequest;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
@@ -47,6 +49,8 @@ public class S3ArtifactStore implements ArtifactStore {
   private static final Logger LOGGER = LoggerFactory.getLogger(S3ArtifactStore.class);
   private static final Comparator<String> VERSION_COMPARATOR =
       Comparator.comparingInt(S3ArtifactStore::versionNumber);
+  private static final Set<String> SUPPORTED_SERVER_SIDE_ENCRYPTION =
+      Set.of("AES256", "aws:kms", "aws:kms:dsse");
 
   private final S3Client s3Client;
   private final String bucket;
@@ -111,6 +115,11 @@ public class S3ArtifactStore implements ArtifactStore {
       }
       LOGGER.warn(
           "event=artifact_store_s3_disabled component=s3_artifact_store message=S3 bucket is blank, using filesystem fallback");
+    }
+    if (!this.serverSideEncryption.isBlank()
+        && !SUPPORTED_SERVER_SIDE_ENCRYPTION.contains(this.serverSideEncryption)) {
+      throw new IllegalArgumentException(
+          "contracts.artifact.s3.server-side-encryption must be one of: AES256, aws:kms, aws:kms:dsse.");
     }
     if (!this.kmsKeyId.isBlank() && !this.serverSideEncryption.startsWith("aws:kms")) {
       throw new IllegalArgumentException(
@@ -184,6 +193,8 @@ public class S3ArtifactStore implements ArtifactStore {
     try {
       Path schemaPath = localSchemaPath(normalizedContractId, normalizedVersion);
       byte[] payload = getObjectBytes(keyStrategy.schemaKey(normalizedContractId, normalizedVersion));
+      byte[] expectedChecksum = getSchemaChecksumBytes(normalizedContractId, normalizedVersion);
+      verifySchemaChecksum(normalizedContractId, normalizedVersion, payload, expectedChecksum);
       writeLocalFile(schemaPath, payload);
       return Optional.of(jsonMapper.readTree(payload));
     } catch (RuntimeException ex) {
@@ -292,7 +303,7 @@ public class S3ArtifactStore implements ArtifactStore {
       deleteS3ContractArtifactsQuietly(normalizedContractId);
       if (!fallbackEnabled) {
         fallbackStore.deleteContractIfExists(normalizedContractId);
-        throw ex;
+        throw s3OperationFailure("create contract artifacts", ex);
       }
       logFallback("create_contract", normalizedContractId, ex);
     }
@@ -316,7 +327,7 @@ public class S3ArtifactStore implements ArtifactStore {
       deleteS3VersionArtifactsQuietly(normalizedContractId, normalizedVersion);
       if (!fallbackEnabled) {
         fallbackStore.deleteVersionIfExists(normalizedContractId, normalizedVersion);
-        throw ex;
+        throw s3OperationFailure("create version artifacts", ex);
       }
       logFallback("create_version", normalizedContractId + "/" + normalizedVersion, ex);
     }
@@ -390,7 +401,7 @@ public class S3ArtifactStore implements ArtifactStore {
       return HealthSnapshot.healthy(backend());
     } catch (RuntimeException ex) {
       if (!fallbackEnabled) {
-        return HealthSnapshot.unavailable(backend(), ex.getClass().getSimpleName());
+        return HealthSnapshot.unavailable(backend(), s3FailureDetail(ex));
       }
       return fallbackHealthSnapshot(
           "S3 is unavailable; filesystem fallback is active (" + ex.getClass().getSimpleName() + ").");
@@ -514,6 +525,32 @@ public class S3ArtifactStore implements ArtifactStore {
         GetObjectRequest.builder().bucket(bucket).key(key).build()).asByteArray();
   }
 
+  private byte[] getSchemaChecksumBytes(String contractId, String version) {
+    try {
+      return getObjectBytes(keyStrategy.checksumKey(contractId, version));
+    } catch (RuntimeException ex) {
+      if (isNotFound(ex)) {
+        throw new ExecutionException(
+            "S3 schema checksum is missing for " + contractId + "/" + version + ".");
+      }
+      throw ex;
+    }
+  }
+
+  private void verifySchemaChecksum(
+      String contractId, String version, byte[] schemaPayload, byte[] checksumPayload) {
+    String expectedChecksum = new String(checksumPayload, StandardCharsets.UTF_8).trim();
+    if (!expectedChecksum.matches("^[0-9a-fA-F]{64}$")) {
+      throw new ExecutionException(
+          "S3 schema checksum is invalid for " + contractId + "/" + version + ".");
+    }
+    String actualChecksum = sha256Hex(schemaPayload);
+    if (!actualChecksum.equalsIgnoreCase(expectedChecksum)) {
+      throw new ExecutionException(
+          "S3 schema checksum does not match the artifact for " + contractId + "/" + version + ".");
+    }
+  }
+
   private void deleteS3ContractArtifactsQuietly(String contractId) {
     try {
       String prefix = keyStrategy.contractPrefix(contractId) + "/";
@@ -610,11 +647,18 @@ public class S3ArtifactStore implements ArtifactStore {
 
   private String sha256Hex(Path path) {
     try {
-      byte[] payload = Files.readAllBytes(path);
+      return sha256Hex(Files.readAllBytes(path));
+    } catch (Exception ex) {
+      throw new ExecutionException("Unable to compute schema checksum: " + path, ex);
+    }
+  }
+
+  private String sha256Hex(byte[] payload) {
+    try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
       return HexFormat.of().formatHex(digest.digest(payload));
     } catch (Exception ex) {
-      throw new ExecutionException("Unable to compute schema checksum: " + path, ex);
+      throw new ExecutionException("Unable to compute schema checksum.", ex);
     }
   }
 
@@ -623,18 +667,22 @@ public class S3ArtifactStore implements ArtifactStore {
       return true;
     }
     if (ex instanceof S3Exception s3Exception) {
-      return s3Exception.statusCode() == 404;
+      return s3Exception.statusCode() == 404 && !isBucketFailure(s3Exception);
     }
     return false;
+  }
+
+  private boolean isBucketFailure(S3Exception exception) {
+    return "NoSuchBucket".equalsIgnoreCase(s3ErrorCode(exception));
   }
 
   private <T> T fallbackOrThrow(
       String operation,
       String key,
       RuntimeException ex,
-      Supplier<T> fallbackSupplier) {
+    Supplier<T> fallbackSupplier) {
     if (!fallbackEnabled) {
-      throw ex;
+      throw s3OperationFailure(operation, ex);
     }
     logFallback(operation, key, ex);
     return fallbackSupplier.get();
@@ -648,6 +696,51 @@ public class S3ArtifactStore implements ArtifactStore {
         key,
         ex.getClass().getSimpleName(),
         ex.getMessage());
+  }
+
+  private ExecutionException s3OperationFailure(String operation, RuntimeException ex) {
+    return new ExecutionException(
+        "S3 artifact operation '" + operation + "' failed: " + s3FailureDetail(ex), ex);
+  }
+
+  private String s3FailureDetail(RuntimeException ex) {
+    if (ex instanceof ExecutionException) {
+      return ex.getMessage();
+    }
+    if (ex instanceof S3Exception s3Exception) {
+      String errorCode = s3ErrorCode(s3Exception);
+      if ("NoSuchBucket".equalsIgnoreCase(errorCode)) {
+        return "The configured S3 bucket was not found. Verify the bucket name and AWS Region.";
+      }
+      if ("InvalidAccessKeyId".equalsIgnoreCase(errorCode)
+          || "SignatureDoesNotMatch".equalsIgnoreCase(errorCode)
+          || "ExpiredToken".equalsIgnoreCase(errorCode)
+          || "InvalidToken".equalsIgnoreCase(errorCode)) {
+        return "AWS credentials were rejected. Refresh the workload credentials and verify the configured credential source.";
+      }
+      if ("AccessDenied".equalsIgnoreCase(errorCode) || s3Exception.statusCode() == 403) {
+        return "Access to the configured S3 bucket was denied. Verify the workload IAM policy and bucket policy.";
+      }
+      if ("AuthorizationHeaderMalformed".equalsIgnoreCase(errorCode)
+          || "PermanentRedirect".equalsIgnoreCase(errorCode)
+          || s3Exception.statusCode() == 301) {
+        return "The configured AWS Region does not match the S3 bucket. Verify contracts.artifact.s3.region.";
+      }
+      if (s3Exception.statusCode() == 404) {
+        return "An S3 resource was not found. Verify the bucket, prefix, and artifact key.";
+      }
+    }
+    if (ex instanceof SdkClientException) {
+      return "AWS credentials or network access are unavailable. Verify the workload credential chain and S3 endpoint.";
+    }
+    return "The S3 request failed. Verify the bucket, Region, credentials, and network access.";
+  }
+
+  private String s3ErrorCode(S3Exception exception) {
+    if (exception.awsErrorDetails() == null || exception.awsErrorDetails().errorCode() == null) {
+      return "";
+    }
+    return exception.awsErrorDetails().errorCode().trim();
   }
 
   private static int versionNumber(String version) {

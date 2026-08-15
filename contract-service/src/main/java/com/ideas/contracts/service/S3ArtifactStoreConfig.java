@@ -31,6 +31,10 @@ public class S3ArtifactStoreConfig {
 
     String normalizedAccessKey = accessKey == null ? "" : accessKey.trim();
     String normalizedSecretKey = secretKey == null ? "" : secretKey.trim();
+    if (normalizedAccessKey.isBlank() != normalizedSecretKey.isBlank()) {
+      throw new IllegalArgumentException(
+          "contracts.artifact.s3.access-key and contracts.artifact.s3.secret-key must be configured together.");
+    }
     if (!normalizedAccessKey.isBlank() && !normalizedSecretKey.isBlank()) {
       builder.credentialsProvider(
           StaticCredentialsProvider.create(
@@ -40,7 +44,15 @@ public class S3ArtifactStoreConfig {
     }
 
     if (endpoint != null && !endpoint.isBlank()) {
-      builder.endpointOverride(URI.create(endpoint.trim()));
+      URI endpointUri = URI.create(endpoint.trim());
+      if (!endpointUri.isAbsolute()
+          || endpointUri.getHost() == null
+          || !("http".equalsIgnoreCase(endpointUri.getScheme())
+              || "https".equalsIgnoreCase(endpointUri.getScheme()))) {
+        throw new IllegalArgumentException(
+            "contracts.artifact.s3.endpoint must be an absolute http(s) URL.");
+      }
+      builder.endpointOverride(endpointUri);
     }
     return builder.build();
   }

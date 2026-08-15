@@ -273,6 +273,7 @@ class UiControllerIntegrationTest {
         .andExpect(content().string(containsString("Lifecycle Activity")))
         .andExpect(content().string(containsString("CONTRACT_REGISTERED")))
         .andExpect(content().string(containsString("SCHEMA_VERSION_PUBLISHED")))
+        .andExpect(content().string(containsString("FAIL")))
         .andExpect(content().string(containsString("ui-run-1")));
   }
 
