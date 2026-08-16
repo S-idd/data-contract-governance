@@ -53,10 +53,8 @@ Completed implementation slices include:
 
 Still required before V4 can be called production-ready:
 
-1. Clean AWS S3 smoke and versioned-artifact recovery evidence, plus its final support-label decision. The local S3-compatible recovery drill and fallback-disabled behavior are implemented; AWS operating evidence remains required.
-2. S3 GA decision evidence and backend support-label decisions.
-3. Final UI hardening and operational triage coverage.
-4. Clean-checkout rehearsal, live-user feedback, release notes, and acceptance evidence.
+1. Capture or formally carry forward the postponed onboarding feedback sessions.
+2. Prepare release notes and record final acceptance evidence.
 
 ## 3. Strategic Decisions
 
@@ -68,7 +66,7 @@ New feature work should be accepted only when it directly improves robustness, s
 
 ### 3.2 S3 Beta Moves Toward GA
 
-S3 is already implemented and beta-published. V4 should focus on evidence:
+S3 is implemented and beta-published. The V4 decision is to retain the `Beta` label after AWS smoke, recovery, IAM/error, lifecycle, encryption, and cost-ownership evidence. A future promotion decision requires adopter feedback:
 
 1. Real or simulated onboarding sessions.
 2. Failure-mode clarity.
@@ -227,7 +225,7 @@ Objective: prove the system can be recovered when something goes wrong.
 P0 tasks:
 
 1. Run and document database backup/restore drills for Postgres and SQLite production-lite.
-2. Define MySQL restore expectations before GA labeling.
+2. Run and record the MySQL recovery drill as GA evidence.
 3. Document S3 artifact restore from bucket versioning.
 4. Add incident checklists for DB unavailable, S3 unavailable, migration failure, bad credentials, and partial artifact write.
 5. Verify app behavior for startup failure, read failure, write failure, and rollback paths.

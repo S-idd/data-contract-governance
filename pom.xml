@@ -25,9 +25,23 @@
     <java.version>21</java.version>
     <maven.compiler.release>${java.version}</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <spring.boot.version>3.3.5</spring.boot.version>
+    <!-- Bumped from 3.3.5 -> 3.5.14 (latest 3.x line) to pick up fixed
+         Spring Framework, Spring Security, Tomcat, Jackson, Logback and
+         Thymeleaf versions transitively via the Boot BOM. -->
+    <spring.boot.version>3.5.14</spring.boot.version>
     <junit.jupiter.version>5.11.3</junit.jupiter.version>
     <aws.sdk.version>2.25.66</aws.sdk.version>
+
+    <!-- Explicit overrides for CVEs not yet covered by spring-boot-dependencies 3.5.14.
+         These are Spring Boot's documented "Version Properties" override hooks -
+         no need for manual <dependencyManagement> entries. -->
+    <tomcat.version>10.1.55</tomcat.version>
+    <netty.version>4.1.136.Final</netty.version>
+    <postgresql.version>42.7.12</postgresql.version>
+    <commons-lang3.version>3.18.0</commons-lang3.version>
+    <thymeleaf.version>3.1.5.RELEASE</thymeleaf.version>
+    <logback.version>1.5.34</logback.version>
+    <jackson-bom.version>2.22.1</jackson-bom.version>
   </properties>
 
   <dependencyManagement>

@@ -28,11 +28,11 @@ This evidence is necessary, but it is not an AWS production validation. S3 remai
 - [x] `prod` and `sqlite-prod-lite` profiles default S3 fallback reads to disabled, so production-like deployments do not silently mask S3 failures with a local cache.
 - [x] Local S3-compatible versioning and object-pair restore drill is scripted.
 - [x] Clean AWS smoke run records bucket, region, prefix, object keys, and sanitized service logs.
-- [ ] AWS IAM denial checks distinguish missing object, bad credentials, wrong region, missing bucket, and denied permission.
+- [x] AWS IAM denial checks distinguish missing object, bad credentials, wrong region, missing bucket, and denied permission.
 - [x] Restore of a schema and matching checksum is performed in an AWS versioned bucket and verified through the API.
-- [ ] Lifecycle, retention, encryption, KMS, and cost ownership are approved by the operating team.
+- [x] Lifecycle, retention, encryption, KMS, and cost ownership are approved by the operating team.
 - [ ] At least two adopter feedback sessions confirm setup and recovery documentation are usable without maintainer intervention.
-- [ ] Maintainers record the Beta, RC, or GA support decision in `docs/Architecture-v4.md` and the release plan.
+- [x] Maintainers recorded the V4 support decision: S3 remains `Beta` in `docs/Architecture-v4.md` and the release plan.
 
 ### AWS evidence: 2026-08-15
 
@@ -40,8 +40,10 @@ This evidence is necessary, but it is not an AWS production validation. S3 remai
 - The service ran with `CONTRACTS_ARTIFACT_BACKEND=s3` and fallback reads disabled.
 - A clean `s3.smoke.20260815` contract prefix produced `metadata.yaml`, v1/v2 `schema.json`, and matching `schema.sha256` objects.
 - Bucket versioning was enabled. The v2 schema was delete-marked, restored from its prior version, and read successfully through the API after the service was recreated, proving the restored artifact was not served from a process cache.
+- A restricted `dcg-demo-denied` profile returned `403 Forbidden` for both bucket and object reads without altering the working profile. A deliberately invalid STS token returned `InvalidClientTokenId`; a missing bucket returned `404`; and a wrong-region endpoint returned `301` with the actual bucket region.
+- The operating team approved SSE-S3 (`AES256`), no current-object expiration, 90-day retention of noncurrent `contracts/` versions, and a 7-day abort window for incomplete multipart uploads. Bucket tags assign `CostOwner=DCG-maintainer`.
 - Evidence intentionally excludes credential values, account identifiers, and service secrets.
 
 ## 4. Promotion Decision
 
-Promote S3 from Beta only when every required evidence item is complete and an owner accepts the recovery window and operating cost. Until then, PostgreSQL plus filesystem artifacts remains the conservative production path, and an S3 deployment must use the documented recovery procedure in `docs/version4-recovery-and-incident-runbook.md`.
+The V4 maintainer decision is to keep S3 at `Beta`. Re-evaluate promotion only after adopter feedback confirms the setup and recovery documentation can be used without maintainer intervention. Until then, PostgreSQL plus filesystem artifacts remains the conservative production path, and an S3 deployment must use the documented recovery procedure in `docs/version4-recovery-and-incident-runbook.md`.
