@@ -273,3 +273,24 @@ Consequences:
 2. The final-week live validation must have rehearsal evidence.
 3. Production-readiness claims must be backed by a realistic integration, not only module tests.
 4. Fallback materials are allowed only as backup and must not replace the live validation path.
+
+## Decision V4-010: V4 Backend Scope Is Fixed
+
+Status: `Accepted`
+
+Context:
+
+V4 is preparing for an open-source release. Broadening backend support now would dilute the recovery, security, support, and onboarding work required for a trustworthy release.
+
+Decision:
+
+1. PostgreSQL, SQLite, and MySQL remain the V4 metadata-store scope.
+2. Filesystem and S3 remain the V4 artifact-store scope.
+3. MongoDB and Cassandra are not implemented, evaluated, or supported in V4.
+4. A future version may reconsider either backend only through a new decision record with adopter demand, correctness, recovery, and maintenance evidence.
+
+Consequences:
+
+1. V4 implementation effort remains focused on production readiness and open-source adoption.
+2. MongoDB and Cassandra are not release blockers beyond this recorded no-go decision.
+3. Support labels for MySQL and S3 remain evidence-based; this decision does not promote a beta backend to GA.
