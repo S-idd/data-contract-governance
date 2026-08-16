@@ -56,28 +56,28 @@ Primary service boundaries:
 
 | Backend | V4 Label | Intended Use | V4 Requirement Before Stronger Label |
 |---|---|---|---|
-| PostgreSQL | Production standard | Shared production-like metadata store | Fresh targeted verification, backup/restore drill, secure profile evidence |
-| SQLite | Production-lite | Local development and single-node low-cost deployments | Clear single-node limits, backup/restore drill, startup integrity guidance |
-| MySQL | Beta | MySQL adopters that accept a validation period | External adopter verification and support notes; isolated backup/restore drill is available |
-| MongoDB | Out of V4 scope | Not implemented | Reconsider only in a future version with adopter demand and a data-model RFC |
-| Cassandra | Out of V4 scope | Not implemented | Reconsider only in a future version with a correctness and recovery proposal |
+| PostgreSQL | Production standard | Shared production metadata store | Fresh targeted verification, backup/restore drill, and secure-profile evidence are recorded |
+| SQLite | Production-lite | Local development and single-node low-cost deployments | Single-node limits, backup/restore drill, and startup-integrity guidance are recorded |
+| MySQL | GA | Shared production metadata store | Focused verification and an isolated backup/restore drill are recorded; continue normal compatibility monitoring |
+| MongoDB | Decision-gated | Not implemented | At least two credible adopter requests and a data-model RFC |
+| Cassandra | Research-gated | Not implemented | Research gate outcome and correctness/recovery proposal |
 
 ## 4. Artifact Backend Support Matrix
 
 | Backend | V4 Label | Intended Use | V4 Requirement Before Stronger Label |
 |---|---|---|---|
 | Filesystem | Supported local/default | Local development, demos, simple deployments | Clear backup guidance and artifact path documentation |
-| S3 | Beta | Production artifact storage | Local S3-compatible versioning recovery and fallback-disabled behavior are verified; clean AWS smoke, IAM/error evidence, cost guidance, and a support-label decision remain |
+| S3 | Beta | Opt-in production artifact storage | AWS smoke, recovery, IAM/error evidence, lifecycle, encryption, and cost ownership are recorded. It remains Beta for V4 pending adopter feedback before a future promotion decision. |
 
 ## 5. Supported Backend Combinations
 
 | Metadata Store | Artifact Store | V4 Status | Notes |
 |---|---|---|---|
 | SQLite | Filesystem | Supported local and production-lite | Single-node only; not an HA claim |
-| PostgreSQL | Filesystem | Supported production-leaning | Good first shared deployment path |
-| PostgreSQL | S3 | V4 target production path | Requires S3 GA readiness evidence |
-| MySQL | Filesystem | Beta | Keep label until focused MySQL evidence is fresh |
-| MySQL | S3 | Beta | Requires both MySQL and S3 evidence |
+| PostgreSQL | Filesystem | Production standard | Good first shared deployment path |
+| PostgreSQL | S3 | Beta artifact path | PostgreSQL is production standard; S3 remains an opt-in Beta artifact backend |
+| MySQL | Filesystem | GA | MySQL GA metadata path with supported filesystem artifacts |
+| MySQL | S3 | Beta artifact path | MySQL is GA; S3 remains an opt-in Beta artifact backend |
 
 ## 6. Security Baseline
 
@@ -99,7 +99,7 @@ Required V4 recovery areas:
 
 1. PostgreSQL metadata backup and restore.
 2. SQLite production-lite backup and restore.
-3. MySQL restore expectations before any GA label.
+3. MySQL backup and restore drill, with normal compatibility monitoring after its GA decision.
 4. S3 artifact restore using bucket versioning.
 5. Migration failure triage.
 6. Credential/authentication failure triage.
@@ -162,9 +162,8 @@ V4 can move from draft to accepted only when:
 
 ## 11. Carried Open Questions
 
-1. Should S3 become the recommended production artifact backend after V4?
-2. Should MySQL remain beta until external validation exists?
-3. What exact public promise is acceptable for SQLite production-lite?
+1. When should S3 be re-evaluated for promotion from Beta after adopter feedback?
+2. What exact public promise is acceptable for SQLite production-lite?
 4. What exact evidence is required before webhook/outbox delivery can move from V4 baseline to GA?
 5. Which notification triage views should be saved or linked from check detail before broader operator adoption?
 6. What is the smallest Spring Boot demo that still proves real adoption?
