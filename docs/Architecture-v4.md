@@ -1,6 +1,6 @@
 # Architecture v4
 
-- Status: `Draft baseline`
+- Status: `Active V4 baseline`
 - Version scope: V4 production-readiness implementation
 - Primary plan: `docs/version4-production-readiness-release-plan.md`
 - Decision log: `docs/version4-architecture-decisions.md`
@@ -19,6 +19,8 @@ V4 turns the existing broad platform into a trustworthy production-readiness bas
 8. Artifact persistence through filesystem and S3 paths.
 
 V4 does not expand the product by adding another backend or schema format. V4 proves that the current system can be operated, secured, recovered, and explained by a new adopter.
+
+V4 backend scope is fixed: PostgreSQL, SQLite, and MySQL are metadata-store options; filesystem and S3 are artifact-store options. MongoDB and Cassandra are explicitly out of scope for V4.
 
 ## 2. Component Model
 

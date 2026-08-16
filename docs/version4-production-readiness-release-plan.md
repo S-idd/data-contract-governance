@@ -74,31 +74,13 @@ S3 is implemented and beta-published. The V4 decision is to retain the `Beta` la
 4. Recovery story for accidentally deleted or mutated artifacts.
 5. Clear recommendation for production default artifact backend.
 
-### 3.3 MongoDB Remains a Decision Gate
+### 3.3 MongoDB Is Out of V4 Scope
 
-MongoDB should stay demand-gated unless Version 4 feedback proves a real use case that Postgres/MySQL plus S3 cannot satisfy.
+MongoDB is not implemented, evaluated, or supported in V4. It may be reconsidered only in a future version with adopter demand, a clear workload, a maintenance owner, and a data-model RFC.
 
-Go criteria:
+### 3.4 Cassandra Is Out of V4 Scope
 
-1. At least two credible user requests from target adopters.
-2. A concrete workload description, not just "we use Mongo."
-3. A maintenance owner and test-matrix budget.
-4. Clear data-model fit that does not duplicate existing metadata-store behavior.
-
-### 3.4 Cassandra Is Research-Only in V4
-
-Cassandra may become relevant for very high write volume, distributed deployments, or event-style historical queries, but it has different consistency, query modeling, migration, and operational tradeoffs than the current relational metadata stores.
-
-V4 should research Cassandra before committing to it. Use `docs/version4-cassandra-research-gate.md` as the evaluation template.
-
-Research questions:
-
-1. What exact DCG workload needs Cassandra instead of Postgres or MySQL?
-2. Which data would live in Cassandra: check-run history, audit logs, projections, or something else?
-3. Can queue-claim semantics be implemented safely without weakening correctness?
-4. What consistency model is acceptable for check status, logs, and audits?
-5. How would backup, restore, schema migration, and local development work?
-6. What new tests and operational runbooks would be required?
+Cassandra is not implemented, evaluated, or supported in V4. It may be reconsidered only in a future version with a correctness, recovery, and operations proposal. The V4 no-go decision is recorded in `docs/version4-architecture-decisions.md`.
 
 ### 3.5 Backend Support Requires an Operational Contract
 
@@ -431,8 +413,8 @@ Tasks:
 
 1. Publish `docs/Architecture-v4.md`.
 2. Resolve or defer V3 open questions.
-3. Make MongoDB decision: no-go, research spike, or implementation proposal.
-4. Make Cassandra decision from `docs/version4-cassandra-research-gate.md`: no-go, research spike, projection-only, or implementation proposal.
+3. Confirm the recorded V4 no-go decisions for MongoDB and Cassandra.
+4. Carry the MongoDB and Cassandra research materials forward only if a future version opens a new backend decision.
 5. Run final focused regression checks.
 6. Run the separate Spring Boot demo project happy path and breaking-change path.
 7. Run WebHook notification validation.

@@ -114,6 +114,11 @@ class NotificationOutboxStoreTest {
     assertEquals(failed.delivery().deliveryId(), filtered.get(0).deliveryId());
     assertEquals(NotificationDeliveryStatus.FAILED_PERMANENT, filtered.get(0).status());
 
+    List<NotificationDelivery> filteredByRun = store.listNotificationDeliveries(
+        NotificationDeliveryQuery.from(null, null, null, null, "run-rejected", 10));
+    assertEquals(1, filteredByRun.size());
+    assertEquals(failed.delivery().deliveryId(), filteredByRun.get(0).deliveryId());
+
     Instant retryAt = claimedAt.plusSeconds(5);
     assertTrue(store.requeueNotificationDelivery(failed.delivery().deliveryId(), retryAt));
     NotificationDelivery requeued = store.findNotificationDelivery(failed.delivery().deliveryId()).orElseThrow();
