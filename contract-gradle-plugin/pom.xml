@@ -1,0 +1,32 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.ideas.contracts</groupId>
+    <artifactId>data-contract-governance</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+  <artifactId>contract-gradle-plugin</artifactId>
+  <name>contract-gradle-plugin</name>
+  <description>Offline-first Gradle compatibility checks for DCG</description>
+  <dependencies>
+    <dependency>
+      <groupId>com.ideas.contracts</groupId>
+      <artifactId>contract-build-support</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.gradleplugins</groupId>
+      <artifactId>gradle-api</artifactId>
+      <version>8.10</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

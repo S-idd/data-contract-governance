@@ -12,6 +12,7 @@ import com.ideas.contracts.service.model.CheckRunCreateResponse;
 import com.ideas.contracts.service.model.CheckRunLogResponse;
 import com.ideas.contracts.service.model.CheckRunPageResponse;
 import com.ideas.contracts.service.model.CheckRunResponse;
+import com.ideas.contracts.service.model.EvidenceImportRequest;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import jakarta.annotation.PostConstruct;
@@ -59,9 +60,9 @@ public class CheckRunStore implements MetadataStore {
   private static final String STATUS_QUEUED = "QUEUED";
   private static final String STATUS_RUNNING = "RUNNING";
   private static final String LATEST_DEFAULT_MIGRATION_RESOURCE =
-      "db/migration/V7__create_notification_deliveries.sql";
+      "db/migration/V11__add_evidence_raw_payload_purge_marker.sql";
   private static final String LATEST_MYSQL_MIGRATION_RESOURCE =
-      "db/migration-mysql/V7__create_notification_deliveries.sql";
+      "db/migration-mysql/V11__add_evidence_raw_payload_purge_marker.sql";
   private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
   private static final TypeReference<Map<String, String>> STRING_MAP_TYPE = new TypeReference<>() {};
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunStore.class);
@@ -440,6 +441,508 @@ public class CheckRunStore implements MetadataStore {
     }
 
     return new CheckRunCreateResponse(runId, status);
+  }
+
+  @Override
+  public EvidenceImportResult importEvidence(CheckEvidence evidence) {
+    ensureInitialized();
+    if (evidence == null) {
+      throw new IllegalArgumentException("evidence must not be null.");
+    }
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(CheckRunSqlQueries.INSERT_CHECK_EVIDENCE)) {
+      applyQueryTimeout(statement);
+      bindEvidence(statement, evidence);
+      statement.executeUpdate();
+      return new EvidenceImportResult(evidence, true);
+    } catch (SQLException error) {
+      Optional<CheckEvidence> existing = findEvidenceByIdempotencyKey(evidence.request().idempotencyKey());
+      if (existing.isPresent()) {
+        if (existing.get().payloadSha256().equals(evidence.payloadSha256())) {
+          return new EvidenceImportResult(existing.get(), false);
+        }
+        throw new EvidenceIdempotencyConflictException(evidence.request().idempotencyKey());
+      }
+      logDbFailure("import_check_evidence", error, evidence.request().contractId(), evidence.request().commitSha());
+      throw new CheckRunStoreException("Failed to import compatibility evidence.", error);
+    }
+  }
+
+  @Override
+  public Optional<CheckEvidence> findEvidenceByIdempotencyKey(String idempotencyKey) {
+    ensureInitialized();
+    String normalizedKey = trimToEmpty(idempotencyKey);
+    if (normalizedKey.isBlank()) {
+      throw new IllegalArgumentException("idempotencyKey must not be blank.");
+    }
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(
+             CheckRunSqlQueries.FIND_CHECK_EVIDENCE_BY_IDEMPOTENCY)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, normalizedKey);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next() ? Optional.of(mapEvidence(resultSet)) : Optional.empty();
+      }
+    } catch (SQLException error) {
+      logDbFailure("find_check_evidence", error, null, null);
+      throw new CheckRunStoreException("Failed to find compatibility evidence.", error);
+    }
+  }
+
+  @Override
+  public List<CheckEvidence> listEvidence(String contractId, String importStatus, int limit) {
+    ensureInitialized();
+    int normalizedLimit = Math.max(1, Math.min(limit <= 0 ? 100 : limit, 500));
+    String normalizedContractId = trimToEmpty(contractId);
+    String normalizedStatus = trimToEmpty(importStatus).toUpperCase(Locale.ROOT);
+    if (!normalizedStatus.isBlank()) {
+      try {
+        EvidenceImportStatus.valueOf(normalizedStatus);
+      } catch (IllegalArgumentException exception) {
+        throw new IllegalArgumentException("importStatus must be UNVERIFIED, VERIFIED, VERSION_SKEW, or REJECTED.");
+      }
+    }
+    StringBuilder sql = new StringBuilder(CheckRunSqlQueries.LIST_CHECK_EVIDENCE_BASE);
+    List<Object> params = new ArrayList<>();
+    if (!normalizedContractId.isBlank()) {
+      sql.append(" AND contract_id = ?");
+      params.add(normalizedContractId);
+    }
+    if (!normalizedStatus.isBlank()) {
+      sql.append(" AND import_status = ?");
+      params.add(normalizedStatus);
+    }
+    sql.append(" ORDER BY imported_at DESC, evidence_id DESC LIMIT ?");
+    params.add(normalizedLimit);
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql.toString())) {
+      applyQueryTimeout(statement);
+      bindParams(statement, params);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<CheckEvidence> evidence = new ArrayList<>();
+        while (resultSet.next()) {
+          evidence.add(mapEvidence(resultSet));
+        }
+        return evidence;
+      }
+    } catch (SQLException error) {
+      logDbFailure("list_check_evidence", error, normalizedContractId, null);
+      throw new CheckRunStoreException("Failed to list compatibility evidence.", error);
+    }
+  }
+
+  @Override
+  public List<CheckEvidence> listRetentionCandidates(
+      List<String> importStatuses, Instant importedBefore, int limit) {
+    ensureInitialized();
+    if (importStatuses == null || importStatuses.isEmpty() || importedBefore == null) {
+      return List.of();
+    }
+    List<String> statuses = importStatuses.stream()
+        .map(value -> trimToEmpty(value).toUpperCase(Locale.ROOT))
+        .filter(value -> !value.isBlank())
+        .distinct()
+        .toList();
+    if (statuses.isEmpty()) {
+      return List.of();
+    }
+    String placeholders = String.join(",", java.util.Collections.nCopies(statuses.size(), "?"));
+    String sql = CheckRunSqlQueries.LIST_CHECK_EVIDENCE_BASE
+        + " AND import_status IN (" + placeholders + ") AND imported_at < ?"
+        + " AND LENGTH(raw_evidence) > 0"
+        + " AND NOT EXISTS (SELECT 1 FROM evidence_legal_holds h WHERE h.active = 1"
+        + " AND (h.evidence_id = check_evidence.evidence_id"
+        + " OR (h.evidence_id IS NULL AND h.contract_id = check_evidence.contract_id"
+        + " AND (h.repository IS NULL OR h.repository = check_evidence.oidc_repository))))"
+        + " ORDER BY imported_at ASC, evidence_id ASC LIMIT ?";
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      int index = 1;
+      for (String status : statuses) {
+        statement.setString(index++, status);
+      }
+      statement.setString(index++, importedBefore.toString());
+      statement.setInt(index, Math.max(1, Math.min(limit, 1000)));
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<CheckEvidence> candidates = new ArrayList<>();
+        while (resultSet.next()) {
+          candidates.add(mapEvidence(resultSet));
+        }
+        return candidates;
+      }
+    } catch (SQLException error) {
+      logDbFailure("list_evidence_retention_candidates", error, null, null);
+      throw new CheckRunStoreException("Failed to list evidence retention candidates.", error);
+    }
+  }
+
+  @Override
+  public EvidenceLegalHold placeEvidenceLegalHold(EvidenceLegalHold hold) {
+    ensureInitialized();
+    if (hold == null) {
+      throw new IllegalArgumentException("hold must not be null.");
+    }
+    String holdId = trimToEmpty(hold.holdId());
+    if (holdId.isBlank()) {
+      throw new IllegalArgumentException("holdId must not be blank.");
+    }
+    String occurredAt = hold.createdAt().toString();
+    try (Connection connection = openConnection()) {
+      connection.setAutoCommit(false);
+      try (PreparedStatement insertHold = connection.prepareStatement("""
+          INSERT INTO evidence_legal_holds (
+            hold_id, evidence_id, contract_id, repository, active, reason, created_by, created_at,
+            released_by, released_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          """);
+          PreparedStatement insertEvent = connection.prepareStatement("""
+              INSERT INTO evidence_hold_events (event_id, hold_id, action, actor, reason, occurred_at)
+              VALUES (?, ?, ?, ?, ?, ?)
+              """)) {
+        applyQueryTimeout(insertHold);
+        insertHold.setString(1, holdId);
+        insertHold.setString(2, hold.evidenceId());
+        insertHold.setString(3, hold.contractId());
+        insertHold.setString(4, hold.repository());
+        insertHold.setInt(5, hold.active() ? 1 : 0);
+        insertHold.setString(6, hold.reason());
+        insertHold.setString(7, hold.createdBy());
+        insertHold.setString(8, occurredAt);
+        insertHold.setString(9, hold.releasedBy());
+        insertHold.setString(10, hold.releasedAt() == null ? null : hold.releasedAt().toString());
+        insertHold.executeUpdate();
+
+        applyQueryTimeout(insertEvent);
+        insertEvent.setString(1, UUID.randomUUID().toString());
+        insertEvent.setString(2, holdId);
+        insertEvent.setString(3, "PLACED");
+        insertEvent.setString(4, hold.createdBy());
+        insertEvent.setString(5, hold.reason());
+        insertEvent.setString(6, occurredAt);
+        insertEvent.executeUpdate();
+        connection.commit();
+        return hold;
+      } catch (SQLException error) {
+        connection.rollback();
+        throw error;
+      }
+    } catch (SQLException error) {
+      logDbFailure("place_evidence_legal_hold", error, hold.contractId(), null);
+      throw new CheckRunStoreException("Failed to place evidence legal hold.", error);
+    }
+  }
+
+  @Override
+  public boolean releaseEvidenceLegalHold(String holdId, String releasedBy, String reason) {
+    ensureInitialized();
+    String normalizedHoldId = trimToEmpty(holdId);
+    String actor = trimToEmpty(releasedBy);
+    String releaseReason = trimToEmpty(reason);
+    if (normalizedHoldId.isBlank() || actor.isBlank() || releaseReason.isBlank()) {
+      throw new IllegalArgumentException("holdId, releasedBy, and reason must not be blank.");
+    }
+    String releasedAt = Instant.now().toString();
+    try (Connection connection = openConnection()) {
+      connection.setAutoCommit(false);
+      try (PreparedStatement release = connection.prepareStatement("""
+          UPDATE evidence_legal_holds
+          SET active = 0, released_by = ?, released_at = ?
+          WHERE hold_id = ? AND active = 1
+          """)) {
+        applyQueryTimeout(release);
+        release.setString(1, actor);
+        release.setString(2, releasedAt);
+        release.setString(3, normalizedHoldId);
+        if (release.executeUpdate() == 0) {
+          connection.commit();
+          return false;
+        }
+      }
+      try (PreparedStatement event = connection.prepareStatement("""
+          INSERT INTO evidence_hold_events (event_id, hold_id, action, actor, reason, occurred_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+          """)) {
+        applyQueryTimeout(event);
+        event.setString(1, UUID.randomUUID().toString());
+        event.setString(2, normalizedHoldId);
+        event.setString(3, "RELEASED");
+        event.setString(4, actor);
+        event.setString(5, releaseReason);
+        event.setString(6, releasedAt);
+        event.executeUpdate();
+      }
+      connection.commit();
+      return true;
+    } catch (SQLException error) {
+      logDbFailure("release_evidence_legal_hold", error, null, null);
+      throw new CheckRunStoreException("Failed to release evidence legal hold.", error);
+    }
+  }
+
+  @Override
+  public boolean recordArchiveAndPurgeRawEvidence(
+      String evidenceId, EvidenceArchiveReceipt archive, String policyVersion, String actor) {
+    ensureInitialized();
+    String normalizedEvidenceId = trimToEmpty(evidenceId);
+    String normalizedPolicyVersion = trimToEmpty(policyVersion);
+    String normalizedActor = trimToEmpty(actor);
+    if (normalizedEvidenceId.isBlank() || archive == null || normalizedPolicyVersion.isBlank()
+        || normalizedActor.isBlank()) {
+      throw new IllegalArgumentException("evidenceId, archive, policyVersion, and actor must not be blank.");
+    }
+    if (!normalizedEvidenceId.equals(archive.evidenceId())) {
+      throw new IllegalArgumentException("Archive receipt does not belong to the evidence being purged.");
+    }
+    try (Connection connection = openConnection()) {
+      connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+      connection.setAutoCommit(false);
+      try {
+        RetentionTarget target = findRetentionTarget(connection, normalizedEvidenceId);
+        if (target == null || target.rawEvidence().isBlank() || hasActiveLegalHold(connection, target)) {
+          connection.commit();
+          return false;
+        }
+
+        String occurredAt = Instant.now().toString();
+        try (PreparedStatement event = connection.prepareStatement("""
+            INSERT INTO evidence_retention_events (
+              event_id, evidence_id, action, policy_version, archive_location, archive_sha256, actor, occurred_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """)) {
+          applyQueryTimeout(event);
+          event.setString(1, UUID.randomUUID().toString());
+          event.setString(2, normalizedEvidenceId);
+          event.setString(3, "RAW_PAYLOAD_PURGED");
+          event.setString(4, normalizedPolicyVersion);
+          event.setString(5, archive.location());
+          event.setString(6, archive.sha256());
+          event.setString(7, normalizedActor);
+          event.setString(8, occurredAt);
+          event.executeUpdate();
+        }
+        try (PreparedStatement purge = connection.prepareStatement("""
+            UPDATE check_evidence
+            SET raw_evidence = '', raw_evidence_archived_at = ?, raw_evidence_archive_location = ?,
+                raw_evidence_archive_sha256 = ?, raw_evidence_purged_at = ?
+            WHERE evidence_id = ? AND LENGTH(raw_evidence) > 0
+            """)) {
+          applyQueryTimeout(purge);
+          purge.setString(1, archive.archivedAt().toString());
+          purge.setString(2, archive.location());
+          purge.setString(3, archive.sha256());
+          purge.setString(4, occurredAt);
+          purge.setString(5, normalizedEvidenceId);
+          if (purge.executeUpdate() != 1) {
+            connection.rollback();
+            return false;
+          }
+        }
+        connection.commit();
+        return true;
+      } catch (SQLException error) {
+        connection.rollback();
+        throw error;
+      }
+    } catch (SQLException error) {
+      logDbFailure("archive_and_purge_evidence", error, null, null);
+      throw new CheckRunStoreException("Failed to record archived evidence payload purge.", error);
+    }
+  }
+
+  @Override
+  public List<EvidenceRetentionEvent> listEvidenceRetentionEvents(String evidenceId, int limit) {
+    ensureInitialized();
+    String normalizedEvidenceId = trimToEmpty(evidenceId);
+    if (normalizedEvidenceId.isBlank()) {
+      throw new IllegalArgumentException("evidenceId must not be blank.");
+    }
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement("""
+             SELECT event_id, evidence_id, action, policy_version, archive_location, archive_sha256, actor, occurred_at
+             FROM evidence_retention_events
+             WHERE evidence_id = ?
+             ORDER BY occurred_at ASC, event_id ASC
+             LIMIT ?
+             """)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, normalizedEvidenceId);
+      statement.setInt(2, Math.max(1, Math.min(limit, 500)));
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<EvidenceRetentionEvent> events = new ArrayList<>();
+        while (resultSet.next()) {
+          events.add(new EvidenceRetentionEvent(
+              resultSet.getString("event_id"), resultSet.getString("evidence_id"),
+              resultSet.getString("action"), resultSet.getString("policy_version"),
+              resultSet.getString("archive_location"), resultSet.getString("archive_sha256"),
+              resultSet.getString("actor"), parseInstant(resultSet.getString("occurred_at"))));
+        }
+        return events;
+      }
+    } catch (SQLException error) {
+      logDbFailure("list_evidence_retention_events", error, null, null);
+      throw new CheckRunStoreException("Failed to list evidence retention events.", error);
+    }
+  }
+
+  @Override
+  public EvidenceRateLimitDecision tryAcquireEvidenceRateLimit(
+      String bucketKey, String windowType, Instant windowStart, int maxRequests, Instant now) {
+    ensureInitialized();
+    String key = trimToEmpty(bucketKey);
+    String type = trimToEmpty(windowType);
+    if (key.isBlank() || type.isBlank() || windowStart == null || now == null || maxRequests < 1) {
+      throw new IllegalArgumentException("Rate-limit bucket, window, current time, and positive limit are required.");
+    }
+    Instant windowEnd = windowStart.plus(parseWindowSeconds(type), java.time.temporal.ChronoUnit.SECONDS);
+    long retryAfterSeconds = Math.max(1, Duration.between(now, windowEnd).toSeconds() + 1);
+    for (int attempt = 0; attempt < 3; attempt++) {
+      try (Connection connection = openConnection()) {
+        connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+        connection.setAutoCommit(false);
+        try {
+          RateLimitBucket existing = findRateLimitBucket(connection, key);
+          if (existing == null) {
+            try (PreparedStatement insert = connection.prepareStatement("""
+                INSERT INTO evidence_rate_limit_buckets (
+                  bucket_key, window_type, window_started_at, request_count, updated_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """)) {
+              applyQueryTimeout(insert);
+              insert.setString(1, key);
+              insert.setString(2, type);
+              insert.setString(3, windowStart.toString());
+              insert.setInt(4, 1);
+              insert.setString(5, now.toString());
+              insert.executeUpdate();
+            }
+            connection.commit();
+            return new EvidenceRateLimitDecision(true, retryAfterSeconds);
+          }
+          if (type.equals(existing.windowType()) && windowStart.equals(existing.windowStartedAt())) {
+            if (existing.requestCount() >= maxRequests) {
+              connection.commit();
+              return new EvidenceRateLimitDecision(false, retryAfterSeconds);
+            }
+            try (PreparedStatement increment = connection.prepareStatement("""
+                UPDATE evidence_rate_limit_buckets
+                SET request_count = request_count + 1, updated_at = ?
+                WHERE bucket_key = ? AND window_type = ? AND window_started_at = ? AND request_count < ?
+                """)) {
+              applyQueryTimeout(increment);
+              increment.setString(1, now.toString());
+              increment.setString(2, key);
+              increment.setString(3, type);
+              increment.setString(4, windowStart.toString());
+              increment.setInt(5, maxRequests);
+              if (increment.executeUpdate() == 1) {
+                connection.commit();
+                return new EvidenceRateLimitDecision(true, retryAfterSeconds);
+              }
+            }
+          } else {
+            try (PreparedStatement reset = connection.prepareStatement("""
+                UPDATE evidence_rate_limit_buckets
+                SET window_type = ?, window_started_at = ?, request_count = 1, updated_at = ?
+                WHERE bucket_key = ? AND window_type = ? AND window_started_at = ?
+                """)) {
+              applyQueryTimeout(reset);
+              reset.setString(1, type);
+              reset.setString(2, windowStart.toString());
+              reset.setString(3, now.toString());
+              reset.setString(4, key);
+              reset.setString(5, existing.windowType());
+              reset.setString(6, existing.windowStartedAt().toString());
+              if (reset.executeUpdate() == 1) {
+                connection.commit();
+                return new EvidenceRateLimitDecision(true, retryAfterSeconds);
+              }
+            }
+          }
+          connection.rollback();
+        } catch (SQLException error) {
+          connection.rollback();
+          if (attempt == 2) {
+            throw error;
+          }
+        }
+      } catch (SQLException error) {
+        if (attempt == 2) {
+          logDbFailure("acquire_evidence_rate_limit", error, null, null);
+          throw new CheckRunStoreException("Failed to enforce evidence rate limit.", error);
+        }
+      }
+    }
+    return new EvidenceRateLimitDecision(false, retryAfterSeconds);
+  }
+
+  private RateLimitBucket findRateLimitBucket(Connection connection, String bucketKey) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement("""
+        SELECT window_type, window_started_at, request_count
+        FROM evidence_rate_limit_buckets
+        WHERE bucket_key = ?
+        """)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, bucketKey);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next()
+            ? new RateLimitBucket(
+                resultSet.getString("window_type"), parseInstant(resultSet.getString("window_started_at")),
+                resultSet.getInt("request_count"))
+            : null;
+      }
+    }
+  }
+
+  private long parseWindowSeconds(String windowType) {
+    if (!windowType.startsWith("fixed-") || !windowType.endsWith("s")) {
+      throw new IllegalArgumentException("Unsupported evidence rate-limit window type.");
+    }
+    try {
+      long seconds = Long.parseLong(windowType.substring("fixed-".length(), windowType.length() - 1));
+      if (seconds < 1 || seconds > Duration.ofHours(1).toSeconds()) {
+        throw new IllegalArgumentException("Evidence rate-limit window is out of range.");
+      }
+      return seconds;
+    } catch (NumberFormatException error) {
+      throw new IllegalArgumentException("Unsupported evidence rate-limit window type.", error);
+    }
+  }
+
+  private RetentionTarget findRetentionTarget(Connection connection, String evidenceId) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement("""
+        SELECT evidence_id, contract_id, oidc_repository, raw_evidence
+        FROM check_evidence
+        WHERE evidence_id = ?
+        """)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, evidenceId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next()
+            ? new RetentionTarget(
+                resultSet.getString("evidence_id"), resultSet.getString("contract_id"),
+                resultSet.getString("oidc_repository"), resultSet.getString("raw_evidence"))
+            : null;
+      }
+    }
+  }
+
+  private boolean hasActiveLegalHold(Connection connection, RetentionTarget target) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement("""
+        SELECT 1 FROM evidence_legal_holds
+        WHERE active = 1
+          AND (evidence_id = ?
+            OR (evidence_id IS NULL AND contract_id = ? AND (repository IS NULL OR repository = ?)))
+        LIMIT 1
+        """)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, target.evidenceId());
+      statement.setString(2, target.contractId());
+      statement.setString(3, target.repository());
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next();
+      }
+    }
   }
 
   public void recordAuditLog(AuditLogEntry entry) {
@@ -1631,6 +2134,43 @@ public class CheckRunStore implements MetadataStore {
     statement.setString(index, delivery.failureMessage());
   }
 
+  private void bindEvidence(PreparedStatement statement, CheckEvidence evidence) throws SQLException {
+    EvidenceImportRequest request = evidence.request();
+    int index = 1;
+    statement.setString(index++, evidence.evidenceId());
+    statement.setString(index++, request.idempotencyKey());
+    statement.setString(index++, evidence.payloadSha256());
+    statement.setString(index++, request.contractId());
+    statement.setString(index++, request.baseVersion());
+    statement.setString(index++, request.candidateVersion());
+    statement.setString(index++, request.compatibilityMode());
+    statement.setString(index++, request.commitSha());
+    statement.setString(index++, request.baseSchemaSha256());
+    statement.setString(index++, request.candidateSchemaSha256());
+    statement.setString(index++, request.engineVersion());
+    statement.setString(index++, request.engineCompatibilityProtocol());
+    statement.setString(index++, request.policyPackName());
+    statement.setString(index++, request.policyPackSha256());
+    statement.setString(index++, request.localStatus());
+    statement.setString(index++, toJsonArray(request.breakingChanges()));
+    statement.setString(index++, toJsonArray(request.warnings()));
+    statement.setString(index++, request.executedAt().toString());
+    statement.setString(index++, request.ciIdentity());
+    statement.setString(index++, request.buildUrl());
+    statement.setString(index++, evidence.rawEvidence());
+    statement.setString(index++, evidence.provenance().authenticatedIdentity());
+    statement.setString(index++, evidence.provenance().authenticationScheme());
+    statement.setString(index++, evidence.provenance().issuer());
+    statement.setString(index++, evidence.provenance().subject());
+    statement.setString(index++, evidence.provenance().audience());
+    statement.setString(index++, evidence.provenance().repository());
+    statement.setString(index++, evidence.provenance().ref());
+    statement.setString(index++, evidence.importStatus().name());
+    statement.setString(index++, evidence.verificationReason());
+    statement.setString(index++, evidence.authoritativeRunId());
+    statement.setString(index, evidence.importedAt().toString());
+  }
+
   private Optional<NotificationDelivery> findNotificationDeliveryByDedupe(
       String dedupeKey, String sinkName) {
     try (Connection connection = openConnection();
@@ -1680,6 +2220,46 @@ public class CheckRunStore implements MetadataStore {
         resultSet.getString("failure_message"));
   }
 
+  private CheckEvidence mapEvidence(ResultSet resultSet) throws SQLException {
+    EvidenceImportRequest request = new EvidenceImportRequest(
+        "1.0",
+        resultSet.getString("idempotency_key"),
+        resultSet.getString("contract_id"),
+        resultSet.getString("base_version"),
+        resultSet.getString("candidate_version"),
+        resultSet.getString("compatibility_mode"),
+        resultSet.getString("commit_sha"),
+        resultSet.getString("base_schema_sha256"),
+        resultSet.getString("candidate_schema_sha256"),
+        resultSet.getString("engine_version"),
+        resultSet.getString("engine_compatibility_protocol"),
+        resultSet.getString("policy_pack_name"),
+        resultSet.getString("policy_pack_sha256"),
+        resultSet.getString("local_status"),
+        parseDetails(resultSet.getString("breaking_changes")),
+        parseDetails(resultSet.getString("warnings")),
+        parseInstant(resultSet.getString("executed_at")),
+        resultSet.getString("ci_identity"),
+        resultSet.getString("build_url"));
+    return new CheckEvidence(
+        resultSet.getString("evidence_id"),
+        request,
+        resultSet.getString("payload_sha256"),
+        resultSet.getString("raw_evidence"),
+        new EvidenceProvenance(
+            resultSet.getString("auth_scheme"),
+            resultSet.getString("authenticated_identity"),
+            resultSet.getString("oidc_issuer"),
+            resultSet.getString("oidc_subject"),
+            resultSet.getString("oidc_audience"),
+            resultSet.getString("oidc_repository"),
+            resultSet.getString("oidc_ref")),
+        EvidenceImportStatus.valueOf(resultSet.getString("import_status")),
+        resultSet.getString("verification_reason"),
+        resultSet.getString("authoritative_run_id"),
+        parseInstant(resultSet.getString("imported_at")));
+  }
+
   private Instant parseInstant(String value) {
     String normalized = trimToEmpty(value);
     if (normalized.isBlank()) {
@@ -1707,4 +2287,9 @@ public class CheckRunStore implements MetadataStore {
         rs.getString("started_at"),
         rs.getString("finished_at"));
   }
+
+  private record RetentionTarget(
+      String evidenceId, String contractId, String repository, String rawEvidence) {}
+
+  private record RateLimitBucket(String windowType, Instant windowStartedAt, int requestCount) {}
 }

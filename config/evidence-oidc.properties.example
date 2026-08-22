@@ -1,0 +1,13 @@
+# Production evidence-ingestion policy. Copy to a deployment-only configuration source;
+# do not commit provider tokens, private keys, or client secrets.
+app.security.evidence-auth.mode=OIDC
+app.security.evidence-auth.oidc.issuer-uri=https://token.actions.githubusercontent.com
+app.security.evidence-auth.oidc.trusted-issuers[0]=https://token.actions.githubusercontent.com
+app.security.evidence-auth.oidc.audience=dcg-evidence
+app.security.evidence-auth.oidc.repository-claim=repository
+app.security.evidence-auth.oidc.ref-claim=ref
+
+# Every contract requires an explicit repository and branch/ref allow-list.
+app.security.evidence-auth.oidc.contract-authorizations[0].contract-id=orders.created
+app.security.evidence-auth.oidc.contract-authorizations[0].repositories[0]=acme/orders
+app.security.evidence-auth.oidc.contract-authorizations[0].branches[0]=refs/heads/main

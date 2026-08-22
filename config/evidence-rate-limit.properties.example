@@ -1,0 +1,11 @@
+# Evidence ingestion boundary controls. Place these values in the deployment configuration source.
+# They apply to POST /checks/evidence only.
+
+# Reject declared oversize requests before MVC deserializes them; chunked bodies are stopped while read.
+CHECKS_EVIDENCE_MAX_PAYLOAD_BYTES=1048576
+
+# Shared database-backed fixed-window quota. The bucket key is derived from the authenticated
+# principal and repository; neither raw value is stored in the limiter table.
+CHECKS_EVIDENCE_RATE_LIMIT_ENABLED=true
+CHECKS_EVIDENCE_RATE_LIMIT_REQUESTS_PER_WINDOW=60
+CHECKS_EVIDENCE_RATE_LIMIT_WINDOW=1m

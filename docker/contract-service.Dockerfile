@@ -10,6 +10,9 @@ COPY contract-cli/pom.xml contract-cli/pom.xml
 COPY contract-service/pom.xml contract-service/pom.xml
 COPY contract-validation-spring-boot-starter/pom.xml contract-validation-spring-boot-starter/pom.xml
 COPY contract-sdk/pom.xml contract-sdk/pom.xml
+COPY contract-build-support/pom.xml contract-build-support/pom.xml
+COPY contract-maven-plugin/pom.xml contract-maven-plugin/pom.xml
+COPY contract-gradle-plugin/pom.xml contract-gradle-plugin/pom.xml
 COPY examples/dcg-spring-boot-realworld-demo/pom.xml examples/dcg-spring-boot-realworld-demo/pom.xml
 COPY examples/spring-boot-realworld-demo/pom.xml examples/spring-boot-realworld-demo/pom.xml
 

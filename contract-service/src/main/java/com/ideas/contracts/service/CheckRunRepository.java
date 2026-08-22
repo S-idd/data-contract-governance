@@ -33,6 +33,8 @@ public interface CheckRunRepository {
 
   record NotificationEnqueueResult(NotificationDelivery delivery, boolean created) {}
 
+  record EvidenceImportResult(CheckEvidence evidence, boolean created) {}
+
   List<CheckRunResponse> list(String contractId, String commitSha);
 
   CheckRunPageResponse listPage(CheckRunQuery query);
@@ -50,6 +52,27 @@ public interface CheckRunRepository {
   void appendLog(String runId, String level, String message);
 
   CheckRunCreateResponse createQueuedRun(CheckRunCreateRequest request);
+
+  EvidenceImportResult importEvidence(CheckEvidence evidence);
+
+  Optional<CheckEvidence> findEvidenceByIdempotencyKey(String idempotencyKey);
+
+  List<CheckEvidence> listEvidence(String contractId, String importStatus, int limit);
+
+  List<CheckEvidence> listRetentionCandidates(
+      List<String> importStatuses, Instant importedBefore, int limit);
+
+  EvidenceLegalHold placeEvidenceLegalHold(EvidenceLegalHold hold);
+
+  boolean releaseEvidenceLegalHold(String holdId, String releasedBy, String reason);
+
+  boolean recordArchiveAndPurgeRawEvidence(
+      String evidenceId, EvidenceArchiveReceipt archive, String policyVersion, String actor);
+
+  List<EvidenceRetentionEvent> listEvidenceRetentionEvents(String evidenceId, int limit);
+
+  EvidenceRateLimitDecision tryAcquireEvidenceRateLimit(
+      String bucketKey, String windowType, Instant windowStart, int maxRequests, Instant now);
 
   void recordAuditLog(AuditLogEntry entry);
 

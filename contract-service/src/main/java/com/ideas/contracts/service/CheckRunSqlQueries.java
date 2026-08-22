@@ -66,6 +66,41 @@ final class CheckRunSqlQueries {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       """;
 
+  static final String INSERT_CHECK_EVIDENCE = """
+      INSERT INTO check_evidence (
+        evidence_id, idempotency_key, payload_sha256, contract_id, base_version, candidate_version,
+        compatibility_mode, commit_sha, base_schema_sha256, candidate_schema_sha256,
+        engine_version, engine_compatibility_protocol, policy_pack_name, policy_pack_sha256,
+        local_status, breaking_changes, warnings, executed_at, ci_identity, build_url,
+        raw_evidence, authenticated_identity, auth_scheme, oidc_issuer, oidc_subject, oidc_audience,
+        oidc_repository, oidc_ref, import_status, verification_reason, authoritative_run_id, imported_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      """;
+
+  static final String FIND_CHECK_EVIDENCE_BY_IDEMPOTENCY = """
+      SELECT evidence_id, idempotency_key, payload_sha256, contract_id, base_version, candidate_version,
+             compatibility_mode, commit_sha, base_schema_sha256, candidate_schema_sha256,
+             engine_version, engine_compatibility_protocol, policy_pack_name, policy_pack_sha256,
+             local_status, breaking_changes, warnings, executed_at, ci_identity, build_url,
+             raw_evidence, authenticated_identity, auth_scheme, oidc_issuer, oidc_subject, oidc_audience,
+             oidc_repository, oidc_ref, import_status, verification_reason, authoritative_run_id, imported_at
+      FROM check_evidence
+      WHERE idempotency_key = ?
+      LIMIT 1
+      """;
+
+  static final String LIST_CHECK_EVIDENCE_BASE = """
+      SELECT evidence_id, idempotency_key, payload_sha256, contract_id, base_version, candidate_version,
+             compatibility_mode, commit_sha, base_schema_sha256, candidate_schema_sha256,
+             engine_version, engine_compatibility_protocol, policy_pack_name, policy_pack_sha256,
+             local_status, breaking_changes, warnings, executed_at, ci_identity, build_url,
+             raw_evidence, authenticated_identity, auth_scheme, oidc_issuer, oidc_subject, oidc_audience,
+             oidc_repository, oidc_ref, import_status, verification_reason,
+             authoritative_run_id, imported_at
+      FROM check_evidence
+      WHERE 1=1
+      """;
+
   static final String INSERT_AUDIT_LOG = """
       INSERT INTO audit_logs (
         audit_id, action, actor, actor_roles, source, request_id, http_method, path,

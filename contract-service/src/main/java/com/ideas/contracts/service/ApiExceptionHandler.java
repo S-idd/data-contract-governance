@@ -9,6 +9,7 @@ import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -27,6 +28,13 @@ public class ApiExceptionHandler {
   private static final String EXECUTION_FAILED = "EXECUTION_FAILED";
   private static final String RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND";
   private static final String CONFLICT = "RESOURCE_CONFLICT";
+  private static final String EVIDENCE_IDEMPOTENCY_CONFLICT = "EVIDENCE_IDEMPOTENCY_CONFLICT";
+  private static final String EVIDENCE_PAYLOAD_REQUIRED = "EVIDENCE_PAYLOAD_REQUIRED";
+  private static final String EVIDENCE_PAYLOAD_TOO_LARGE = "EVIDENCE_PAYLOAD_TOO_LARGE";
+  private static final String MALFORMED_DOCUMENT = "MALFORMED_DOCUMENT";
+  private static final String AUTH_FAILED = "AUTH_FAILED";
+  private static final String CONTRACT_NOT_AUTHORIZED = "CONTRACT_NOT_AUTHORIZED";
+  private static final String EVIDENCE_RATE_LIMITED = "EVIDENCE_RATE_LIMITED";
   private static final String INTERNAL_ERROR = "INTERNAL_ERROR";
   private static final String DEFAULT_UNAVAILABLE_MESSAGE = "Check history store is currently unavailable.";
 
@@ -54,16 +62,40 @@ public class ApiExceptionHandler {
         ex.getMessage());
   }
 
+  @ExceptionHandler(EvidenceIdempotencyConflictException.class)
+  public ResponseEntity<ApiErrorResponse> handleEvidenceIdempotencyConflict(
+      EvidenceIdempotencyConflictException ex,
+      HttpServletRequest request) {
+    return buildErrorResponse(
+        ex, request, HttpStatus.CONFLICT, EVIDENCE_IDEMPOTENCY_CONFLICT, ex.getMessage());
+  }
+
+  @ExceptionHandler(EvidenceRateLimitExceededException.class)
+  public ResponseEntity<ApiErrorResponse> handleEvidenceRateLimit(
+      EvidenceRateLimitExceededException ex,
+      HttpServletRequest request) {
+    ResponseEntity<ApiErrorResponse> response = buildErrorResponse(
+        ex, request, HttpStatus.TOO_MANY_REQUESTS, EVIDENCE_RATE_LIMITED,
+        "Evidence import rate limit exceeded. Retry later.");
+    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+        .header(HttpHeaders.RETRY_AFTER, Long.toString(ex.retryAfterSeconds()))
+        .body(response.getBody());
+  }
+
+  @ExceptionHandler(EvidencePayloadLimitExceededException.class)
+  public ResponseEntity<ApiErrorResponse> handleEvidencePayloadTooLarge(
+      EvidencePayloadLimitExceededException ex,
+      HttpServletRequest request) {
+    return buildErrorResponse(ex, request, HttpStatus.PAYLOAD_TOO_LARGE,
+        EVIDENCE_PAYLOAD_TOO_LARGE, "Evidence payload exceeds the configured size limit.");
+  }
+
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ApiErrorResponse> handleInvalidRequest(
       IllegalArgumentException ex,
       HttpServletRequest request) {
-    return buildErrorResponse(
-        ex,
-        request,
-        HttpStatus.BAD_REQUEST,
-        INVALID_REQUEST,
-        ex.getMessage());
+    return buildErrorResponse(ex, request, HttpStatus.BAD_REQUEST,
+        evidenceInvalidRequestCode(request, ex.getMessage()), ex.getMessage());
   }
 
   @ExceptionHandler(SchemaValidationException.class)
@@ -145,7 +177,31 @@ public class ApiExceptionHandler {
       case BAD_REQUEST -> INVALID_REQUEST;
       default -> status.name();
     };
+    if ("/checks/evidence".equals(request.getRequestURI())) {
+      if (status == HttpStatus.UNAUTHORIZED) {
+        code = AUTH_FAILED;
+      } else if (status == HttpStatus.FORBIDDEN) {
+        code = CONTRACT_NOT_AUTHORIZED;
+      }
+    }
     return buildErrorResponse(ex, request, status, code, ex.getReason());
+  }
+
+  private String evidenceInvalidRequestCode(HttpServletRequest request, String message) {
+    if (!"/checks/evidence".equals(request.getRequestURI())) {
+      return INVALID_REQUEST;
+    }
+    String normalized = safeValue(message);
+    if (normalized.startsWith(MALFORMED_DOCUMENT + ":")) {
+      return MALFORMED_DOCUMENT;
+    }
+    if (normalized.startsWith(EVIDENCE_PAYLOAD_REQUIRED + ":")) {
+      return EVIDENCE_PAYLOAD_REQUIRED;
+    }
+    if (normalized.startsWith(EVIDENCE_PAYLOAD_TOO_LARGE + ":")) {
+      return EVIDENCE_PAYLOAD_TOO_LARGE;
+    }
+    return INVALID_REQUEST;
   }
 
   @ExceptionHandler(NoResourceFoundException.class)

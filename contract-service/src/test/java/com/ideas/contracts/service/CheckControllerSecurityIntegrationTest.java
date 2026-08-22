@@ -111,6 +111,13 @@ class CheckControllerSecurityIntegrationTest {
   }
 
   @Test
+  void retentionExecutionRequiresDedicatedOperatorRole() throws Exception {
+    mockMvc.perform(post("/checks/evidence/retention/run")
+            .header("Authorization", basicAuthHeader("tester", "secret")))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
   void createCheckRunWritesAuditLogWhenAuthorized() throws Exception {
     String payload = """
         {
