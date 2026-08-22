@@ -46,6 +46,9 @@
     <logback.version>1.5.34</logback.version>
     <jackson-bom.version>2.22.1</jackson-bom.version>
     <jackson-annotations.version>2.22</jackson-annotations.version>
+    <!-- Needed once contract-service / spring-boot-realworld-demo pull in
+         Spring Security - pinned explicitly rather than trusting Boot
+         3.5.14's bundled defaults to match the scan's fixed versions. -->
     <spring-framework.version>6.2.19</spring-framework.version>
     <spring-security.version>6.5.11</spring-security.version>
   </properties>
