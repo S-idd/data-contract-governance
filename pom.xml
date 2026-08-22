@@ -38,7 +38,7 @@
     <!-- Explicit overrides for CVEs not yet covered by spring-boot-dependencies 3.5.14.
          These are Spring Boot's documented "Version Properties" override hooks -
          no need for manual <dependencyManagement> entries. -->
-    <tomcat.version>10.1.55</tomcat.version>
+    <tomcat.version>11.0.25</tomcat.version>
     <netty.version>4.1.136.Final</netty.version>
     <postgresql.version>42.7.12</postgresql.version>
     <commons-lang3.version>3.18.0</commons-lang3.version>
