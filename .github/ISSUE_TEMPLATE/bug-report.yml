@@ -1,0 +1,33 @@
+name: Bug report
+description: Report reproducible behavior in a supported configuration.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include secrets, tokens, private endpoints, or customer data. Use SECURITY.md for vulnerabilities."
+  - type: input
+    id: version
+    attributes:
+      label: DCG version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and storage backend
+      description: Include Java, OS, deployment type, and database version without credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true

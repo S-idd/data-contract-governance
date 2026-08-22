@@ -28,6 +28,9 @@ public final class PolicyPackDefaults {
     rules.put(RuleId.REQUIRED_FIELD_ADDED, RuleSeverity.BREAKING);
     rules.put(RuleId.ENUM_VALUE_REMOVED, RuleSeverity.BREAKING);
     rules.put(RuleId.ENUM_VALUE_ADDED, RuleSeverity.WARNING);
+    rules.put(RuleId.CONSTRAINT_TIGHTENED, RuleSeverity.BREAKING);
+    rules.put(RuleId.CONDITIONAL_RESTRICTION_ADDED, RuleSeverity.BREAKING);
+    rules.put(RuleId.SCHEMA_RESTRICTION_ADDED, RuleSeverity.BREAKING);
     return Collections.unmodifiableMap(rules);
   }
 }

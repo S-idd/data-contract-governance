@@ -13,12 +13,19 @@ public class CheckStoreProperties {
   private String password = "";
   private String usernameEnv = "";
   private String passwordEnv = "";
+  private String migrationUsername = "";
+  private String migrationPassword = "";
+  private String migrationUsernameEnv = "";
+  private String migrationPasswordEnv = "";
   private String expectedSchema = "";
   private boolean failFastStartup;
   private boolean enforceSecurePostgres;
+  private boolean enforceSecureMysql;
+  private boolean enforceSeparateMigrationCredentials;
   private Duration queryTimeout = Duration.ofSeconds(5);
   private final Pool pool = new Pool();
   private final Ssl ssl = new Ssl();
+  private final Mysql mysql = new Mysql();
   private final Sqlite sqlite = new Sqlite();
 
   public String getUrl() {
@@ -69,6 +76,38 @@ public class CheckStoreProperties {
     this.passwordEnv = passwordEnv;
   }
 
+  public String getMigrationUsername() {
+    return migrationUsername;
+  }
+
+  public void setMigrationUsername(String migrationUsername) {
+    this.migrationUsername = migrationUsername;
+  }
+
+  public String getMigrationPassword() {
+    return migrationPassword;
+  }
+
+  public void setMigrationPassword(String migrationPassword) {
+    this.migrationPassword = migrationPassword;
+  }
+
+  public String getMigrationUsernameEnv() {
+    return migrationUsernameEnv;
+  }
+
+  public void setMigrationUsernameEnv(String migrationUsernameEnv) {
+    this.migrationUsernameEnv = migrationUsernameEnv;
+  }
+
+  public String getMigrationPasswordEnv() {
+    return migrationPasswordEnv;
+  }
+
+  public void setMigrationPasswordEnv(String migrationPasswordEnv) {
+    this.migrationPasswordEnv = migrationPasswordEnv;
+  }
+
   public String getExpectedSchema() {
     return expectedSchema;
   }
@@ -93,6 +132,22 @@ public class CheckStoreProperties {
     this.enforceSecurePostgres = enforceSecurePostgres;
   }
 
+  public boolean isEnforceSecureMysql() {
+    return enforceSecureMysql;
+  }
+
+  public void setEnforceSecureMysql(boolean enforceSecureMysql) {
+    this.enforceSecureMysql = enforceSecureMysql;
+  }
+
+  public boolean isEnforceSeparateMigrationCredentials() {
+    return enforceSeparateMigrationCredentials;
+  }
+
+  public void setEnforceSeparateMigrationCredentials(boolean enforceSeparateMigrationCredentials) {
+    this.enforceSeparateMigrationCredentials = enforceSeparateMigrationCredentials;
+  }
+
   public Duration getQueryTimeout() {
     return queryTimeout;
   }
@@ -109,6 +164,10 @@ public class CheckStoreProperties {
     return ssl;
   }
 
+  public Mysql getMysql() {
+    return mysql;
+  }
+
   public Sqlite getSqlite() {
     return sqlite;
   }
@@ -121,6 +180,8 @@ public class CheckStoreProperties {
     private Duration maxLifetime = Duration.ofMinutes(30);
     private Duration validationTimeout = Duration.ofSeconds(3);
     private Duration initializationFailTimeout = Duration.ofMillis(-1);
+    private int replicaCount = 1;
+    private int databaseConnectionBudget;
 
     public int getMinimumIdle() {
       return minimumIdle;
@@ -177,6 +238,22 @@ public class CheckStoreProperties {
     public void setInitializationFailTimeout(Duration initializationFailTimeout) {
       this.initializationFailTimeout = initializationFailTimeout;
     }
+
+    public int getReplicaCount() {
+      return replicaCount;
+    }
+
+    public void setReplicaCount(int replicaCount) {
+      this.replicaCount = replicaCount;
+    }
+
+    public int getDatabaseConnectionBudget() {
+      return databaseConnectionBudget;
+    }
+
+    public void setDatabaseConnectionBudget(int databaseConnectionBudget) {
+      this.databaseConnectionBudget = databaseConnectionBudget;
+    }
   }
 
   public static class Ssl {
@@ -224,6 +301,45 @@ public class CheckStoreProperties {
 
     public void setKeyPath(String keyPath) {
       this.keyPath = keyPath;
+    }
+  }
+
+  public static class Mysql {
+    private String trustStoreUrl = "";
+    private String trustStoreType = "PKCS12";
+    private String trustStorePasswordEnv = "";
+    private String tlsVersions = "TLSv1.3,TLSv1.2";
+
+    public String getTrustStoreUrl() {
+      return trustStoreUrl;
+    }
+
+    public void setTrustStoreUrl(String trustStoreUrl) {
+      this.trustStoreUrl = trustStoreUrl;
+    }
+
+    public String getTrustStoreType() {
+      return trustStoreType;
+    }
+
+    public void setTrustStoreType(String trustStoreType) {
+      this.trustStoreType = trustStoreType;
+    }
+
+    public String getTrustStorePasswordEnv() {
+      return trustStorePasswordEnv;
+    }
+
+    public void setTrustStorePasswordEnv(String trustStorePasswordEnv) {
+      this.trustStorePasswordEnv = trustStorePasswordEnv;
+    }
+
+    public String getTlsVersions() {
+      return tlsVersions;
+    }
+
+    public void setTlsVersions(String tlsVersions) {
+      this.tlsVersions = tlsVersions;
     }
   }
 

@@ -19,7 +19,8 @@ Run from the repository root. This removes only DCG Compose resources, including
 
 ```bash
 bash scripts/demo/reset-docker-demo.sh --yes
-cp config/compose.env.example .env
+cp config/compose.live-demo.env.example .env.live-demo
+chmod 600 .env.live-demo
 ```
 
 The checked-in Compose credentials are demonstration-only:

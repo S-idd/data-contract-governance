@@ -49,7 +49,7 @@ All drills used disposable state and a separate recovery target. They did not al
 
 ## 5. Clean-Checkout Compose Rehearsal
 
-1. A detached clean checkout at the reviewed V4 commit used only `config/compose.env.example` to create its local Compose environment.
+1. A detached clean checkout at the reviewed V4 commit used the Compose template to create its local environment. The current equivalent is `config/compose.live-demo.env.example` copied to `.env.live-demo`.
 2. `scripts/demo/run-compose-demo.sh` built the service image, started PostgreSQL and contract-service, and reached `/actuator/health`.
 3. The authenticated sample check submission succeeded and returned a check-run identifier.
 4. The disposable Compose stack, temporary checkout, and its named PostgreSQL volume were removed. The original Compose stack was restored and returned healthy.

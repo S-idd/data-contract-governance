@@ -35,6 +35,7 @@ public class ApiExceptionHandler {
   private static final String AUTH_FAILED = "AUTH_FAILED";
   private static final String CONTRACT_NOT_AUTHORIZED = "CONTRACT_NOT_AUTHORIZED";
   private static final String EVIDENCE_RATE_LIMITED = "EVIDENCE_RATE_LIMITED";
+  private static final String CHECK_RUN_IDEMPOTENCY_CONFLICT = "CHECK_RUN_IDEMPOTENCY_CONFLICT";
   private static final String INTERNAL_ERROR = "INTERNAL_ERROR";
   private static final String DEFAULT_UNAVAILABLE_MESSAGE = "Check history store is currently unavailable.";
 
@@ -68,6 +69,14 @@ public class ApiExceptionHandler {
       HttpServletRequest request) {
     return buildErrorResponse(
         ex, request, HttpStatus.CONFLICT, EVIDENCE_IDEMPOTENCY_CONFLICT, ex.getMessage());
+  }
+
+  @ExceptionHandler(CheckRunIdempotencyConflictException.class)
+  public ResponseEntity<ApiErrorResponse> handleCheckRunIdempotencyConflict(
+      CheckRunIdempotencyConflictException ex,
+      HttpServletRequest request) {
+    return buildErrorResponse(
+        ex, request, HttpStatus.CONFLICT, CHECK_RUN_IDEMPOTENCY_CONFLICT, ex.getMessage());
   }
 
   @ExceptionHandler(EvidenceRateLimitExceededException.class)

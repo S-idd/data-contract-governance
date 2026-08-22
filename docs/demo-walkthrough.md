@@ -1,6 +1,6 @@
 # Local Demo Walkthrough
 
-This walkthrough is the fastest way to show the value of the project to another developer.
+This walkthrough demonstrates DCG with a locally managed PostgreSQL instance. For the recommended Docker-based first demonstration, use the [Compose Quickstart](quickstart-compose.md).
 
 ## Goal
 

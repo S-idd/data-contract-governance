@@ -38,12 +38,12 @@ CREATE TABLE IF NOT EXISTS evidence_retention_events (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS evidence_rate_limit_buckets (
-  bucket_key VARCHAR(1024) PRIMARY KEY,
+  bucket_key VARCHAR(96) CHARACTER SET ascii PRIMARY KEY,
   window_type VARCHAR(32) NOT NULL,
   window_started_at VARCHAR(40) NOT NULL,
   request_count INT NOT NULL,
   updated_at VARCHAR(40) NOT NULL
 ) ENGINE=InnoDB;
 
-CREATE INDEX idx_check_evidence_retention ON check_evidence (import_status, imported_at, evidence_id);
-CREATE INDEX idx_evidence_legal_holds_active ON evidence_legal_holds (active, evidence_id, contract_id, repository);
+CREATE INDEX idx_evidence_legal_holds_active
+  ON evidence_legal_holds (active, evidence_id, contract_id, repository(191));

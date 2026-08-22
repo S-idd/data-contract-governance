@@ -1,0 +1,16 @@
+-- Run this only through the approved database-administration workflow.
+-- Substitute account names, hosts, and passwords from the secret manager; never commit rendered SQL.
+-- The runtime account intentionally has no DDL privileges. Flyway runs with the migration account.
+
+CREATE USER IF NOT EXISTS 'dcg_runtime'@'10.%' IDENTIFIED BY '<runtime-secret-from-secret-manager>';
+CREATE USER IF NOT EXISTS 'dcg_migrator'@'10.%' IDENTIFIED BY '<migration-secret-from-secret-manager>';
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON `contracts`.* TO 'dcg_runtime'@'10.%';
+
+GRANT ALTER, CREATE, DELETE, DROP, INDEX, INSERT, REFERENCES, SELECT, TRIGGER, UPDATE
+  ON `contracts`.* TO 'dcg_migrator'@'10.%';
+
+-- Capture the following output in the production-readiness evidence record.
+SHOW GRANTS FOR 'dcg_runtime'@'10.%';
+SHOW GRANTS FOR 'dcg_migrator'@'10.%';

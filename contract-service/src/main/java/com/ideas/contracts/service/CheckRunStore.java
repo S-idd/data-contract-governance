@@ -7,16 +7,16 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariConfigMXBean;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
+import com.zaxxer.hikari.metrics.micrometer.MicrometerMetricsTrackerFactory;
 import com.ideas.contracts.service.model.CheckRunCreateRequest;
 import com.ideas.contracts.service.model.CheckRunCreateResponse;
 import com.ideas.contracts.service.model.CheckRunLogResponse;
 import com.ideas.contracts.service.model.CheckRunPageResponse;
 import com.ideas.contracts.service.model.CheckRunResponse;
 import com.ideas.contracts.service.model.EvidenceImportRequest;
-import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.MigrationVersion;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.net.URLEncoder;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +44,9 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +56,7 @@ import org.springframework.stereotype.Service;
 public class CheckRunStore implements MetadataStore {
   private static final String SQLITE_JDBC_PREFIX = "jdbc:sqlite:";
   private static final Set<String> ALLOWED_STRICT_SSL_MODES = Set.of("verify-ca", "verify-full");
+  private static final String MYSQL_STRICT_SSL_MODE = "VERIFY_IDENTITY";
   private static final Set<String> ALLOWED_SQLITE_SYNCHRONOUS =
       Set.of("OFF", "NORMAL", "FULL", "EXTRA");
   private static final Set<String> ALLOWED_COMPATIBILITY_MODES =
@@ -72,6 +76,8 @@ public class CheckRunStore implements MetadataStore {
   private final String dbTarget;
   private final DatabaseBackend databaseBackend;
   private final HikariDataSource dataSource;
+  private final String migrationUsername;
+  private final String migrationPassword;
   private final Function<String, String> envLookup;
   private final int queryTimeoutSeconds;
   private final boolean failFastStartup;
@@ -90,13 +96,15 @@ public class CheckRunStore implements MetadataStore {
     String trimmedUrl = trimToEmpty(properties.getUrl());
     CheckStoreProperties.Ssl ssl = properties.getSsl();
     validatePostgresSecurityConstraints(trimmedUrl, ssl, properties.isEnforceSecurePostgres());
+    validateMySqlSecurityConstraints(
+        trimmedUrl, properties.getMysql(), properties.isEnforceSecureMysql());
     if (trimmedUrl.isBlank()) {
       Path resolvedPath = Paths.get(defaultIfBlank(properties.getPath(), "checks.db"));
       this.jdbcUrl = SQLITE_JDBC_PREFIX + resolvedPath;
       this.sqlitePath = resolvedPath;
       this.dbTarget = resolvedPath.toAbsolutePath().toString();
     } else {
-      this.jdbcUrl = withPostgresSslOptions(trimmedUrl, ssl);
+      this.jdbcUrl = withDatabaseSslOptions(trimmedUrl, ssl, properties.getMysql());
       this.sqlitePath = resolveSqlitePath(jdbcUrl);
       this.dbTarget = sanitizeJdbcUrl(jdbcUrl);
     }
@@ -107,10 +115,20 @@ public class CheckRunStore implements MetadataStore {
     warmUpSqliteDriverIfPossible();
     String dbUsername = resolveUsername(properties);
     String dbPassword = resolvePassword(properties);
-    this.dataSource = createDataSource(jdbcUrl, dbUsername, dbPassword, properties.getPool());
+    this.migrationUsername = resolveMigrationUsername(properties);
+    this.migrationPassword = resolveMigrationPassword(properties);
+    validateMigrationCredentials(
+        properties, dbUsername, dbPassword, migrationUsername, migrationPassword);
+    this.dataSource = createDataSource(
+        jdbcUrl, dbUsername, dbPassword, properties.getPool(), properties.getMysql());
     this.queryTimeoutSeconds = toQueryTimeoutSeconds(properties.getQueryTimeout());
     this.failFastStartup = properties.isFailFastStartup();
     this.objectMapper = new ObjectMapper();
+  }
+
+  @Autowired
+  void registerPoolMetrics(MeterRegistry meterRegistry) {
+    dataSource.setMetricsTrackerFactory(new MicrometerMetricsTrackerFactory(meterRegistry));
   }
 
   @PostConstruct
@@ -404,11 +422,21 @@ public class CheckRunStore implements MetadataStore {
   }
 
   public CheckRunCreateResponse createQueuedRun(CheckRunCreateRequest request) {
+    return createQueuedRun(request, null);
+  }
+
+  /**
+   * Creates a queue entry once for a caller-supplied idempotency key. Clients should retain and
+   * replay this key after a connection loss or database failover instead of issuing a new job.
+   */
+  @Override
+  public CheckRunCreateResponse createQueuedRun(CheckRunCreateRequest request, String idempotencyKey) {
     ensureInitialized();
     if (request == null) {
       throw new IllegalArgumentException("request must not be null.");
     }
 
+    String normalizedIdempotencyKey = normalizeCheckRunIdempotencyKey(idempotencyKey);
     String runId = UUID.randomUUID().toString();
     String status = STATUS_QUEUED;
     String createdAt = Instant.now().toString();
@@ -433,14 +461,42 @@ public class CheckRunStore implements MetadataStore {
       statement.setString(index++, request.mode());
       statement.setString(index++, inputHash);
       statement.setString(index++, null);
-      statement.setString(index, null);
+      statement.setString(index++, null);
+      statement.setString(index, normalizedIdempotencyKey);
       statement.executeUpdate();
     } catch (SQLException e) {
+      if (normalizedIdempotencyKey != null) {
+        Optional<IdempotentCheckRun> existing = findCheckRunByIdempotencyKey(normalizedIdempotencyKey);
+        if (existing.isPresent()) {
+          IdempotentCheckRun prior = existing.get();
+          if (inputHash.equals(prior.inputHash())) {
+            return new CheckRunCreateResponse(prior.runId(), prior.status());
+          }
+          throw new CheckRunIdempotencyConflictException(normalizedIdempotencyKey);
+        }
+      }
       logDbFailure("create_check_run", e, request.contractId(), request.commitSha());
       throw new CheckRunStoreException("Failed to create check run in configured database.", e);
     }
 
     return new CheckRunCreateResponse(runId, status);
+  }
+
+  private Optional<IdempotentCheckRun> findCheckRunByIdempotencyKey(String idempotencyKey) {
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(CheckRunSqlQueries.FIND_CHECK_RUN_BY_IDEMPOTENCY)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, idempotencyKey);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next()
+            ? Optional.of(new IdempotentCheckRun(
+                resultSet.getString("run_id"), resultSet.getString("status"),
+                resultSet.getString("input_hash")))
+            : Optional.empty();
+      }
+    } catch (SQLException ignored) {
+      return Optional.empty();
+    }
   }
 
   @Override
@@ -796,7 +852,11 @@ public class CheckRunStore implements MetadataStore {
     }
     Instant windowEnd = windowStart.plus(parseWindowSeconds(type), java.time.temporal.ChronoUnit.SECONDS);
     long retryAfterSeconds = Math.max(1, Duration.between(now, windowEnd).toSeconds() + 1);
-    for (int attempt = 0; attempt < 3; attempt++) {
+    // SERIALIZABLE MySQL transactions can deadlock when many replicas create the same
+    // new bucket at once. Retry with bounded backoff so an admission decision is not
+    // converted into a 500 merely because another contender won the first lock race.
+    int maximumAttempts = 8;
+    for (int attempt = 0; attempt < maximumAttempts; attempt++) {
       try (Connection connection = openConnection()) {
         connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
         connection.setAutoCommit(false);
@@ -862,18 +922,29 @@ public class CheckRunStore implements MetadataStore {
           connection.rollback();
         } catch (SQLException error) {
           connection.rollback();
-          if (attempt == 2) {
+          if (attempt == maximumAttempts - 1) {
             throw error;
           }
+          pauseBeforeRateLimitRetry(attempt);
         }
       } catch (SQLException error) {
-        if (attempt == 2) {
+        if (attempt == maximumAttempts - 1) {
           logDbFailure("acquire_evidence_rate_limit", error, null, null);
           throw new CheckRunStoreException("Failed to enforce evidence rate limit.", error);
         }
+        pauseBeforeRateLimitRetry(attempt);
       }
     }
     return new EvidenceRateLimitDecision(false, retryAfterSeconds);
+  }
+
+  private void pauseBeforeRateLimitRetry(int attempt) {
+    try {
+      Thread.sleep(Math.min(100L, 10L * (attempt + 1)));
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      throw new CheckRunStoreException("Interrupted while retrying evidence rate limit.", error);
+    }
   }
 
   private RateLimitBucket findRateLimitBucket(Connection connection, String bucketKey) throws SQLException {
@@ -1460,13 +1531,16 @@ public class CheckRunStore implements MetadataStore {
         "event=check_store_migrations_selected component=check_run_store backend={} locations={}",
         databaseBackend.label(),
         String.join(",", locations));
-    Flyway.configure()
-        .dataSource(dataSource)
+    FluentConfiguration configuration = Flyway.configure()
         .locations(locations)
         .baselineOnMigrate(true)
-        .baselineVersion(MigrationVersion.fromVersion("0"))
-        .load()
-        .migrate();
+        .baselineVersion(MigrationVersion.fromVersion("0"));
+    if (migrationUsername == null) {
+      configuration.dataSource(dataSource);
+    } else {
+      configuration.dataSource(jdbcUrl, migrationUsername, migrationPassword);
+    }
+    configuration.load().migrate();
   }
 
   private void applySqliteRuntimePragmas() throws SQLException {
@@ -1650,6 +1724,50 @@ public class CheckRunStore implements MetadataStore {
     return fromEnv == null ? "" : fromEnv;
   }
 
+  private String resolveMigrationUsername(CheckStoreProperties properties) {
+    String configuredUsername = normalizeCredential(properties.getMigrationUsername());
+    if (configuredUsername != null) {
+      return configuredUsername;
+    }
+    return normalizeCredential(resolveSecretFromEnv(properties.getMigrationUsernameEnv()));
+  }
+
+  private String resolveMigrationPassword(CheckStoreProperties properties) {
+    String configuredPassword = trimToEmpty(properties.getMigrationPassword());
+    if (!configuredPassword.isBlank()) {
+      return configuredPassword;
+    }
+    String fromEnv = resolveSecretFromEnv(properties.getMigrationPasswordEnv());
+    return fromEnv == null ? "" : fromEnv;
+  }
+
+  private void validateMigrationCredentials(
+      CheckStoreProperties properties,
+      String runtimeUsername,
+      String runtimePassword,
+      String configuredMigrationUsername,
+      String configuredMigrationPassword) {
+    if (!properties.isEnforceSeparateMigrationCredentials() || !isMySqlUrl(jdbcUrl)) {
+      return;
+    }
+    if (configuredMigrationUsername == null || configuredMigrationUsername.isBlank()
+        || configuredMigrationPassword == null || configuredMigrationPassword.isBlank()) {
+      throw new IllegalStateException(
+          "Dedicated MySQL migration credentials must be configured when "
+              + "checks.db.enforce-separate-migration-credentials=true.");
+    }
+    if (configuredMigrationUsername.equals(runtimeUsername)) {
+      throw new IllegalStateException(
+          "MySQL migration username must differ from the runtime username when "
+              + "checks.db.enforce-separate-migration-credentials=true.");
+    }
+    if (!runtimePassword.isBlank() && configuredMigrationPassword.equals(runtimePassword)) {
+      throw new IllegalStateException(
+          "MySQL migration password must differ from the runtime password when "
+              + "checks.db.enforce-separate-migration-credentials=true.");
+    }
+  }
+
   private String resolveSecretFromEnv(String envVarName) {
     String normalizedEnvVarName = normalizeCredential(envVarName);
     if (normalizedEnvVarName == null) {
@@ -1675,6 +1793,20 @@ public class CheckRunStore implements MetadataStore {
     if (pool.getMinimumIdle() < 0 || pool.getMinimumIdle() > pool.getMaximumSize()) {
       throw new IllegalStateException(
           "checks.db.pool.minimum-idle must be between 0 and checks.db.pool.maximum-size.");
+    }
+    if (pool.getReplicaCount() < 1) {
+      throw new IllegalStateException("checks.db.pool.replica-count must be greater than 0.");
+    }
+    if (pool.getDatabaseConnectionBudget() < 0) {
+      throw new IllegalStateException(
+          "checks.db.pool.database-connection-budget must not be negative.");
+    }
+    long requestedConnections = (long) pool.getMaximumSize() * pool.getReplicaCount();
+    if (pool.getDatabaseConnectionBudget() > 0
+        && requestedConnections > pool.getDatabaseConnectionBudget()) {
+      throw new IllegalStateException(
+          "checks.db.pool.maximum-size * checks.db.pool.replica-count must not exceed "
+              + "checks.db.pool.database-connection-budget.");
     }
     requirePositiveDuration("checks.db.query-timeout", properties.getQueryTimeout());
     requirePositiveDuration("checks.db.pool.connection-timeout", pool.getConnectionTimeout());
@@ -1734,6 +1866,34 @@ public class CheckRunStore implements MetadataStore {
           "checks.db.ssl.mode must be one of "
               + ALLOWED_STRICT_SSL_MODES
               + " when checks.db.enforce-secure-postgres=true.");
+    }
+  }
+
+  private void validateMySqlSecurityConstraints(
+      String configuredDbUrl,
+      CheckStoreProperties.Mysql mysqlProperties,
+      boolean enforceSecureMysql) {
+    if (!enforceSecureMysql || !isMySqlUrl(configuredDbUrl)) {
+      return;
+    }
+    if (mysqlProperties == null || trimToEmpty(mysqlProperties.getTrustStoreUrl()).isBlank()) {
+      throw new IllegalStateException(
+          "checks.db.mysql.trust-store-url must be set when checks.db.enforce-secure-mysql=true.");
+    }
+    rejectMySqlUrlParameter(configuredDbUrl, "useSSL", "false");
+    rejectMySqlUrlParameter(configuredDbUrl, "allowPublicKeyRetrieval", "true");
+    rejectMySqlUrlParameter(configuredDbUrl, "sslMode", "DISABLED");
+    rejectMySqlUrlParameter(configuredDbUrl, "sslMode", "PREFERRED");
+    rejectMySqlUrlParameter(configuredDbUrl, "sslMode", "REQUIRED");
+    rejectMySqlUrlParameter(configuredDbUrl, "sslMode", "VERIFY_CA");
+  }
+
+  private void rejectMySqlUrlParameter(String jdbcUrl, String parameter, String prohibitedValue) {
+    String value = queryParamValue(jdbcUrl, parameter);
+    if (value != null && prohibitedValue.equalsIgnoreCase(URLDecoder.decode(value, StandardCharsets.UTF_8))) {
+      throw new IllegalStateException(
+          "MySQL JDBC parameter '" + parameter + "=" + prohibitedValue
+              + "' is not permitted when checks.db.enforce-secure-mysql=true.");
     }
   }
 
@@ -1834,7 +1994,8 @@ public class CheckRunStore implements MetadataStore {
       String jdbcUrl,
       String username,
       String password,
-      CheckStoreProperties.Pool poolProperties) {
+      CheckStoreProperties.Pool poolProperties,
+      CheckStoreProperties.Mysql mysqlProperties) {
     CheckStoreProperties.Pool pool = poolProperties == null ? new CheckStoreProperties.Pool() : poolProperties;
     int maxPoolSize = pool.getMaximumSize();
     int minIdle = pool.getMinimumIdle();
@@ -1854,6 +2015,13 @@ public class CheckRunStore implements MetadataStore {
     config.setValidationTimeout(toPositiveMillis(pool.getValidationTimeout(), Duration.ofSeconds(3), 250));
     config.setInitializationFailTimeout(toInitializationFailTimeoutMillis(pool.getInitializationFailTimeout()));
     config.setAutoCommit(true);
+    if (isMySqlUrl(jdbcUrl) && mysqlProperties != null) {
+      String passwordEnv = trimToEmpty(mysqlProperties.getTrustStorePasswordEnv());
+      if (!passwordEnv.isBlank()) {
+        config.addDataSourceProperty(
+            "trustCertificateKeyStorePassword", resolveSecretFromEnv(passwordEnv));
+      }
+    }
     if (isSqliteUrl(jdbcUrl)) {
       config.setConnectionInitSql("PRAGMA busy_timeout=" + sqliteBusyTimeoutMillis(sqliteSettings.getBusyTimeout()));
     }
@@ -1902,6 +2070,16 @@ public class CheckRunStore implements MetadataStore {
     return Math.max(1, millis);
   }
 
+  private String withDatabaseSslOptions(
+      String url,
+      CheckStoreProperties.Ssl sslProperties,
+      CheckStoreProperties.Mysql mysqlProperties) {
+    if (isMySqlUrl(url) && mysqlProperties != null && !trimToEmpty(mysqlProperties.getTrustStoreUrl()).isBlank()) {
+      return withMySqlSslOptions(url, mysqlProperties);
+    }
+    return withPostgresSslOptions(url, sslProperties);
+  }
+
   private String withPostgresSslOptions(String url, CheckStoreProperties.Ssl sslProperties) {
     if (sslProperties == null || !sslProperties.isEnabled() || !url.startsWith("jdbc:postgresql:")) {
       return url;
@@ -1911,6 +2089,17 @@ public class CheckRunStore implements MetadataStore {
     String withRootCert = appendQueryParamIfMissing(withMode, "sslrootcert", sslProperties.getRootCertPath());
     String withClientCert = appendQueryParamIfMissing(withRootCert, "sslcert", sslProperties.getCertPath());
     return appendQueryParamIfMissing(withClientCert, "sslkey", sslProperties.getKeyPath());
+  }
+
+  private String withMySqlSslOptions(String url, CheckStoreProperties.Mysql mysqlProperties) {
+    String withMode = appendQueryParamIfMissing(url, "sslMode", MYSQL_STRICT_SSL_MODE);
+    String withTrustStore = appendQueryParamIfMissing(
+        withMode, "trustCertificateKeyStoreUrl", mysqlProperties.getTrustStoreUrl());
+    String withTrustStoreType = appendQueryParamIfMissing(
+        withTrustStore, "trustCertificateKeyStoreType", mysqlProperties.getTrustStoreType());
+    String withNoSystemFallback = appendQueryParamIfMissing(
+        withTrustStoreType, "fallbackToSystemTrustStore", "false");
+    return appendQueryParamIfMissing(withNoSystemFallback, "tlsVersions", mysqlProperties.getTlsVersions());
   }
 
   private String appendQueryParamIfMissing(String url, String key, String value) {
@@ -2016,6 +2205,17 @@ public class CheckRunStore implements MetadataStore {
         request.mode(),
         request.commitSha(),
         request.triggeredBy());
+  }
+
+  private String normalizeCheckRunIdempotencyKey(String value) {
+    String normalized = trimToEmpty(value);
+    if (normalized.isBlank()) {
+      return null;
+    }
+    if (normalized.length() > 191) {
+      throw new IllegalArgumentException("Idempotency-Key must not exceed 191 characters.");
+    }
+    return normalized;
   }
 
   private String computeInputHash(
@@ -2292,4 +2492,6 @@ public class CheckRunStore implements MetadataStore {
       String evidenceId, String contractId, String repository, String rawEvidence) {}
 
   private record RateLimitBucket(String windowType, Instant windowStartedAt, int requestCount) {}
+
+  private record IdempotentCheckRun(String runId, String status, String inputHash) {}
 }

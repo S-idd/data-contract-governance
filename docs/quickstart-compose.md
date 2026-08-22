@@ -6,6 +6,9 @@ This is the fastest "fresh machine" path for running Data Contract Governance wi
 - PostgreSQL
 - sample contracts mounted from `./contracts`
 
+This is a reproducible **local demo** only. It publishes ports to the local host and uses
+demo credentials from an ignored local environment file; it is not a production deployment.
+
 ## 1) Prerequisites
 
 1. Docker Desktop is installed and running.
@@ -20,7 +23,7 @@ bash scripts/demo/run-compose-demo.sh
 
 What the script does:
 
-1. Creates `.env` from `config/compose.env.example` if missing.
+1. Creates local-only `.env.live-demo` from `config/compose.live-demo.env.example` if missing.
 2. Builds and starts the compose stack.
 3. Waits for `/actuator/health`.
 4. Submits a sample compatibility check (`orders.created`, `v1 -> v2`).
@@ -48,7 +51,7 @@ Notes:
 - UI: `http://localhost:8080/ui`
 - Swagger: `http://localhost:8080/swagger-ui/index.html`
 
-Default credentials (from `config/compose.env.example`):
+The initial local-demo credentials are in `.env.live-demo`, created from `config/compose.live-demo.env.example`:
 
 - Username: `dcg-compose-admin`
 - Password: `dcg-compose-demo-password`
@@ -56,8 +59,9 @@ Default credentials (from `config/compose.env.example`):
 ## 4) Manual Path (if you prefer explicit commands)
 
 ```bash
-cp config/compose.env.example .env
-docker compose --env-file .env -f docker-compose.yml up --build -d
+cp config/compose.live-demo.env.example .env.live-demo
+# Edit .env.live-demo and set your DCG_DB_* and DCG_APP_* values.
+docker compose --env-file .env.live-demo -f docker-compose.yml up --build -d
 curl -fsS http://localhost:8080/actuator/health
 ```
 
@@ -80,11 +84,24 @@ curl -fsS -u dcg-compose-admin:dcg-compose-demo-password \
 ## 5) Stop
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml down
+docker compose --env-file .env.live-demo -f docker-compose.yml down
 ```
 
 Reset DB volume too:
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml down -v
+docker compose --env-file .env.live-demo -f docker-compose.yml down -v
 ```
+
+## 6) Reproducibility check
+
+Before changing the Compose files, validate that Docker can resolve the exact stack without
+starting it:
+
+```bash
+docker compose --env-file .env.live-demo -f docker-compose.yml config >/dev/null
+```
+
+Supported tool and database versions are listed in the [support policy](support-policy.md).
+For production deployment constraints, including MySQL provider validation, read
+[production limitations](production-limitations.md).

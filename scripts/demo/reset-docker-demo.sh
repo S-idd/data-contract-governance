@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
-ENV_FILE="${DCG_COMPOSE_ENV_FILE:-$ROOT_DIR/.env}"
+ENV_FILE="${DCG_COMPOSE_ENV_FILE:-$ROOT_DIR/.env.live-demo}"
+ENV_TEMPLATE="$ROOT_DIR/config/compose.live-demo.env.example"
 
 usage() {
   cat <<'EOF'
@@ -14,8 +15,8 @@ Stops and removes only the DCG Docker Compose stack, its PostgreSQL volume,
 and its locally built service image. It does not remove unrelated containers,
 images, volumes, or a locally installed PostgreSQL database.
 
-Set DCG_COMPOSE_ENV_FILE to choose a compose environment file. When .env is
-absent, the checked-in config/compose.env.example is used.
+Set DCG_COMPOSE_ENV_FILE to choose a compose environment file. When the default
+.env.live-demo is absent, the checked-in config/compose.live-demo.env.example is used.
 EOF
 }
 
@@ -38,7 +39,7 @@ docker info >/dev/null 2>&1 || {
 }
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  ENV_FILE="$ROOT_DIR/config/compose.env.example"
+  ENV_FILE="$ENV_TEMPLATE"
 fi
 
 echo "Resetting DCG Docker resources using $ENV_FILE"

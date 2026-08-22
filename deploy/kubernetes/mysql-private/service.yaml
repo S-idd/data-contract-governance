@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dcg-contract-service
+  namespace: dcg
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dcg-contract-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

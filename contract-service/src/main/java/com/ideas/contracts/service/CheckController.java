@@ -146,9 +146,11 @@ public class CheckController {
                   }
                   """)))
       @org.springframework.web.bind.annotation.RequestBody CheckRunCreateRequest request,
+      @org.springframework.web.bind.annotation.RequestHeader(
+          name = "Idempotency-Key", required = false) String idempotencyKey,
       HttpServletRequest httpRequest) {
     try {
-      CheckRunCreateResponse response = checkRunStore.createQueuedRun(request);
+      CheckRunCreateResponse response = checkRunStore.createQueuedRun(request, idempotencyKey);
       checkMetrics.recordQueued(request.contractId());
       checkRunStore.recordAuditLog(
           AuditLogSupport.checkRunCreateSuccess(httpRequest, request, response));

@@ -26,6 +26,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -65,7 +66,7 @@ public class S3ArtifactStore implements ArtifactStore {
 
   @Autowired
   public S3ArtifactStore(
-      S3Client s3Client,
+      @Qualifier("artifactS3Client") S3Client s3Client,
       @Value("${contracts.artifact.s3.bucket:}") String bucket,
       @Value("${contracts.artifact.s3.prefix:contracts}") String prefix,
       @Value("${contracts.artifact.s3.local-cache-root:${contracts.root:contracts}}") String localCacheRoot,

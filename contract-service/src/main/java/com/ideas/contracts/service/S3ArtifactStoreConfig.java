@@ -17,7 +17,7 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 @ConditionalOnProperty(prefix = "contracts.artifact", name = "backend", havingValue = "s3")
 public class S3ArtifactStoreConfig {
 
-  @Bean
+  @Bean("artifactS3Client")
   public S3Client s3Client(
       @Value("${contracts.artifact.s3.region:us-east-1}") String region,
       @Value("${contracts.artifact.s3.endpoint:}") String endpoint,

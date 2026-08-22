@@ -55,6 +55,86 @@ class CheckRunStoreTest {
   }
 
   @Test
+  void mysqlUrlGetsVerifiedTlsAndConfiguredTrustStoreWhenEnforced() {
+    CheckStoreProperties properties = baseProperties();
+    properties.setUrl("jdbc:mysql://mysql.internal:3306/contracts?serverTimezone=UTC");
+    properties.setEnforceSecureMysql(true);
+    properties.getMysql().setTrustStoreUrl("file:/run/secrets/mysql-ca.p12");
+
+    CheckRunStore store = new CheckRunStore(properties);
+    try {
+      String configuredTarget = store.configuredDbTarget();
+      assertTrue(configuredTarget.contains("sslMode=VERIFY_IDENTITY"));
+      assertTrue(configuredTarget.contains("trustCertificateKeyStoreUrl="));
+      assertTrue(configuredTarget.contains("fallbackToSystemTrustStore=false"));
+    } finally {
+      store.shutdown();
+    }
+  }
+
+  @Test
+  void constructorRejectsInsecureMysqlTlsConfigurationWhenEnforced() {
+    CheckStoreProperties properties = baseProperties();
+    properties.setUrl("jdbc:mysql://mysql.internal:3306/contracts?useSSL=false&allowPublicKeyRetrieval=true");
+    properties.setEnforceSecureMysql(true);
+    properties.getMysql().setTrustStoreUrl("file:/run/secrets/mysql-ca.p12");
+
+    IllegalStateException exception =
+        assertThrows(IllegalStateException.class, () -> new CheckRunStore(properties));
+    assertTrue(exception.getMessage().contains("useSSL=false"));
+  }
+
+  @Test
+  void constructorRejectsSecureMysqlConfigurationWithoutTrustStore() {
+    CheckStoreProperties properties = baseProperties();
+    properties.setUrl("jdbc:mysql://mysql.internal:3306/contracts");
+    properties.setEnforceSecureMysql(true);
+
+    IllegalStateException exception =
+        assertThrows(IllegalStateException.class, () -> new CheckRunStore(properties));
+    assertTrue(exception.getMessage().contains("trust-store-url"));
+  }
+
+  @Test
+  void constructorRejectsPoolBudgetSmallerThanReplicaDemand() {
+    CheckStoreProperties properties = baseProperties();
+    properties.getPool().setMaximumSize(8);
+    properties.getPool().setReplicaCount(3);
+    properties.getPool().setDatabaseConnectionBudget(20);
+
+    IllegalStateException exception =
+        assertThrows(IllegalStateException.class, () -> new CheckRunStore(properties));
+    assertTrue(exception.getMessage().contains("database-connection-budget"));
+  }
+
+  @Test
+  void constructorRequiresSeparateMysqlMigrationIdentityWhenEnforced() {
+    CheckStoreProperties properties = baseProperties();
+    properties.setUrl("jdbc:mysql://mysql.internal:3306/contracts");
+    properties.setUsername("dcg_runtime");
+    properties.setPassword("runtime-password");
+    properties.setEnforceSeparateMigrationCredentials(true);
+
+    IllegalStateException exception =
+        assertThrows(IllegalStateException.class, () -> new CheckRunStore(properties));
+    assertTrue(exception.getMessage().contains("Dedicated MySQL migration credentials"));
+  }
+
+  @Test
+  void constructorAcceptsDedicatedMysqlMigrationIdentityWhenEnforced() {
+    CheckStoreProperties properties = baseProperties();
+    properties.setUrl("jdbc:mysql://mysql.internal:3306/contracts");
+    properties.setUsername("dcg_runtime");
+    properties.setPassword("runtime-password");
+    properties.setMigrationUsername("dcg_migrator");
+    properties.setMigrationPassword("migration-password");
+    properties.setEnforceSeparateMigrationCredentials(true);
+
+    CheckRunStore store = new CheckRunStore(properties);
+    store.shutdown();
+  }
+
+  @Test
   void listThrowsStoreExceptionWhenDbPathIsUnavailable() throws Exception {
     Path dbPath = tempDir.resolve("checks-directory");
     Files.createDirectories(dbPath);
@@ -229,6 +309,27 @@ class CheckRunStoreTest {
     assertEquals("PASS", completed.status());
     assertEquals("Example warning", completed.warnings().get(0));
     assertTrue(completed.finishedAt() != null && !completed.finishedAt().isBlank());
+  }
+
+  @Test
+  void idempotencyKeyReturnsOriginalRunAndRejectsDifferentRequest() {
+    CheckStoreProperties properties = baseProperties();
+    properties.setPath(tempDir.resolve("checks-idempotency.db").toString());
+    CheckRunStore store = new CheckRunStore(properties);
+    store.initialize();
+
+    CheckRunCreateRequest original = new CheckRunCreateRequest(
+        "orders.created", "v1", "v2", "BACKWARD", "idempotency-a", "unit-test");
+    CheckRunCreateResponse first = store.createQueuedRun(original, "failover-replay-1");
+    CheckRunCreateResponse replay = store.createQueuedRun(original, "failover-replay-1");
+
+    assertEquals(first.runId(), replay.runId());
+    assertEquals(1, store.list("orders.created", "idempotency-a").size());
+    CheckRunCreateRequest changed = new CheckRunCreateRequest(
+        "orders.created", "v1", "v2", "BACKWARD", "idempotency-b", "unit-test");
+    assertThrows(
+        CheckRunIdempotencyConflictException.class,
+        () -> store.createQueuedRun(changed, "failover-replay-1"));
   }
 
   @Test

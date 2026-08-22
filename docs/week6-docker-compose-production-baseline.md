@@ -28,7 +28,7 @@ bash scripts/demo/run-compose-demo.sh
 
 The script:
 
-1. Creates `.env` from `config/compose.env.example` if missing.
+1. Creates local-only `.env.live-demo` from `config/compose.live-demo.env.example` if missing.
 2. Runs `docker compose up --build -d`.
 3. Waits for service health.
 4. Submits a sample check run using HTTP Basic auth.
@@ -45,14 +45,15 @@ bash scripts/demo/run-compose-demo.sh
 ## 3) Manual Path
 
 ```bash
-cp config/compose.env.example .env
-docker compose --env-file .env -f docker-compose.yml up --build -d
+cp config/compose.live-demo.env.example .env.live-demo
+chmod 600 .env.live-demo
+docker compose --env-file .env.live-demo -f docker-compose.yml up --build -d
 ```
 
 Wait for healthy containers:
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml ps
+docker compose --env-file .env.live-demo -f docker-compose.yml ps
 ```
 
 ## 4) Verify Service Health
@@ -65,7 +66,7 @@ Open UI:
 
 - `http://localhost:8080/ui`
 
-Default credentials (from `config/compose.env.example`):
+Demo-only credentials (from `config/compose.live-demo.env.example`):
 
 - username: `dcg-compose-admin`
 - password: `dcg-compose-demo-password`
@@ -82,13 +83,13 @@ curl -u dcg-compose-admin:dcg-compose-demo-password \
 ## 6) Shutdown
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml down
+docker compose --env-file .env.live-demo -f docker-compose.yml down
 ```
 
 To also remove DB state:
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml down -v
+docker compose --env-file .env.live-demo -f docker-compose.yml down -v
 ```
 
 ## 7) Runtime Hardening in Compose
@@ -116,6 +117,6 @@ Already enabled in the service container:
 1. `.dockerignore`
 2. `docker/contract-service.Dockerfile`
 3. `docker-compose.yml`
-4. `config/compose.env.example`
+4. `config/compose.live-demo.env.example`
 5. `scripts/demo/run-compose-demo.sh`
 6. `docs/quickstart-compose.md`

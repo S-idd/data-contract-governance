@@ -29,6 +29,7 @@ public class SecurityConfig {
       HttpSecurity http,
       @Value("${app.security.enabled:false}") boolean securityEnabled,
       @Value("${app.security.write-role:WRITER}") String writeRole,
+      @Value("${app.security.operations-role:OPERATIONS}") String operationsRole,
       @Value("${app.security.retention-role:RETENTION_ADMIN}") String retentionRole,
       EvidenceAuthProperties evidenceAuth,
       ObjectProvider<JwtDecoder> configuredJwtDecoder) throws Exception {
@@ -51,6 +52,8 @@ public class SecurityConfig {
       }
       auth
           .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+          .requestMatchers("/actuator/metrics/**", "/actuator/prometheus")
+          .hasRole(normalizeRole(operationsRole, "OPERATIONS"))
           .requestMatchers(HttpMethod.POST, "/checks/**", "/ui/**", "/contracts/**",
               "/api/notification-deliveries/**")
           .hasRole(normalizeRole(writeRole, "WRITER"))

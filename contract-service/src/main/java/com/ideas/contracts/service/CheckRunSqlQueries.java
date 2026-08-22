@@ -62,8 +62,14 @@ final class CheckRunSqlQueries {
       INSERT INTO check_runs (
         run_id, contract_id, base_version, candidate_version, status,
         breaking_changes, warnings, commit_sha, created_at,
-        triggered_by, compatibility_mode, input_hash, started_at, finished_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        triggered_by, compatibility_mode, input_hash, started_at, finished_at, idempotency_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      """;
+
+  static final String FIND_CHECK_RUN_BY_IDEMPOTENCY = """
+      SELECT run_id, status, input_hash
+      FROM check_runs
+      WHERE idempotency_key = ?
       """;
 
   static final String INSERT_CHECK_EVIDENCE = """

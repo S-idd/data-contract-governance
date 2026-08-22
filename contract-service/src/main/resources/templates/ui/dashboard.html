@@ -25,8 +25,9 @@
     <p class="subtitle">Current platform health, contract inventory, and recent compatibility checks.</p>
     <div class="metric-grid">
       <article class="metric">
-        <div class="muted">Discovered Contracts</div>
+        <div class="muted" title="Counts unique contract IDs. Schema versions are not counted separately.">Unique Contract IDs</div>
         <div class="metric-value" th:text="${contractCount}">0</div>
+        <div class="metric-note">Schema versions are not counted separately.</div>
       </article>
       <article class="metric">
         <div class="muted">Recent Failed Checks</div>

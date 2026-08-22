@@ -53,6 +53,8 @@ public interface CheckRunRepository {
 
   CheckRunCreateResponse createQueuedRun(CheckRunCreateRequest request);
 
+  CheckRunCreateResponse createQueuedRun(CheckRunCreateRequest request, String idempotencyKey);
+
   EvidenceImportResult importEvidence(CheckEvidence evidence);
 
   Optional<CheckEvidence> findEvidenceByIdempotencyKey(String idempotencyKey);
