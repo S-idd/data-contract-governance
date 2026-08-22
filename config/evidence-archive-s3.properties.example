@@ -1,0 +1,20 @@
+# Dedicated evidence archive bucket only. Do not reuse the beta artifact bucket.
+# The bucket must be created with S3 Object Lock and versioning enabled. In production,
+# use the workload's IAM role; endpoint overrides, path-style S3, and static keys are rejected.
+CHECKS_EVIDENCE_ARCHIVE_MODE=S3_WORM
+CHECKS_EVIDENCE_ARCHIVE_S3_BUCKET=s3-evidence-testing-1
+CHECKS_EVIDENCE_ARCHIVE_S3_PREFIX=evidence
+CHECKS_EVIDENCE_ARCHIVE_S3_REGION=ap-southeast-2
+# Required in prod to prevent writing to a bucket owned by a different AWS account.
+CHECKS_EVIDENCE_ARCHIVE_S3_EXPECTED_BUCKET_OWNER=755395261278
+# Seven years; the service refuses a value below 2555 days.
+CHECKS_EVIDENCE_ARCHIVE_S3_RETENTION_DAYS=2555
+
+# Payload deletion is opt-in. The service fails startup in prod unless S3_WORM is selected.
+CHECKS_EVIDENCE_RETENTION_ENABLED=true
+CHECKS_EVIDENCE_RETENTION_DRY_RUN=false
+CHECKS_EVIDENCE_RETENTION_POLICY_VERSION=evidence-retention-v1
+CHECKS_EVIDENCE_RETENTION_BATCH_SIZE=100
+
+# The destructive run endpoint requires this distinct application role, not just WRITER.
+APP_SECURITY_RETENTION_ROLE=RETENTION_ADMIN

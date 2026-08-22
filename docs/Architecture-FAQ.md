@@ -83,9 +83,10 @@ Important limit:
 3. Swagger UI endpoint: `http://localhost:8080/swagger-ui/index.html`
 
 ### 13.2 Auth behavior
-1. If `app.security.enabled=false` (default local), no auth header is required.
-2. If `app.security.enabled=true`, write routes require Basic Auth user with `WRITER` role.
-3. Read routes under `/checks` and `/runs` require authentication when security is enabled.
+1. Ordinary local routes are open when `app.security.enabled=false` (the default local setting).
+2. `POST /checks/evidence` is different: it is disabled by default, uses Basic authentication only when the explicit local/demo evidence mode is enabled, and requires CI-issued OIDC Bearer tokens in production.
+3. Production OIDC evidence import validates issuer/signature/audience and an exact configured contract, repository, and ref policy; it retains verified workload provenance separately from `ciIdentity`.
+4. Other protected write routes require a Basic Auth user with the `WRITER` role when `app.security.enabled=true`. Read routes under `/checks` and `/runs` require authentication in that mode.
 
 ### 13.3 Required headers
 1. `Content-Type: application/json` for JSON POST routes.

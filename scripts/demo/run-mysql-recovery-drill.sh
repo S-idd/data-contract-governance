@@ -12,6 +12,7 @@ DB_USERNAME="recovery_demo"
 DB_PASSWORD="${DCG_MYSQL_RECOVERY_DB_PASSWORD:-recovery-db-pass}"
 ROOT_PASSWORD="${DCG_MYSQL_RECOVERY_ROOT_PASSWORD:-recovery-root-pass}"
 KEEP_CONTAINER="${DCG_MYSQL_RECOVERY_KEEP_CONTAINER:-false}"
+RECOVERY_EVIDENCE_FILE="${DCG_MYSQL_RECOVERY_EVIDENCE_FILE:-$ROOT_DIR/docs/verification/mysql-recovery-drill-latest.md}"
 
 STAMP="$(date +%Y%m%d%H%M%S)"
 SUFFIX="${STAMP}_${RANDOM}"
@@ -24,6 +25,10 @@ SERVICE_URL="http://127.0.0.1:${SERVICE_PORT}"
 SERVICE_PID=""
 SERVICE_LOG=""
 RUN_ID=""
+CHECK_IDEMPOTENCY_KEY="failover-recovery-${SUFFIX}"
+RECOVERY_STARTED_AT=""
+RECOVERY_STARTED_EPOCH=""
+DB_RESTART_RECOVERY_SECONDS=""
 
 usage() {
   cat <<'EOF'
@@ -47,6 +52,7 @@ Optional environment variables:
   DCG_MYSQL_RECOVERY_PASSWORD      Local Basic-auth password
   DCG_MYSQL_RECOVERY_DB_PASSWORD   Temporary application database password
   DCG_MYSQL_RECOVERY_ROOT_PASSWORD Temporary root database password
+  DCG_MYSQL_RECOVERY_EVIDENCE_FILE Markdown evidence output path
 EOF
 }
 
@@ -186,6 +192,7 @@ submit_passing_check() {
   local response
   response="$(curl -fsS -u "${APP_USERNAME}:${APP_PASSWORD}" \
     -H "Content-Type: application/json" \
+    -H "Idempotency-Key: ${CHECK_IDEMPOTENCY_KEY}" \
     -d '{"contractId":"orders.created","baseVersion":"v1","candidateVersion":"v2","mode":"BACKWARD","commitSha":"mysql-recovery-drill","triggeredBy":"recovery-drill"}' \
     "$SERVICE_URL/checks")"
   RUN_ID="$(printf '%s' "$response" | sed -nE 's/.*"runId"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p')"
@@ -226,6 +233,44 @@ verify_restored_service_run() {
     || die "Restored service did not return the original contract run: $run"
   printf '%s' "$run" | grep -q '"status":"PASS"' \
     || die "Restored service did not return a passing run: $run"
+}
+
+verify_source_service_run() {
+  local run
+  run="$(curl -fsS -u "${APP_USERNAME}:${APP_PASSWORD}" "$SERVICE_URL/checks/$RUN_ID")"
+  printf '%s' "$run" | grep -q '"contractId":"orders.created"' \
+    || die "Source service did not recover the original contract run: $run"
+  printf '%s' "$run" | grep -q '"status":"PASS"' \
+    || die "Source service did not recover a passing run: $run"
+}
+
+write_recovery_evidence() {
+  local completed_at completed_epoch rto_seconds evidence_directory
+  completed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  completed_epoch="$(date +%s)"
+  rto_seconds=$((completed_epoch - RECOVERY_STARTED_EPOCH))
+  evidence_directory="$(dirname "$RECOVERY_EVIDENCE_FILE")"
+  mkdir -p "$evidence_directory"
+
+  cat >"$RECOVERY_EVIDENCE_FILE" <<EOF
+# MySQL isolated recovery drill evidence
+
+- Status: PASS
+- Completed at (UTC): $completed_at
+- Source database: $SOURCE_DB (disposable)
+- Restored database: $RESTORE_DB (disposable and isolated)
+- Backup method: consistent logical backup (mysqldump with --single-transaction, --routines, and --triggers)
+- Recovery point objective achieved: 0 seconds for the injected test check run: it was persisted before the backup and was present after restore.
+- Recovery time objective achieved: ${rto_seconds} seconds from source service stop to a healthy service reading the restored check run.
+- Database restart recovery: ${DB_RESTART_RECOVERY_SECONDS} seconds for the application to become healthy and read the persisted source check run after an isolated MySQL container restart.
+- Duplicate-job guard: PASS. The original check submission was replayed after restart with the same Idempotency-Key and returned the same run ID.
+- Validation: Flyway history, notification_deliveries, the persisted check run, and a contract-service read were all verified against the restored target.
+
+## Scope
+
+This is an application-level isolated logical-restore drill. It proves that the DCG schema and data can be restored and read. It does **not** prove production managed-backup encryption, binary-log retention, point-in-time recovery, regional durability, or managed failover; capture those provider control-plane settings separately before production approval.
+EOF
+  log "Recovery evidence written to $RECOVERY_EVIDENCE_FILE."
 }
 
 trap cleanup EXIT
@@ -274,6 +319,20 @@ log "Submitting a check run to persist recovery evidence."
 submit_passing_check
 wait_for_passing_run
 
+log "Restarting the isolated MySQL source to verify pool recovery."
+db_restart_started_epoch="$(date +%s)"
+docker restart "$MYSQL_CONTAINER" >/dev/null
+wait_for_mysql
+wait_for_service
+verify_source_service_run
+source_run_before_replay="$RUN_ID"
+submit_passing_check
+[[ "$RUN_ID" == "$source_run_before_replay" ]] \
+  || die "Idempotent failover replay created a duplicate run: $source_run_before_replay != $RUN_ID"
+wait_for_passing_run
+DB_RESTART_RECOVERY_SECONDS=$(( $(date +%s) - db_restart_started_epoch ))
+log "Source service recovered after isolated MySQL restart in ${DB_RESTART_RECOVERY_SECONDS}s."
+
 log "Creating a consistent logical backup of source database $SOURCE_DB."
 docker exec -e "MYSQL_PWD=$ROOT_PASSWORD" "$MYSQL_CONTAINER" \
   sh -c "mysqldump -uroot --single-transaction --routines --triggers '$SOURCE_DB' > '$BACKUP_FILE'"
@@ -282,6 +341,8 @@ docker exec "$MYSQL_CONTAINER" test -s "$BACKUP_FILE" \
 
 log "Stopping the source service before switching to the restored target."
 stop_service
+RECOVERY_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+RECOVERY_STARTED_EPOCH="$(date +%s)"
 
 log "Restoring backup into separate database $RESTORE_DB."
 mysql_root -e "create database \`${RESTORE_DB}\`;"
@@ -296,3 +357,4 @@ verify_restored_service_run
 
 log "PASS: restored check $RUN_ID is readable from $RESTORE_DB after service restart."
 log "MySQL backup, restore, Flyway history, notification table, and application read checks completed."
+write_recovery_evidence

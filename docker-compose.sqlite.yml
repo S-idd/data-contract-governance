@@ -1,0 +1,45 @@
+services:
+  contract-service:
+    build:
+      context: .
+      dockerfile: docker/contract-service.Dockerfile
+    image: dcg/contract-service:local
+    container_name: dcg-sqlite-service
+    restart: unless-stopped
+    init: true
+    environment:
+      SPRING_PROFILES_ACTIVE: sqlite-prod-lite
+      CONTRACTS_ROOT: /app/contracts
+      CONTRACTS_ARTIFACT_BACKEND: filesystem
+      CONTRACTS_ARTIFACT_S3_FALLBACK_ENABLED: "false"
+      CHECKS_DB_PATH: /var/lib/dcg/checks.db
+      CHECKS_DB_FAIL_FAST_STARTUP: "true"
+      APP_UI_ENABLED: "true"
+      APP_SECURITY_ENABLED: "true"
+      APP_SECURITY_USERNAME: ${DCG_APP_USERNAME}
+      APP_SECURITY_PASSWORD: ${DCG_APP_PASSWORD}
+      APP_SECURITY_ROLES: USER,WRITER
+      APP_SECURITY_WRITE_ROLE: WRITER
+      # Docker Desktop mounts tmpfs with restrictions that prevent sqlite-jdbc from loading its
+      # native library. The DCG data volume is writable and supports the required memory map.
+      JAVA_OPTS: -Dorg.sqlite.tmpdir=/var/lib/dcg -XX:InitialRAMPercentage=25 -XX:MaxRAMPercentage=75
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    volumes:
+      - ./contracts:/app/contracts:${CONTRACTS_VOLUME_MODE:-rw}
+      - dcg_sqlite_data:/var/lib/dcg
+    ports:
+      - "${DCG_SERVICE_PORT:-8080}:8080"
+
+volumes:
+  dcg_sqlite_data:

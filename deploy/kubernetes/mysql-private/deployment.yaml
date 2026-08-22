@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dcg-contract-service
+  namespace: dcg
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dcg-contract-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dcg-contract-service
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: contract-service
+          image: ghcr.io/replace-me/data-contract-governance:replace-me
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: dcg-mysql-runtime
+            - secretRef:
+                name: dcg-mysql-migration
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            - name: CHECKS_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dcg-mysql-runtime
+                  key: CHECKS_DB_URL
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault

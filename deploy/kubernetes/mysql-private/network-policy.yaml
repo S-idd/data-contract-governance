@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dcg-contract-service-private
+  namespace: dcg
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dcg-contract-service
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              dcg-access: allowed
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8 # Replace with the private managed-MySQL CIDR.
+      ports:
+        - protocol: TCP
+          port: 3306

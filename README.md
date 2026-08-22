@@ -2,12 +2,31 @@
 
 Open-source Java/Spring Boot tooling to prevent breaking schema changes before merge/deploy.
 
-Quick start: `docs/how-to-run.md`.
+> **Public beta:** PostgreSQL is the production-standard metadata path. SQLite is limited to
+> single-node production-lite deployments. MySQL and S3 remain beta; managed MySQL durability,
+> PITR, and live failover need provider-specific validation before a production claim. See the
+> [support policy](docs/support-policy.md) and [production limitations](docs/production-limitations.md).
+
+Open-source project information: [Contributing](CONTRIBUTING.md),
+[Security](SECURITY.md), [Code of Conduct](CODE_OF_CONDUCT.md),
+[Changelog](CHANGELOG.md), and [release policy](docs/release-and-versioning.md).
+
+## Start Here
+
+- **Main Docker demo (PostgreSQL):** [Compose Quickstart](docs/quickstart-compose.md). This is the normal demo and the recommended first run.
+- **Database compatibility demo:** [PostgreSQL, SQLite, and MySQL presenter guide](docs/database-compatibility-demo.md).
+- **Native local PostgreSQL:** [How to run DCG locally](docs/how-to-run.md). Use this only when you already manage PostgreSQL outside Docker.
+- **S3 artifact backend:** [S3 beta guide](docs/how-to-s3-beta.md). This is separate from the normal demo and requires AWS configuration.
 
 V4 Spring Boot demo: `examples/dcg-spring-boot-realworld-demo/README.md`.
 
 V4 recovery drill: `docs/version4-recovery-and-incident-runbook.md`.
+Database compatibility live demo: `docs/database-compatibility-demo.md`.
 V4 production-readiness entry points: `docs/Architecture-v4.md`, `docs/version4-production-readiness-release-plan.md`, and `examples/spring-boot-realworld-demo/README.md` for the separate Spring Boot validation rehearsal.
+
+Metadata database support: PostgreSQL (production standard), SQLite (local development and single-node production-lite), and MySQL (beta). DCG selects one configured metadata database per running instance; it does not connect to all databases simultaneously.
+
+Run the main DCG UI/API with SQLite or MySQL in Docker: `bash scripts/demo/run-sqlite-compose-demo.sh` or `bash scripts/demo/run-mysql-compose-demo.sh`. The complete presenter flow is in `docs/database-compatibility-demo.md`.
 
 ## Prerequisites
 - Java 21
@@ -46,6 +65,18 @@ Check compatibility:
 ```bash
 java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD
 ```
+
+## Enterprise JSON Schema Support
+
+DCG validates and classifies the Draft 2020-12 assertion, applicator, core, and annotation keywords used by enterprise contracts. It supports nested objects, array item schemas, local `#/$defs/...` references, `allOf`, discriminated `oneOf` branches, `if`/`then`/`else`, and common constraints. Compatibility results use full field paths such as `lineItems[].quantity` and reject breaking nested changes, including tighter bounds, patterns, formats, branch removal, and stricter conditional rules.
+
+For complex applicators such as `anyOf`, `not`, `patternProperties`, `contains`, `dependentSchemas`, and unevaluated-property rules, DCG records a canonical schema restriction. A candidate addition or change to one of these restrictions fails compatibility conservatively rather than being silently approved. Annotation-only changes do not affect compatibility. The governance diff supports local JSON Pointer references only; cross-document references and `$dynamicRef` are rejected explicitly until their resolution semantics are implemented.
+
+## Build integrations
+
+The Maven and Gradle plugins are offline-first. Their optional reporting imports an immutable local evidence artifact, with authenticated verification, version-skew visibility, and replay support. See [build integrations](docs/build-integrations.md) and the [evidence ADR](docs/adr/2026-08-20-evidence-import-verification-replay.md).
+
+DCG has offline-first Maven and Gradle integrations. They run `contract-core` locally, write a JSON evidence report, and only then optionally import that exact artifact with a bounded remote call.
 
 Record compatibility result to SQLite:
 ```bash
@@ -205,7 +236,7 @@ http://localhost:8080/ui/checks/run-1
 UI/security toggles (local-first defaults):
 - `APP_UI_ENABLED=true` enables embedded UI routes.
 - `APP_SECURITY_ENABLED=false` keeps local workflow frictionless.
-- When `APP_SECURITY_ENABLED=true`, `/ui/**` and `/checks/**` require HTTP Basic auth.
+- When `APP_SECURITY_ENABLED=true`, `/ui/**` and ordinary `/checks/**` routes require HTTP Basic auth. Production `POST /checks/evidence` instead requires a CI-issued OIDC Bearer token with an explicitly authorized contract/repository/ref mapping; see [build integrations](docs/build-integrations.md).
 - Write routes (POST/PUT/PATCH/DELETE) require the `WRITER` role by default.
 - Configure basic auth credentials with:
   - `APP_SECURITY_USERNAME`
@@ -224,7 +255,8 @@ APP_SECURITY_ROLES=USER,WRITER \
 mvn spring-boot:run
 ```
 
-## Docker Compose (Production Baseline)
+## Main Docker Demo (PostgreSQL)
+
 Fresh-machine quickstart (<10 min):
 
 ```bash
@@ -243,27 +275,16 @@ bash scripts/demo/run-compose-demo.sh
 Manual path:
 
 ```bash
-cp config/compose.env.example .env
-docker compose --env-file .env -f docker-compose.yml up --build -d
+cp config/compose.live-demo.env.example .env.live-demo
+# Edit .env.live-demo and set DCG_DB_* and DCG_APP_* credentials.
+docker compose --env-file .env.live-demo -f docker-compose.yml up --build -d
 curl -fsS http://localhost:8080/actuator/health
 ```
 
 Stop:
 ```bash
-docker compose --env-file .env -f docker-compose.yml down
+docker compose --env-file .env.live-demo -f docker-compose.yml down
 ```
-
-## One-Command Demo (Windows PowerShell)
-```powershell
-cd <repo-root>
-.\scripts\demo\make-demo.ps1
-```
-This script:
-- builds CLI fat jar
-- records one compatibility check in SQLite
-- starts `contract-service`
-- prints Swagger URL and sample API outputs
-- stops service automatically
 
 ## S3 Artifact Demo Script
 For Week 13 S3 beta artifact backend testing, use:
@@ -294,26 +315,13 @@ export TEST_POSTGRES_USERNAME="<your_pg_user>"
 export TEST_POSTGRES_PASSWORD="<your_pg_password>"
 ```
 
-Helpful docs:
+More guides:
 
 - [Local Quickstart](quickstart-local.md)
-- [Compose Quickstart](docs/quickstart-compose.md)
 - [Demo Walkthrough](docs/demo-walkthrough.md)
 - [CLI Walkthrough](docs/cli-walkthrough.md)
-- [Week 7 Exit Checklist](docs/week7-exit-checklist.md)
-- [Week 7 Phase 1 Release Notes](docs/week7-phase1-release-notes.md)
-- [Week 7 Showcase Kit](docs/week7-showcase-kit.md)
-- [Week 8 Stabilization Checklist](docs/week8-stabilization-checklist.md)
-- [Week 8 MySQL Phase 2 Design](docs/week8-mysql-phase2-design.md)
-- [Week 9 MySQL Implementation Checklist](docs/week9-mysql-implementation-checklist.md)
-- [Week 10 MySQL Beta Stabilization](docs/week10-mysql-beta-stabilization.md)
-- [Week 11 S3 Artifact RFC](docs/week11-s3-artifact-rfc.md)
-- [Week 12 S3 Implementation Checklist](docs/week12-s3-implementation-checklist.md)
-- [Week 13 S3 Beta Stabilization Runbook](docs/week13-s3-beta-runbook.md)
-- [Week 13 S3 Beta Launch Post](docs/week13-s3-beta-launch-post.md)
-- [Week 13 S3 Beta User Onboarding Session](docs/week13-s3-beta-onboarding-session.md)
-- [AWS Account Safety](docs/aws-account-safety.md)
 - [Architecture v4](docs/Architecture-v4.md)
+- [AWS Account Safety](docs/aws-account-safety.md)
 
 ## Sample Contracts
 - [orders.created metadata](contracts/orders.created/metadata.yaml)
@@ -326,6 +334,7 @@ Helpful docs:
 - [Architecture v4](docs/Architecture-v4.md)
 - [Architecture v3](docs/Architecture-v3.md)
 - [Architecture FAQ](docs/Architecture-FAQ.md)
+- [Release and planning archive](docs/version4-production-readiness-release-plan.md)
 - [Architecture Decisions](adr/ArchitectureDecisionRecord.md)
 - [Week 3 Storage Interface Spec](docs/week3-storage-interface-spec.md)
 - [Week 3 DB Compatibility Test Plan](docs/week3-db-compatibility-test-plan.md)

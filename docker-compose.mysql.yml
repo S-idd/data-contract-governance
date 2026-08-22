@@ -1,0 +1,67 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: dcg-mysql
+    restart: unless-stopped
+    init: true
+    environment:
+      MYSQL_DATABASE: contracts
+      MYSQL_USER: ${DCG_DB_USERNAME}
+      MYSQL_PASSWORD: ${DCG_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DCG_MYSQL_ROOT_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    volumes:
+      - dcg_mysql_data:/var/lib/mysql
+    ports:
+      - "${DCG_MYSQL_PORT:-3306}:3306"
+
+  contract-service:
+    build:
+      context: .
+      dockerfile: docker/contract-service.Dockerfile
+    image: dcg/contract-service:local
+    container_name: dcg-mysql-service
+    restart: unless-stopped
+    init: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      CONTRACTS_ROOT: /app/contracts
+      CONTRACTS_ARTIFACT_BACKEND: filesystem
+      CONTRACTS_ARTIFACT_S3_FALLBACK_ENABLED: "false"
+      CHECKS_DB_URL: jdbc:mysql://mysql:3306/contracts?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      CHECKS_DB_USERNAME: ${DCG_DB_USERNAME}
+      CHECKS_DB_PASSWORD: ${DCG_DB_PASSWORD}
+      CHECKS_DB_FAIL_FAST_STARTUP: "true"
+      APP_UI_ENABLED: "true"
+      APP_SECURITY_ENABLED: "true"
+      APP_SECURITY_USERNAME: ${DCG_APP_USERNAME}
+      APP_SECURITY_PASSWORD: ${DCG_APP_PASSWORD}
+      APP_SECURITY_ROLES: USER,WRITER
+      APP_SECURITY_WRITE_ROLE: WRITER
+      JAVA_OPTS: -XX:InitialRAMPercentage=25 -XX:MaxRAMPercentage=75
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    volumes:
+      - ./contracts:/app/contracts:${CONTRACTS_VOLUME_MODE:-rw}
+    ports:
+      - "${DCG_SERVICE_PORT:-8080}:8080"
+
+volumes:
+  dcg_mysql_data:

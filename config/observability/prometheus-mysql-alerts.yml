@@ -1,0 +1,38 @@
+groups:
+  - name: dcg-mysql-production
+    rules:
+      - alert: DcgHikariPoolHasWaiters
+        expr: hikaricp_connections_pending{pool="check-run-store-pool"} > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: DCG is waiting for MySQL connections.
+      - alert: DcgHikariAcquireLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(hikaricp_connections_acquire_seconds_bucket{pool="check-run-store-pool"}[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: DCG MySQL connection acquisition p95 exceeds one second.
+      - alert: DcgHikariPoolNearCapacity
+        expr: hikaricp_connections_active{pool="check-run-store-pool"} / hikaricp_connections_max{pool="check-run-store-pool"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: DCG Hikari pool is above 85 percent utilization.
+      - alert: DcgMySqlDeadlocksDetected
+        expr: increase(mysql_global_status_innodb_deadlocks[5m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: MySQL has reported one or more InnoDB deadlocks.
+      - alert: DcgMySqlConnectionsNearCapacity
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: MySQL connections exceed 80 percent of server capacity.

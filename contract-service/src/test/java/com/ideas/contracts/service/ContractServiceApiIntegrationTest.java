@@ -193,6 +193,40 @@ class ContractServiceApiIntegrationTest {
   }
 
   @Test
+  void checksCreateEndpointReplaysIdempotencyKeyWithoutCreatingAnotherJob() throws Exception {
+    String payload = """
+        {
+          "contractId": "orders.created",
+          "baseVersion": "v1",
+          "candidateVersion": "v2",
+          "mode": "BACKWARD",
+          "commitSha": "failover-replay-test",
+          "triggeredBy": "integration-suite"
+        }
+        """;
+    MvcResult first = mockMvc.perform(post("/checks")
+            .header("Idempotency-Key", "api-failover-replay-1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(payload))
+        .andExpect(status().isAccepted())
+        .andReturn();
+    MvcResult replay = mockMvc.perform(post("/checks")
+            .header("Idempotency-Key", "api-failover-replay-1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(payload))
+        .andExpect(status().isAccepted())
+        .andReturn();
+
+    String firstRunId = objectMapper.readTree(first.getResponse().getContentAsString()).get("runId").asText();
+    String replayRunId = objectMapper.readTree(replay.getResponse().getContentAsString()).get("runId").asText();
+    assertEquals(firstRunId, replayRunId);
+    JsonNode rows = objectMapper.readTree(mockMvc.perform(get("/checks")
+            .queryParam("commitSha", "failover-replay-test"))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    assertEquals(1, rows.size());
+  }
+
+  @Test
   void checksCreateEndpointRejectsInvalidMode() throws Exception {
     String payload = """
         {

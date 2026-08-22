@@ -193,6 +193,13 @@ a:hover {
   font-weight: 700;
 }
 
+.metric-note {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .muted {
   color: var(--muted);
 }

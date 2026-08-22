@@ -10,9 +10,10 @@ PREFIX="contracts"
 SERVICE_URL="http://localhost:8080"
 CONTRACT_ID="user.events"
 ENV_FILE="/tmp/dcg-s3-demo.env"
+S3_BETA_CONFIG_FILE="${DCG_S3_BETA_CONFIG_FILE:-$ROOT_DIR/.env.s3-beta}"
 FORCE_NO_PROMPT=0
-APP_USER="${DCG_APP_USERNAME:-admin}"
-APP_PASSWORD="${DCG_APP_PASSWORD:-change-me}"
+APP_USER="${DCG_APP_USERNAME:-}"
+APP_PASSWORD="${DCG_APP_PASSWORD:-}"
 PROFILE_EXPLICIT=0
 REGION_EXPLICIT=0
 PREFIX_EXPLICIT=0
@@ -37,9 +38,9 @@ Options:
   --prefix PREFIX       Artifact prefix (default: contracts)
   --service-url URL     API base URL (default: http://localhost:8080)
   --contract-id ID      Contract ID for seed calls (default: user.events)
-  --env-file PATH       Env file path (default: /tmp/dcg-s3-demo.env)
-  --username NAME       Contract-service basic-auth username (default: env DCG_APP_USERNAME or admin)
-  --password VALUE      Contract-service basic-auth password (default: env DCG_APP_PASSWORD or change-me)
+  --env-file PATH       Bucket-state file path (default: /tmp/dcg-s3-demo.env)
+  --username NAME       Contract-service basic-auth username (default: .env.s3-beta or admin)
+  --password VALUE      Contract-service basic-auth password (default: .env.s3-beta or change-me)
   --yes                 Skip cleanup confirmation prompt
   -h, --help            Show this help
 
@@ -62,6 +63,40 @@ die() {
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+config_environment_value() {
+  local name="$1"
+  printf '%s\n' "$S3_BETA_COMPOSE_ENVIRONMENT" | awk -v name="$name" \
+    'index($0, name "=") == 1 { print substr($0, length(name) + 2); exit }'
+}
+
+load_s3_beta_config() {
+  [[ -f "$S3_BETA_CONFIG_FILE" ]] || return
+  command -v docker >/dev/null 2>&1 || return
+
+  S3_BETA_COMPOSE_ENVIRONMENT="$(docker compose --env-file "$S3_BETA_CONFIG_FILE" \
+    -f "$ROOT_DIR/docker-compose.yml" config --environment)"
+
+  local value
+  if [[ -z "$BUCKET" ]]; then
+    value="$(config_environment_value CONTRACTS_ARTIFACT_S3_BUCKET)"
+    [[ "$value" != replace-with-* ]] && BUCKET="$value"
+  fi
+  if [[ "$PREFIX_EXPLICIT" -eq 0 ]]; then
+    value="$(config_environment_value CONTRACTS_ARTIFACT_S3_PREFIX)"
+    [[ -n "$value" ]] && PREFIX="$value"
+  fi
+  if [[ "$REGION_EXPLICIT" -eq 0 ]]; then
+    value="$(config_environment_value CONTRACTS_ARTIFACT_S3_REGION)"
+    [[ -n "$value" ]] && REGION="$value"
+  fi
+  if [[ -z "$APP_USER" ]]; then
+    APP_USER="$(config_environment_value DCG_APP_USERNAME)"
+  fi
+  if [[ -z "$APP_PASSWORD" ]]; then
+    APP_PASSWORD="$(config_environment_value DCG_APP_PASSWORD)"
+  fi
 }
 
 aws_cli() {
@@ -266,20 +301,11 @@ print_service_run_hint() {
 
 Start contract-service with S3 backend:
   cd "$ROOT_DIR"
-  CONTRACTS_ROOT="/tmp/dcg-contracts-cache" \\
-  CONTRACTS_ARTIFACT_BACKEND=s3 \\
-  CONTRACTS_ARTIFACT_S3_BUCKET="$BUCKET" \\
-  CONTRACTS_ARTIFACT_S3_REGION="$REGION" \\
-  CONTRACTS_ARTIFACT_S3_PREFIX="$PREFIX" \\
-  CONTRACTS_ARTIFACT_S3_FALLBACK_ENABLED=false \\
-  CONTRACTS_ARTIFACT_S3_LOCAL_CACHE_ROOT="/tmp/dcg-contracts-cache" \\
-  CONTRACTS_ARTIFACT_S3_SERVER_SIDE_ENCRYPTION=AES256 \\
-  APP_SECURITY_ENABLED=true \\
-  DCG_APP_USERNAME="$APP_USER" \\
-  docker compose --env-file .env -f docker-compose.yml up --build -d
+  # Edit .env.s3-beta, created from config/compose.s3-beta.env.example.
+  bash scripts/demo/run-s3-beta-demo.sh
 
 Credential note:
-  Contract-service basic auth uses DCG_APP_USERNAME / DCG_APP_PASSWORD from .env.
+  Contract-service basic auth uses DCG_APP_USERNAME / DCG_APP_PASSWORD from .env.s3-beta.
   The container must receive AWS credentials through env vars, IAM role, or app-scoped
   CONTRACTS_ARTIFACT_S3_ACCESS_KEY / CONTRACTS_ARTIFACT_S3_SECRET_KEY. Do not commit them.
 EOF
@@ -490,6 +516,9 @@ EOF
 
 main() {
   parse_args "$@"
+  load_s3_beta_config
+  APP_USER="${APP_USER:-admin}"
+  APP_PASSWORD="${APP_PASSWORD:-change-me}"
 
   case "$COMMAND" in
     setup)

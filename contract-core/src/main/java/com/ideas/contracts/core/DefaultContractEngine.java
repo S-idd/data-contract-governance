@@ -88,6 +88,9 @@ public class DefaultContractEngine implements ContractEngine {
       diff.requiredRemoved().forEach(field -> lines.add("! required removed: " + field));
       diff.enumAdded().forEach(change -> lines.add("~ enum value added: " + change));
       diff.enumRemoved().forEach(change -> lines.add("~ enum value removed: " + change));
+      diff.constraintTightened().forEach(change -> lines.add("! constraint tightened: " + change));
+      diff.conditionalRestrictionAdded().forEach(change -> lines.add("! conditional restriction added or changed: " + change));
+      diff.schemaRestrictionAdded().forEach(change -> lines.add("! schema restriction added or changed: " + change));
 
       if (lines.size() == 1) {
         lines.add("No semantic differences found.");

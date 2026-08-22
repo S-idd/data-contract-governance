@@ -43,6 +43,27 @@ public class DefaultRuleEngine implements RuleEngine {
         "Enum value added: ",
         breakingChanges,
         warnings);
+    applyRule(
+        effectivePack,
+        RuleId.CONSTRAINT_TIGHTENED,
+        diff.constraintTightened(),
+        "Constraint tightened: ",
+        breakingChanges,
+        warnings);
+    applyRule(
+        effectivePack,
+        RuleId.CONDITIONAL_RESTRICTION_ADDED,
+        diff.conditionalRestrictionAdded(),
+        "Conditional restriction added or changed: ",
+        breakingChanges,
+        warnings);
+    applyRule(
+        effectivePack,
+        RuleId.SCHEMA_RESTRICTION_ADDED,
+        diff.schemaRestrictionAdded(),
+        "Schema restriction added or changed: ",
+        breakingChanges,
+        warnings);
 
     return breakingChanges.isEmpty()
         ? new CompatibilityResult(CheckStatus.PASS, List.of(), warnings)

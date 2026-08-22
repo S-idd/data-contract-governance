@@ -1,7 +1,8 @@
 # How To Run DCG Locally
 
-This guide gets the Data Contract Governance (DCG) project running end-to-end on your machine.
-It uses a dedicated Postgres schema (`dcg_dev`) so local runs stay isolated from test schemas.
+This guide gets the Data Contract Governance (DCG) project running end-to-end against a PostgreSQL instance that you manage locally. It uses a dedicated Postgres schema (`dcg_dev`) so local runs stay isolated from test schemas.
+
+For the recommended first run with Docker-managed PostgreSQL, use the [Compose Quickstart](quickstart-compose.md) instead.
 
 All commands are meant to run from the repo root unless a step says otherwise.
 

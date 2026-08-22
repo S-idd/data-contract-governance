@@ -175,6 +175,8 @@ class UiControllerIntegrationTest {
     mockMvc.perform(get("/ui"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("Dashboard")))
+        .andExpect(content().string(containsString("Unique Contract IDs")))
+        .andExpect(content().string(containsString("Schema versions are not counted separately.")))
         .andExpect(content().string(containsString("System Status")))
         .andExpect(content().string(containsString("Metadata store")))
         .andExpect(content().string(containsString("Artifact store")))
