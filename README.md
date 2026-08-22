@@ -9,7 +9,8 @@ Open-source Java/Spring Boot tooling to prevent breaking schema changes before m
 
 Open-source project information: [Contributing](CONTRIBUTING.md),
 [Security](SECURITY.md), [Code of Conduct](CODE_OF_CONDUCT.md),
-[Changelog](CHANGELOG.md), and [release policy](docs/release-and-versioning.md).
+[Changelog](CHANGELOG.md), [release policy](docs/release-and-versioning.md), and the
+[Apache-2.0 license](LICENSE).
 
 ## Start Here
 

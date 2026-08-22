@@ -27,4 +27,4 @@ Thank you for helping improve DCG. By participating, you agree to follow the
 Maintainers review correctness, tests, security impact, documentation, compatibility, and support
 cost. A review or merge does not create a support commitment beyond the published support policy.
 Contributors retain ownership of their work and grant the project the rights needed under the
-repository's selected license once one is published.
+[Apache-2.0 license](LICENSE).
