@@ -33,7 +33,7 @@
          Thymeleaf versions transitively via the Boot BOM. -->
     <spring.boot.version>3.5.14</spring.boot.version>
     <junit.jupiter.version>5.11.3</junit.jupiter.version>
-    <aws.sdk.version>2.25.66</aws.sdk.version>
+    <aws.sdk.version>2.54.2</aws.sdk.version>
 
     <!-- Explicit overrides for CVEs not yet covered by spring-boot-dependencies 3.5.14.
          These are Spring Boot's documented "Version Properties" override hooks -
