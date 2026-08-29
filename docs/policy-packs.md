@@ -1,6 +1,10 @@
 # Policy Packs (How Compatibility Policies Work)
 
-This document explains how policy paccks Control compatibility outcomes in `data-contract-governance`, how they are resolved, and how to iterate safely.
+This document explains how policy packs control compatibility outcomes in `data-contract-governance`, how they are resolved, and how to iterate safely.
+
+The runnable compatibility engine (`RuleId`, `DefaultDiffEngine`, `DefaultRuleEngine`, and
+`PolicyPackDefaults` in `contract-core`) is the authoritative definition of supported rules.
+Keep this document aligned with that code whenever rules change.
 
 **Overview**
 Policy packs decide whether each compatibility rule is treated as `BREAKING`, `WARNING`, or `IGNORE`. A check run:
@@ -34,7 +38,10 @@ You can override the location by setting:
         "FIELD_TYPE_CHANGED": "BREAKING",
         "REQUIRED_FIELD_ADDED": "BREAKING",
         "ENUM_VALUE_REMOVED": "BREAKING",
-        "ENUM_VALUE_ADDED": "WARNING"
+        "ENUM_VALUE_ADDED": "WARNING",
+        "CONSTRAINT_TIGHTENED": "BREAKING",
+        "CONDITIONAL_RESTRICTION_ADDED": "BREAKING",
+        "SCHEMA_RESTRICTION_ADDED": "BREAKING"
       }
     },
     "strict": {
@@ -53,6 +60,9 @@ You can override the location by setting:
 }
 ```
 
+The complete baseline is shown above for clarity. A policy pack may omit any rule it does not
+override: omitted rules inherit the baseline implementation in `PolicyPackDefaults`.
+
 **Rule IDs and Severities**
 Rule IDs are defined in:
 
@@ -65,6 +75,25 @@ Valid rule IDs:
 - `REQUIRED_FIELD_ADDED`
 - `ENUM_VALUE_REMOVED`
 - `ENUM_VALUE_ADDED`
+- `CONSTRAINT_TIGHTENED`
+- `CONDITIONAL_RESTRICTION_ADDED`
+- `SCHEMA_RESTRICTION_ADDED`
+
+Rule meanings:
+
+- `FIELD_REMOVED` — a field is removed, including a recursively discovered nested field.
+- `FIELD_TYPE_CHANGED` — a field type or nullability changes.
+- `REQUIRED_FIELD_ADDED` — an optional field becomes required, or a new required field is added.
+- `ENUM_VALUE_REMOVED` / `ENUM_VALUE_ADDED` — an enum member is removed or added.
+- `CONSTRAINT_TIGHTENED` — a supported validation constraint becomes stricter, for example a
+  bound, length, pattern, `format`, `const`, `multipleOf`, `uniqueItems`, or
+  `additionalProperties` restriction.
+- `CONDITIONAL_RESTRICTION_ADDED` — a conditional restriction is added or changed.
+- `SCHEMA_RESTRICTION_ADDED` — a schema-level restriction is added or changed.
+
+The loader evaluates nested properties, array items, local references, and supported `oneOf`
+branches recursively. It reports the engine's concrete rule IDs rather than inventing separate
+labels such as `ARRAY_ITEM_CHANGED` or `NULLABILITY_CHANGED`.
 
 Valid severities:
 
