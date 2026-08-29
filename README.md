@@ -15,6 +15,7 @@ Open-source project information: [Contributing](CONTRIBUTING.md),
 ## Start Here
 
 - **Main Docker demo (PostgreSQL):** [Compose Quickstart](docs/quickstart-compose.md). This is the normal demo and the recommended first run.
+- **All local outputs:** [DCG runner sequence](docs/run-dcg-and-examples.md), or start with `bash scripts/dcg.sh sequence`.
 - **Database compatibility demo:** [PostgreSQL, SQLite, and MySQL presenter guide](docs/database-compatibility-demo.md).
 - **Native local PostgreSQL:** [How to run DCG locally](docs/how-to-run.md). Use this only when you already manage PostgreSQL outside Docker.
 - **S3 artifact backend:** [S3 beta guide](docs/how-to-s3-beta.md). This is separate from the normal demo and requires AWS configuration.
