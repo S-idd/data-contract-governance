@@ -2,7 +2,9 @@
 .env
 .env.*
 *.env
-!config/*.env.example
+*.env.*
+config/*.env
+config/*.env.*
 
 # Maven / Java build output
 target/
