@@ -24,6 +24,7 @@ public final class PolicyPackDefaults {
   private static Map<RuleId, RuleSeverity> buildBaselineRules() {
     EnumMap<RuleId, RuleSeverity> rules = new EnumMap<>(RuleId.class);
     rules.put(RuleId.FIELD_REMOVED, RuleSeverity.BREAKING);
+    rules.put(RuleId.FORWARD_OPTIONAL_FIELD_ADDED, RuleSeverity.IGNORE);
     rules.put(RuleId.FIELD_TYPE_CHANGED, RuleSeverity.BREAKING);
     rules.put(RuleId.REQUIRED_FIELD_ADDED, RuleSeverity.BREAKING);
     rules.put(RuleId.ENUM_VALUE_REMOVED, RuleSeverity.BREAKING);

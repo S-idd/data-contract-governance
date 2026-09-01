@@ -32,7 +32,12 @@ public class DefaultCompatibilityEngine implements CompatibilityEngine {
       warnings.addAll(backward.warnings());
     }
     if (mode == CompatibilityMode.FORWARD || mode == CompatibilityMode.FULL) {
-      CompatibilityResult forward = ruleEngine.evaluateBackward(diffEngine.diff(candidate, base), effectivePack);
+      SchemaDiff diff = diffEngine.diff(base, candidate);
+      CompatibilityResult forward = ruleEngine.evaluateForward(
+          diff,
+          diffEngine.diff(candidate, base),
+          base,
+          effectivePack);
       forward.breakingChanges().forEach(item -> breakingChanges.add("[FORWARD] " + item));
       forward.warnings().forEach(item -> warnings.add("[FORWARD] " + item));
     }

@@ -2,6 +2,7 @@ package com.ideas.contracts.core;
 
 public enum RuleId {
   FIELD_REMOVED,
+  FORWARD_OPTIONAL_FIELD_ADDED,
   FIELD_TYPE_CHANGED,
   REQUIRED_FIELD_ADDED,
   ENUM_VALUE_REMOVED,
