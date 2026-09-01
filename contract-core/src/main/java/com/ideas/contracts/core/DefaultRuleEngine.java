@@ -84,6 +84,7 @@ public class DefaultRuleEngine implements RuleEngine {
 
     Set<String> additions = new HashSet<>(diff.fieldAdded());
     Set<String> removals = new HashSet<>(diff.fieldRemoved());
+    Set<String> requiredAdditions = new HashSet<>(diff.requiredAdded());
     List<String> reversedRemovals = reversedDiff.fieldRemoved().stream()
         .filter(field -> !additions.contains(field))
         .toList();
@@ -115,13 +116,30 @@ public class DefaultRuleEngine implements RuleEngine {
             List.of(),
             List.of()),
         policyPack);
+    CompatibilityResult requiredAdditionResult = evaluateBackward(
+        new SchemaDiff(
+            List.of(),
+            List.of(),
+            List.of(),
+            diff.requiredAdded(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of()),
+        policyPack);
 
     PolicyPack effectivePack = policyPack == null ? PolicyPackDefaults.baselinePack() : policyPack;
     List<String> breakingChanges = new ArrayList<>(removalResult.breakingChanges());
+    breakingChanges.addAll(requiredAdditionResult.breakingChanges());
     breakingChanges.addAll(reversedResult.breakingChanges());
     List<String> warnings = new ArrayList<>(removalResult.warnings());
+    warnings.addAll(requiredAdditionResult.warnings());
     warnings.addAll(reversedResult.warnings());
-    for (String field : topLevelAdditions(diff.fieldAdded())) {
+    for (String field : topLevelAdditions(diff.fieldAdded()).stream()
+        .filter(field -> !requiredAdditions.contains(field))
+        .toList()) {
       String objectPath = parentObjectPath(field);
       String restriction = oldConsumer.schemaRestrictions().get(
           (objectPath.isEmpty() ? "root" : objectPath) + " additionalProperties");

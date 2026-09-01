@@ -130,13 +130,39 @@ class ForwardOptionalFieldCompatibilityTest {
         engine.checkCompatibility(openBase, optionalCandidate, CompatibilityMode.FULL).status());
     assertEquals(CheckStatus.FAIL,
         engine.checkCompatibility(closedBase, optionalCandidate, CompatibilityMode.FULL).status());
-    assertEquals(CheckStatus.PASS,
-        engine.checkCompatibility(openBase, requiredCandidate, CompatibilityMode.FORWARD).status());
+    CompatibilityResult requiredForward = engine.checkCompatibility(
+        openBase, requiredCandidate, CompatibilityMode.FORWARD);
+    assertEquals(CheckStatus.FAIL, requiredForward.status());
+    assertEquals(
+        java.util.List.of("[FORWARD] Required field added: added"),
+        requiredForward.breakingChanges());
     CompatibilityResult requiredFull = engine.checkCompatibility(
         openBase, requiredCandidate, CompatibilityMode.FULL);
     assertEquals(CheckStatus.FAIL, requiredFull.status());
-    assertTrue(requiredFull.breakingChanges().stream().anyMatch(
-        message -> message.contains("Required field added: added")));
+    assertEquals(
+        java.util.List.of(
+            "Required field added: added",
+            "[FORWARD] Required field added: added"),
+        requiredFull.breakingChanges());
+  }
+
+  @Test
+  void forwardGenuineRequiredFieldAdditionUsesRequiredFieldAddedRule() throws IOException {
+    Path base = schema(
+        "forward-required-addition-base.json", null,
+        "\"id\":{\"type\":\"string\"}", "");
+    Path candidate = schema(
+        "forward-required-addition-candidate.json", null,
+        "\"id\":{\"type\":\"string\"},\"added\":{\"type\":\"string\"}",
+        ",\"required\":[\"added\"]");
+
+    CompatibilityResult forward = engine.checkCompatibility(
+        base, candidate, CompatibilityMode.FORWARD);
+
+    assertEquals(CheckStatus.FAIL, forward.status());
+    assertEquals(
+        java.util.List.of("[FORWARD] Required field added: added"),
+        forward.breakingChanges());
   }
 
   @Test

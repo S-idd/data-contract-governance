@@ -120,6 +120,12 @@ removals in either BACKWARD or FORWARD mode use `FIELD_REMOVED` and therefore
 honor that rule's configured severity independently of the optional-addition
 path.
 
+A genuinely new required field uses `REQUIRED_FIELD_ADDED` in FORWARD as well
+as BACKWARD evaluation; it is not inferred from a reversed removal. `FULL`
+retains both directionally attributed findings when the same change is
+material in both checks, so its text output contains the BACKWARD finding and
+the corresponding `[FORWARD]` finding by design.
+
 **How a Policy Pack Is Chosen**
 For each contract:
 
