@@ -115,7 +115,10 @@ Notes:
 `IGNORE`; a policy pack may promote it to `WARNING` or `BREAKING`. An old
 consumer object with `additionalProperties: false` is always breaking, and a
 schema-valued `additionalProperties` remains conservatively breaking. This
-does not alter the ordinary `FIELD_REMOVED` rule used by BACKWARD checks.
+does not alter the ordinary `FIELD_REMOVED` rule. Genuine base-to-candidate
+removals in either BACKWARD or FORWARD mode use `FIELD_REMOVED` and therefore
+honor that rule's configured severity independently of the optional-addition
+path.
 
 **How a Policy Pack Is Chosen**
 For each contract:

@@ -83,14 +83,18 @@ public class DefaultRuleEngine implements RuleEngine {
     }
 
     Set<String> additions = new HashSet<>(diff.fieldAdded());
+    Set<String> removals = new HashSet<>(diff.fieldRemoved());
     List<String> reversedRemovals = reversedDiff.fieldRemoved().stream()
         .filter(field -> !additions.contains(field))
+        .toList();
+    List<String> reversedRequiredAdditions = reversedDiff.requiredAdded().stream()
+        .filter(field -> !removals.contains(field))
         .toList();
     SchemaDiff nonAdditionReversedDiff = new SchemaDiff(
         reversedDiff.fieldAdded(),
         reversedRemovals,
         reversedDiff.typeChanged(),
-        reversedDiff.requiredAdded(),
+        reversedRequiredAdditions,
         reversedDiff.requiredRemoved(),
         reversedDiff.enumAdded(),
         reversedDiff.enumRemoved(),
@@ -98,10 +102,25 @@ public class DefaultRuleEngine implements RuleEngine {
         reversedDiff.conditionalRestrictionAdded(),
         reversedDiff.schemaRestrictionAdded());
     CompatibilityResult reversedResult = evaluateBackward(nonAdditionReversedDiff, policyPack);
+    CompatibilityResult removalResult = evaluateBackward(
+        new SchemaDiff(
+            List.of(),
+            diff.fieldRemoved(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of()),
+        policyPack);
 
     PolicyPack effectivePack = policyPack == null ? PolicyPackDefaults.baselinePack() : policyPack;
-    List<String> breakingChanges = new ArrayList<>(reversedResult.breakingChanges());
-    List<String> warnings = new ArrayList<>(reversedResult.warnings());
+    List<String> breakingChanges = new ArrayList<>(removalResult.breakingChanges());
+    breakingChanges.addAll(reversedResult.breakingChanges());
+    List<String> warnings = new ArrayList<>(removalResult.warnings());
+    warnings.addAll(reversedResult.warnings());
     for (String field : topLevelAdditions(diff.fieldAdded())) {
       String objectPath = parentObjectPath(field);
       String restriction = oldConsumer.schemaRestrictions().get(

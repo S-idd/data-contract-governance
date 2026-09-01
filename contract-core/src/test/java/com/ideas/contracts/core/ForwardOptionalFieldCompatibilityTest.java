@@ -187,6 +187,43 @@ class ForwardOptionalFieldCompatibilityTest {
     assertTrue(backward.warnings().isEmpty());
   }
 
+  @Test
+  void forwardOptionalFieldRemovalUsesFieldRemovedRule() throws IOException {
+    Path base = schema(
+        "forward-optional-removal-base.json", null,
+        "\"id\":{\"type\":\"string\"},\"removed\":{\"type\":\"string\"}", "");
+    Path candidate = schema(
+        "forward-optional-removal-candidate.json", null,
+        "\"id\":{\"type\":\"string\"}", "");
+
+    CompatibilityResult forward = engine.checkCompatibility(
+        base, candidate, CompatibilityMode.FORWARD);
+
+    assertEquals(
+        java.util.List.of("[FORWARD] Field removed: removed"),
+        forward.breakingChanges());
+    assertEquals(CheckStatus.FAIL, forward.status());
+  }
+
+  @Test
+  void forwardRequiredFieldRemovalUsesFieldRemovedRule() throws IOException {
+    Path base = schema(
+        "forward-required-removal-base.json", null,
+        "\"id\":{\"type\":\"string\"},\"removed\":{\"type\":\"string\"}",
+        ",\"required\":[\"removed\"]");
+    Path candidate = schema(
+        "forward-required-removal-candidate.json", null,
+        "\"id\":{\"type\":\"string\"}", "");
+
+    CompatibilityResult forward = engine.checkCompatibility(
+        base, candidate, CompatibilityMode.FORWARD);
+
+    assertEquals(CheckStatus.FAIL, forward.status());
+    assertEquals(
+        java.util.List.of("[FORWARD] Field removed: removed"),
+        forward.breakingChanges());
+  }
+
   private Path schema(
       String name,
       String additionalProperties,
