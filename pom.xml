@@ -31,7 +31,7 @@
     <!-- Bumped from 3.3.5 -> 3.5.14 (latest 3.x line) to pick up fixed
          Spring Framework, Spring Security, Tomcat, Jackson, Logback and
          Thymeleaf versions transitively via the Boot BOM. -->
-    <spring.boot.version>3.5.14</spring.boot.version>
+    <spring.boot.version>4.1.1</spring.boot.version>
     <junit.jupiter.version>5.11.3</junit.jupiter.version>
     <aws.sdk.version>2.25.66</aws.sdk.version>
 
