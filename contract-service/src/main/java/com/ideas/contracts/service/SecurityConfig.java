@@ -14,12 +14,19 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import java.util.LinkedHashMap;
 
 @Configuration
 @EnableConfigurationProperties(EvidenceAuthProperties.class)
@@ -73,19 +80,48 @@ public class SecurityConfig {
     });
 
     if (evidenceMode == EvidenceAuthProperties.Mode.OIDC) {
+      AuthenticationEntryPoint authenticationEntryPoint = oidcAuthenticationEntryPoint();
       JwtDecoder decoder = configuredJwtDecoder.getIfAvailable(
           () -> JwtDecoders.fromIssuerLocation(evidenceAuth.getOidc().getIssuerUri()));
-      http.oauth2ResourceServer(oauth -> oauth.jwt(jwt ->
-          jwt.decoder(audienceValidatingDecoder(decoder, evidenceAuth.getOidc().getAudience()))));
+      http.oauth2ResourceServer(oauth -> oauth
+          .authenticationEntryPoint(authenticationEntryPoint)
+          .jwt(jwt -> jwt.decoder(audienceValidatingDecoder(
+              decoder, evidenceAuth.getOidc().getAudience()))));
+
+      // A resource server defaults every unauthenticated request to a Bearer challenge.  DCG's
+      // interactive UI deliberately uses the separately configured Basic user, so select the
+      // challenge by route: only evidence ingestion is a machine-to-machine Bearer endpoint.
+      http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint));
+      http.httpBasic(httpBasic -> httpBasic.authenticationEntryPoint(authenticationEntryPoint));
     }
-    if (securityEnabled || evidenceMode == EvidenceAuthProperties.Mode.BASIC) {
+    if ((securityEnabled || evidenceMode == EvidenceAuthProperties.Mode.BASIC)
+        && evidenceMode != EvidenceAuthProperties.Mode.OIDC) {
       http.httpBasic(Customizer.withDefaults());
     } else {
-      http.httpBasic(httpBasic -> httpBasic.disable());
+      if (evidenceMode != EvidenceAuthProperties.Mode.OIDC) {
+        http.httpBasic(httpBasic -> httpBasic.disable());
+      }
     }
     http.formLogin(form -> form.disable());
 
     return http.build();
+  }
+
+  private BasicAuthenticationEntryPoint basicEntryPoint() {
+    BasicAuthenticationEntryPoint entryPoint = new BasicAuthenticationEntryPoint();
+    entryPoint.setRealmName("DCG");
+    entryPoint.afterPropertiesSet();
+    return entryPoint;
+  }
+
+  private AuthenticationEntryPoint oidcAuthenticationEntryPoint() {
+    LinkedHashMap<RequestMatcher, AuthenticationEntryPoint> entryPoints = new LinkedHashMap<>();
+    entryPoints.put(new AntPathRequestMatcher("/checks/evidence"),
+        new BearerTokenAuthenticationEntryPoint());
+    DelegatingAuthenticationEntryPoint entryPoint = new DelegatingAuthenticationEntryPoint(entryPoints);
+    entryPoint.setDefaultEntryPoint(basicEntryPoint());
+    entryPoint.afterPropertiesSet();
+    return entryPoint;
   }
 
   private JwtDecoder audienceValidatingDecoder(JwtDecoder delegate, String requiredAudience) {

@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.ideas.contracts.core.CompatibilityEngineIdentity;
@@ -52,7 +53,10 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import(EvidenceOidcImportIntegrationTest.OidcTestConfiguration.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestPropertySource(properties = {
-    "app.security.enabled=false",
+    "app.security.enabled=true",
+    "app.security.username=tester",
+    "app.security.password=secret",
+    "app.security.roles=USER,WRITER",
     "app.security.evidence-auth.mode=OIDC",
     "app.security.evidence-auth.oidc.issuer-uri=https://issuer.dcg.test",
     "app.security.evidence-auth.oidc.trusted-issuers[0]=https://issuer.dcg.test",
@@ -115,6 +119,20 @@ class EvidenceOidcImportIntegrationTest {
   }
 
   @Test
+  void usesBasicChallengeForUiAndBearerChallengeForEvidenceInOidcMode() throws Exception {
+    mockMvc.perform(get("/ui"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(header().string("WWW-Authenticate", containsString("Basic realm=\"DCG\"")));
+
+    mockMvc.perform(get("/ui").header("Authorization", basicAuth("tester", "secret")))
+        .andExpect(status().isOk());
+
+    mockMvc.perform(post("/checks/evidence"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(header().string("WWW-Authenticate", containsString("Bearer")));
+  }
+
+  @Test
   void rejectsWrongAudienceSignatureProvenanceRepositoryBranchAndBasicAuthentication() throws Exception {
     mockMvc.perform(post("/checks/evidence")
             .header("Authorization", bearer("acme/orders", "refs/heads/main", "another-service"))
@@ -158,7 +176,8 @@ class EvidenceOidcImportIntegrationTest {
             .header("Authorization", basicAuth())
             .contentType(MediaType.APPLICATION_JSON)
             .content(evidence("oidc-basic-rejected", "orders.created")))
-        .andExpect(status().isUnauthorized());
+        .andExpect(status().isUnauthorized())
+        .andExpect(header().string("WWW-Authenticate", containsString("Bearer")));
   }
 
   @Test
@@ -238,7 +257,12 @@ class EvidenceOidcImportIntegrationTest {
   }
 
   private String basicAuth() {
-    return "Basic " + Base64.getEncoder().encodeToString("ci-runner:secret".getBytes(StandardCharsets.UTF_8));
+    return basicAuth("ci-runner", "secret");
+  }
+
+  private String basicAuth(String username, String password) {
+    return "Basic " + Base64.getEncoder()
+        .encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
   }
 
   private static synchronized void ensurePaths() {
