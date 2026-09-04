@@ -7,6 +7,8 @@ public record PolicyPack(String name, Map<RuleId, RuleSeverity> rules) {
     if (rules == null || ruleId == null) {
       return RuleSeverity.BREAKING;
     }
-    return rules.getOrDefault(ruleId, RuleSeverity.BREAKING);
+    return rules.getOrDefault(
+        ruleId,
+        PolicyPackDefaults.baselineRules().getOrDefault(ruleId, RuleSeverity.BREAKING));
   }
 }

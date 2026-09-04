@@ -35,6 +35,7 @@ You can override the location by setting:
       "description": "Baseline compatibility rules",
       "rules": {
         "FIELD_REMOVED": "BREAKING",
+        "FORWARD_OPTIONAL_FIELD_ADDED": "IGNORE",
         "FIELD_TYPE_CHANGED": "BREAKING",
         "REQUIRED_FIELD_ADDED": "BREAKING",
         "ENUM_VALUE_REMOVED": "BREAKING",
@@ -71,6 +72,7 @@ Rule IDs are defined in:
 Valid rule IDs:
 
 - `FIELD_REMOVED`
+- `FORWARD_OPTIONAL_FIELD_ADDED`
 - `FIELD_TYPE_CHANGED`
 - `REQUIRED_FIELD_ADDED`
 - `ENUM_VALUE_REMOVED`
@@ -107,6 +109,22 @@ Notes:
 - Unknown rule IDs throw an error at startup.
 - If a rule is omitted, the baseline rule is used.
 - If a rule severity is `null`, it defaults to `BREAKING`.
+
+`FORWARD_OPTIONAL_FIELD_ADDED` applies only when the old consumer object has
+`additionalProperties: true` or omits the keyword. Its baseline severity is
+`IGNORE`; a policy pack may promote it to `WARNING` or `BREAKING`. An old
+consumer object with `additionalProperties: false` is always breaking, and a
+schema-valued `additionalProperties` remains conservatively breaking. This
+does not alter the ordinary `FIELD_REMOVED` rule. Genuine base-to-candidate
+removals in either BACKWARD or FORWARD mode use `FIELD_REMOVED` and therefore
+honor that rule's configured severity independently of the optional-addition
+path.
+
+A genuinely new required field uses `REQUIRED_FIELD_ADDED` in FORWARD as well
+as BACKWARD evaluation; it is not inferred from a reversed removal. `FULL`
+retains both directionally attributed findings when the same change is
+material in both checks, so its text output contains the BACKWARD finding and
+the corresponding `[FORWARD]` finding by design.
 
 **How a Policy Pack Is Chosen**
 For each contract:
