@@ -13,18 +13,37 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class DemoComparisonServiceTest {
-  private static final Path PROJECT_ROOT = Path.of("..").toAbsolutePath().normalize();
-  private static final Path KUBERNETES_FIXTURE = PROJECT_ROOT.resolve(
-      "../data/external/kubernetes-openapi-v1/scored-accepted-v1/"
-          + "kubernetes-accepted-external-manifest-v3.json").normalize();
-  private static final Path POLICY_PACKS = PROJECT_ROOT.resolve(
+  private static final Path POLICY_PACKS = Path.of("..").toAbsolutePath().normalize().resolve(
       "contracts/policy-packs-v5-compositional.json");
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Test
   void returnsTheAuthoritativeAndAllThreeModelVerdictsForHttpIngressPath() throws IOException {
-    JsonNode fixture = objectMapper.readTree(KUBERNETES_FIXTURE.toFile());
+    JsonNode fixture = objectMapper.readTree("""
+        {
+          "transitions": [
+            {
+              "record_id": "kubernetes.prescreen.v1.21.0-to-v1.22.0.io.k8s.api.networking.v1.HTTPIngressPath",
+              "base_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {"type": "string"}
+                }
+              },
+              "candidate_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {"type": "string"},
+                  "pathType": {"type": "string"}
+                },
+                "required": ["pathType"]
+              },
+              "policy_pack": "baseline"
+            }
+          ]
+        }
+        """);
     final JsonNode ingressPath = findTransition(fixture,
         "kubernetes.prescreen.v1.21.0-to-v1.22.0.io.k8s.api.networking.v1.HTTPIngressPath");
     assertNotNull(ingressPath);
