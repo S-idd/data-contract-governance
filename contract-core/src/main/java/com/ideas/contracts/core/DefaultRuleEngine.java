@@ -1,7 +1,9 @@
 package com.ideas.contracts.core;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class DefaultRuleEngine implements RuleEngine {
   @Override
@@ -68,6 +70,129 @@ public class DefaultRuleEngine implements RuleEngine {
     return breakingChanges.isEmpty()
         ? new CompatibilityResult(CheckStatus.PASS, List.of(), warnings)
         : new CompatibilityResult(CheckStatus.FAIL, breakingChanges, warnings);
+  }
+
+  @Override
+  public CompatibilityResult evaluateForward(
+      SchemaDiff diff,
+      SchemaDiff reversedDiff,
+      SchemaSnapshot oldConsumer,
+      PolicyPack policyPack) {
+    if (diff == null || reversedDiff == null || oldConsumer == null) {
+      throw new CompatibilityException("Forward compatibility requires both diffs and the old consumer schema.");
+    }
+
+    Set<String> additions = new HashSet<>(diff.fieldAdded());
+    Set<String> removals = new HashSet<>(diff.fieldRemoved());
+    Set<String> requiredAdditions = new HashSet<>(diff.requiredAdded());
+    List<String> reversedRemovals = reversedDiff.fieldRemoved().stream()
+        .filter(field -> !additions.contains(field))
+        .toList();
+    List<String> reversedRequiredAdditions = reversedDiff.requiredAdded().stream()
+        .filter(field -> !removals.contains(field))
+        .toList();
+    SchemaDiff nonAdditionReversedDiff = new SchemaDiff(
+        reversedDiff.fieldAdded(),
+        reversedRemovals,
+        reversedDiff.typeChanged(),
+        reversedRequiredAdditions,
+        reversedDiff.requiredRemoved(),
+        reversedDiff.enumAdded(),
+        reversedDiff.enumRemoved(),
+        reversedDiff.constraintTightened(),
+        reversedDiff.conditionalRestrictionAdded(),
+        reversedDiff.schemaRestrictionAdded());
+    CompatibilityResult reversedResult = evaluateBackward(nonAdditionReversedDiff, policyPack);
+    CompatibilityResult removalResult = evaluateBackward(
+        new SchemaDiff(
+            List.of(),
+            diff.fieldRemoved(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of()),
+        policyPack);
+    CompatibilityResult requiredAdditionResult = evaluateBackward(
+        new SchemaDiff(
+            List.of(),
+            List.of(),
+            List.of(),
+            diff.requiredAdded(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of()),
+        policyPack);
+
+    PolicyPack effectivePack = policyPack == null ? PolicyPackDefaults.baselinePack() : policyPack;
+    List<String> breakingChanges = new ArrayList<>(removalResult.breakingChanges());
+    breakingChanges.addAll(requiredAdditionResult.breakingChanges());
+    breakingChanges.addAll(reversedResult.breakingChanges());
+    List<String> warnings = new ArrayList<>(removalResult.warnings());
+    warnings.addAll(requiredAdditionResult.warnings());
+    warnings.addAll(reversedResult.warnings());
+    for (String field : topLevelAdditions(diff.fieldAdded()).stream()
+        .filter(field -> !requiredAdditions.contains(field))
+        .toList()) {
+      String objectPath = parentObjectPath(field);
+      String restriction = oldConsumer.schemaRestrictions().get(
+          (objectPath.isEmpty() ? "root" : objectPath) + " additionalProperties");
+      if ("false".equals(restriction)) {
+        breakingChanges.add("Optional field added to closed consumer object: " + field);
+      } else if (restriction != null && !"true".equals(restriction)) {
+        breakingChanges.add("Optional field added to constrained consumer object: " + field);
+      } else {
+        applyRule(
+            effectivePack,
+            RuleId.FORWARD_OPTIONAL_FIELD_ADDED,
+            List.of(field),
+            "Optional field added to open consumer object: ",
+            breakingChanges,
+            warnings);
+      }
+    }
+
+    return breakingChanges.isEmpty()
+        ? new CompatibilityResult(CheckStatus.PASS, List.of(), warnings)
+        : new CompatibilityResult(CheckStatus.FAIL, breakingChanges, warnings);
+  }
+
+  private List<String> topLevelAdditions(List<String> additions) {
+    Set<String> added = new HashSet<>(additions);
+    return additions.stream()
+        .filter(field -> !hasAddedAncestor(field, added))
+        .sorted()
+        .toList();
+  }
+
+  private boolean hasAddedAncestor(String field, Set<String> additions) {
+    String ancestor = field;
+    while (!ancestor.isEmpty()) {
+      if (ancestor.endsWith("[]")) {
+        ancestor = ancestor.substring(0, ancestor.length() - 2);
+      } else {
+        int separator = ancestor.lastIndexOf('.');
+        if (separator < 0) {
+          return false;
+        }
+        ancestor = ancestor.substring(0, separator);
+      }
+      if (additions.contains(ancestor)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private String parentObjectPath(String field) {
+    int separator = field.lastIndexOf('.');
+    return separator < 0 ? "" : field.substring(0, separator);
   }
 
   private void applyRule(

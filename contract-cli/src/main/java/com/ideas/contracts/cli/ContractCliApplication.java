@@ -10,6 +10,7 @@ import picocli.CommandLine;
         LintCommand.class,
         DiffCommand.class,
         CheckCompatCommand.class,
+        DemoCompareCommand.class,
         ExplainCommand.class,
         ImpactAnalysisCommand.class,
         InitCiCommand.class
