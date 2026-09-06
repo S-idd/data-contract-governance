@@ -1,0 +1,108 @@
+{
+  "defaultPack": "baseline",
+  "packs": {
+    "baseline": {
+      "description": "Baseline compatibility rules",
+      "rules": {
+        "FIELD_REMOVED": "BREAKING",
+        "FIELD_TYPE_CHANGED": "BREAKING",
+        "REQUIRED_FIELD_ADDED": "BREAKING",
+        "ENUM_VALUE_REMOVED": "BREAKING",
+        "ENUM_VALUE_ADDED": "WARNING"
+      }
+    },
+    "strict": {
+      "description": "Treat enum additions as breaking",
+      "rules": {
+        "ENUM_VALUE_ADDED": "BREAKING"
+      }
+    },
+    "relaxed": {
+      "description": "Ignore enum additions",
+      "rules": {
+        "ENUM_VALUE_ADDED": "IGNORE"
+      }
+    },
+    "baseline-warning-peer": {
+      "description": "Approved peer of baseline's enum-addition warning profile",
+      "rules": {
+        "ENUM_VALUE_ADDED": "WARNING"
+      }
+    },
+    "strict-breaking-peer": {
+      "description": "Approved peer of strict's enum-addition breaking profile",
+      "rules": {
+        "ENUM_VALUE_ADDED": "BREAKING"
+      }
+    },
+    "relaxed-ignore-peer": {
+      "description": "Approved peer of relaxed's enum-addition ignore profile",
+      "rules": {
+        "ENUM_VALUE_ADDED": "IGNORE"
+      }
+    },
+    "composition-enum-ignore-constraint-ignore": {
+      "description": "Approved V5 composition: ignore enum additions and constraint tightening",
+      "rules": {
+        "ENUM_VALUE_ADDED": "IGNORE",
+        "CONSTRAINT_TIGHTENED": "IGNORE"
+      }
+    },
+    "composition-enum-ignore-constraint-warning": {
+      "description": "Approved V5 composition: ignore enum additions and warn on constraint tightening",
+      "rules": {
+        "ENUM_VALUE_ADDED": "IGNORE",
+        "CONSTRAINT_TIGHTENED": "WARNING"
+      }
+    },
+    "composition-enum-ignore-constraint-breaking": {
+      "description": "Approved V5 composition: ignore enum additions and break on constraint tightening",
+      "rules": {
+        "ENUM_VALUE_ADDED": "IGNORE",
+        "CONSTRAINT_TIGHTENED": "BREAKING"
+      }
+    },
+    "composition-enum-warning-constraint-ignore": {
+      "description": "Approved V5 composition: warn on enum additions and ignore constraint tightening",
+      "rules": {
+        "ENUM_VALUE_ADDED": "WARNING",
+        "CONSTRAINT_TIGHTENED": "IGNORE"
+      }
+    },
+    "composition-enum-warning-constraint-warning": {
+      "description": "Approved V5 composition: warn on enum additions and constraint tightening",
+      "rules": {
+        "ENUM_VALUE_ADDED": "WARNING",
+        "CONSTRAINT_TIGHTENED": "WARNING"
+      }
+    },
+    "composition-enum-warning-constraint-breaking": {
+      "description": "Approved V5 composition: warn on enum additions and break on constraint tightening",
+      "rules": {
+        "ENUM_VALUE_ADDED": "WARNING",
+        "CONSTRAINT_TIGHTENED": "BREAKING"
+      }
+    },
+    "composition-enum-breaking-constraint-ignore": {
+      "description": "Approved V5 composition: break on enum additions and ignore constraint tightening",
+      "rules": {
+        "ENUM_VALUE_ADDED": "BREAKING",
+        "CONSTRAINT_TIGHTENED": "IGNORE"
+      }
+    },
+    "composition-enum-breaking-constraint-warning": {
+      "description": "Approved V5 composition: break on enum additions and warn on constraint tightening",
+      "rules": {
+        "ENUM_VALUE_ADDED": "BREAKING",
+        "CONSTRAINT_TIGHTENED": "WARNING"
+      }
+    },
+    "composition-enum-breaking-constraint-breaking": {
+      "description": "Approved V5 composition: break on enum additions and constraint tightening",
+      "rules": {
+        "ENUM_VALUE_ADDED": "BREAKING",
+        "CONSTRAINT_TIGHTENED": "BREAKING"
+      }
+    }
+  }
+}
