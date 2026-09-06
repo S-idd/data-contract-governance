@@ -34,6 +34,7 @@ public class CheckRunner {
   private final ArtifactStore artifactStore;
   private final CheckMetrics checkMetrics;
   private final NotificationService notificationService;
+  private final ShadowInferenceObserver shadowInferenceObserver;
   private final int maxPerPoll;
   private final int maxRetries;
   private final ConcurrentMap<String, Integer> retryCounts = new ConcurrentHashMap<>();
@@ -46,6 +47,7 @@ public class CheckRunner {
       ArtifactStore artifactStore,
       CheckMetrics checkMetrics,
       NotificationService notificationService,
+      ShadowInferenceObserver shadowInferenceObserver,
       @Value("${checks.runner.max-per-poll:3}") int maxPerPoll,
       @Value("${checks.runner.max-retries:2}") int maxRetries) {
     this.checkRunStore = checkRunStore;
@@ -55,6 +57,7 @@ public class CheckRunner {
     this.artifactStore = artifactStore;
     this.checkMetrics = checkMetrics;
     this.notificationService = notificationService;
+    this.shadowInferenceObserver = shadowInferenceObserver;
     this.maxPerPoll = Math.max(1, maxPerPoll);
     this.maxRetries = Math.max(0, maxRetries);
   }
@@ -93,6 +96,13 @@ public class CheckRunner {
         LOGGER.warn("event=check_run_update_skipped component=check_runner run_id={} message=Run not updated", run.runId());
         return;
       }
+      dispatchShadowObservation(
+          run,
+          baseSchema,
+          candidateSchema,
+          mode,
+          policyPack,
+          result);
       retryCounts.remove(run.runId());
       Duration duration = Duration.between(startedAt, Instant.now());
       checkMetrics.recordCompleted(run.contractId(), result.status().name(), duration);
@@ -106,6 +116,38 @@ public class CheckRunner {
           "code=check_run_completed status=" + result.status().name() + " message=Check run completed.");
     } catch (Exception ex) {
       handleFailure(run, ex, startedAt);
+    }
+  }
+
+  private void dispatchShadowObservation(
+      MetadataStore.QueuedCheckRun run,
+      Path baseSchema,
+      Path candidateSchema,
+      CompatibilityMode mode,
+      PolicyPack policyPack,
+      CompatibilityResult result) {
+    try {
+      shadowInferenceObserver.observe(new ShadowInferenceObservation(
+          run.contractId(),
+          run.runId(),
+          run.baseVersion(),
+          run.candidateVersion(),
+          run.commitSha(),
+          baseSchema,
+          candidateSchema,
+          mode,
+          policyPack.name(),
+          result));
+    } catch (RuntimeException error) {
+      LOGGER.warn(
+          "event=shadow_inference_dispatch_failed component=check_runner role=LOG_ONLY contract_id={} run_id={} authoritative_status={} compatibility_mode={} policy_pack={} error_type={} error_message={}",
+          run.contractId(),
+          run.runId(),
+          result.status(),
+          mode,
+          policyPack.name(),
+          error.getClass().getSimpleName(),
+          summarizeFailure(error));
     }
   }
 
