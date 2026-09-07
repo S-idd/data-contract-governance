@@ -6,3 +6,5 @@ ed0b55d590620f83a567b9d5cdeb6d95d27e49b9:docs/version4-recovery-and-incident-run
 acc1bafc009892c63d97a512a3b7275d8cebe8c8:docs/quickstart-compose.md:curl-auth-user:67
 ba0fda708fc597cac9931fe4f3b501a99d1375ce:docs/week6-docker-compose-production-baseline.md:curl-auth-user:76
 ba0fda708fc597cac9931fe4f3b501a99d1375ce:docs/quickstart-compose.md:curl-auth-user:61
+8ae786a5e47e60572017b3cb3bda1b070362e2a7:docs/quickstart-compose.md:curl-auth-user:74
+8ae786a5e47e60572017b3cb3bda1b070362e2a7:docs/week6-docker-compose-production-baseline.md:curl-auth-user:77

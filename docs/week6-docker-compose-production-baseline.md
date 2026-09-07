@@ -74,7 +74,8 @@ Demo-only credentials (from `config/compose.live-demo.env.example`):
 ## 5) Verify Write Path
 
 ```bash
-curl -u "${DCG_APP_USERNAME:?Set DCG_APP_USERNAME}:${DCG_APP_PASSWORD:?Set DCG_APP_PASSWORD}" \
+auth_header="Authorization: Basic $(printf '%s' "${DCG_APP_USERNAME:?Set DCG_APP_USERNAME}:${DCG_APP_PASSWORD:?Set DCG_APP_PASSWORD}" | base64)"
+curl -H "$auth_header" \
   -H "Content-Type: application/json" \
   -d '{"contractId":"orders.created","baseVersion":"v1","candidateVersion":"v2","mode":"BACKWARD","commitSha":"compose-local","triggeredBy":"compose"}' \
   http://localhost:8080/checks

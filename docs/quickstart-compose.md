@@ -71,7 +71,8 @@ Set `DCG_APP_USERNAME` and `DCG_APP_PASSWORD` in your shell to the values from
 `.env.live-demo` before running this command.
 
 ```bash
-curl -fsS -u "${DCG_APP_USERNAME:?Set DCG_APP_USERNAME}:${DCG_APP_PASSWORD:?Set DCG_APP_PASSWORD}" \
+auth_header="Authorization: Basic $(printf '%s' "${DCG_APP_USERNAME:?Set DCG_APP_USERNAME}:${DCG_APP_PASSWORD:?Set DCG_APP_PASSWORD}" | base64)"
+curl -fsS -H "$auth_header" \
   -H "Content-Type: application/json" \
   -d '{
     "contractId":"orders.created",
