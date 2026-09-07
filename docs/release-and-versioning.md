@@ -9,7 +9,7 @@ release artifact.
 
 ## Release checklist
 
-1. Ensure CI is green: tests, changed-contract check, secret scan, dependency/vulnerability
+1. Ensure CI is green: tests, changed-contract check, security scanning, dependency/vulnerability
    checks, and SBOM generation.
 2. Update [CHANGELOG.md](../CHANGELOG.md), including support-level or limitation changes.
 3. Run `docker compose -f docker-compose.yml config` and the documented Compose smoke test.

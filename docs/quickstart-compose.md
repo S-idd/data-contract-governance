@@ -53,8 +53,8 @@ Notes:
 
 The initial local-demo credentials are in `.env.live-demo`, created from `config/compose.live-demo.env.example`:
 
-- Username: `dcg-compose-admin`
-- Password: `dcg-compose-demo-password`
+- Username: the value of `DCG_APP_USERNAME` in your local `.env.live-demo`
+- Password: the value of `DCG_APP_PASSWORD` in your local `.env.live-demo`
 
 ## 4) Manual Path (if you prefer explicit commands)
 
@@ -67,8 +67,11 @@ curl -fsS http://localhost:8080/actuator/health
 
 Submit a sample check run:
 
+Set `DCG_APP_USERNAME` and `DCG_APP_PASSWORD` in your shell to the values from
+`.env.live-demo` before running this command.
+
 ```bash
-curl -fsS -u dcg-compose-admin:dcg-compose-demo-password \
+curl -fsS -u "${DCG_APP_USERNAME:?Set DCG_APP_USERNAME}:${DCG_APP_PASSWORD:?Set DCG_APP_PASSWORD}" \
   -H "Content-Type: application/json" \
   -d '{
     "contractId":"orders.created",

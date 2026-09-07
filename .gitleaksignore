@@ -1,0 +1,8 @@
+# Historical false positives from documented local-demo commands and checklist prose.
+# Current versions use shell variables or neutral wording; these fingerprints remain in history.
+c965fa787fdf925c1c4561988c4f938f382c8cd7:docs/release-and-versioning.md:generic-api-key:12
+acc1bafc009892c63d97a512a3b7275d8cebe8c8:docs/week6-docker-compose-production-baseline.md:curl-auth-user:76
+ed0b55d590620f83a567b9d5cdeb6d95d27e49b9:docs/version4-recovery-and-incident-runbook.md:generic-api-key:155
+acc1bafc009892c63d97a512a3b7275d8cebe8c8:docs/quickstart-compose.md:curl-auth-user:67
+ba0fda708fc597cac9931fe4f3b501a99d1375ce:docs/week6-docker-compose-production-baseline.md:curl-auth-user:76
+ba0fda708fc597cac9931fe4f3b501a99d1375ce:docs/quickstart-compose.md:curl-auth-user:61

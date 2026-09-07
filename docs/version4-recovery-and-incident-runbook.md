@@ -152,7 +152,7 @@ The focused service suite verifies the user-visible behavior when recovery is no
 
 It proves the following operational contracts:
 
-1. Metadata-store read and write failures return a structured `503` with `CHECK_STORE_UNAVAILABLE`, a request ID, and no database path or credential value.
+1. Metadata-store read and write failures return a structured `503` with `CHECK_STORE_UNAVAILABLE`, a request ID, and without exposing database paths or credentials.
 2. Invalid PostgreSQL credentials and an unreachable PostgreSQL endpoint follow the same safe response contract.
 3. A damaged SQLite migration target can be restored from a known-good backup and return the original check run and logs.
 4. A failed S3 artifact write rolls back its local cache when fallback is disabled; missing S3 artifacts do not silently use that cache.

@@ -68,13 +68,13 @@ Open UI:
 
 Demo-only credentials (from `config/compose.live-demo.env.example`):
 
-- username: `dcg-compose-admin`
-- password: `dcg-compose-demo-password`
+- username: the value of `DCG_APP_USERNAME` in your local `.env.live-demo`
+- password: the value of `DCG_APP_PASSWORD` in your local `.env.live-demo`
 
 ## 5) Verify Write Path
 
 ```bash
-curl -u dcg-compose-admin:dcg-compose-demo-password \
+curl -u "${DCG_APP_USERNAME:?Set DCG_APP_USERNAME}:${DCG_APP_PASSWORD:?Set DCG_APP_PASSWORD}" \
   -H "Content-Type: application/json" \
   -d '{"contractId":"orders.created","baseVersion":"v1","candidateVersion":"v2","mode":"BACKWARD","commitSha":"compose-local","triggeredBy":"compose"}' \
   http://localhost:8080/checks
