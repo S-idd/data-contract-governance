@@ -64,7 +64,9 @@ jobs:
         run: |
           ./mvnw --batch-mode --no-transfer-progress \
             -pl contract-service \
+            -am \
             -DskipITs \
+            -Dsurefire.failIfNoSpecifiedTests=false \
             -Dtest=ShadowInferenceObserverTest,CheckRunnerIntegrationTest,CheckRunnerShadowIsolationTest,HttpShadowInferenceGatewayTest,DemoComparisonServiceTest \
             test
 
