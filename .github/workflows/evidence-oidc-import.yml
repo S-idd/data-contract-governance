@@ -22,7 +22,9 @@ concurrency:
 jobs:
   import-evidence:
     # Manual dispatch is allowed only from the protected branch as well.
-    if: github.ref == 'refs/heads/main'
+    # Keep the production integration dormant until a real deployment exists.
+    # Once configured, the existing HTTPS validation and fail-closed behavior apply.
+    if: github.ref == 'refs/heads/main' && vars.DCG_EVIDENCE_SERVICE_URL != ''
     runs-on: ubuntu-latest
     environment: production
     env:

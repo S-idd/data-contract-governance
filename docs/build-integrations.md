@@ -85,6 +85,11 @@ do not put it in an `.env` file or GitHub Actions workflow. A `401` means token 
 a `403` means the signed token was valid but the service's contract/repository/ref policy rejected
 it.
 
+If no production service has been deployed yet, leave `DCG_EVIDENCE_SERVICE_URL` unset. The
+workflow skips the production import cleanly in that state, while local and Compose validation
+remain available. Once an HTTPS service is available, set the environment variable and the
+workflow will activate automatically.
+
 Use [evidence-oidc.properties.example](../config/evidence-oidc.properties.example) as the deployment configuration template. The service fails closed at startup unless `issuer-uri` is present in an explicit, unique `trusted-issuers` allowlist, and unless audience, claim names, and non-empty unique contract authorization rules are configured. This deployment supports one issuer endpoint per service instance; do not add an issuer merely because its tokens are cryptographically valid. Basic authentication is only available in an explicitly selected local/demo profile (`APP_SECURITY_EVIDENCE_AUTH_MODE=BASIC` and `APP_SECURITY_EVIDENCE_AUTH_ALLOW_BASIC=true`); it is not a production fallback.
 
 Evidence API failures use stable codes: `AUTH_FAILED`, `CONTRACT_NOT_AUTHORIZED`, `MALFORMED_DOCUMENT`, `EVIDENCE_PAYLOAD_REQUIRED`, `EVIDENCE_PAYLOAD_TOO_LARGE`, `EVIDENCE_RATE_LIMITED`, and `EVIDENCE_IDEMPOTENCY_CONFLICT`. A stored verification outcome remains `VERIFIED`, `VERSION_SKEW`, `REJECTED`, or `UNVERIFIED`; it is not an HTTP authentication result.
