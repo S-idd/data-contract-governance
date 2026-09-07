@@ -1,0 +1,31 @@
+services:
+  dcgaimodel:
+    build:
+      context: ${DCG_AI_MODEL_CONTEXT:-../../dcgaimodel}
+      dockerfile: Dockerfile
+    image: dcg/dcgaimodel:local
+    restart: unless-stopped
+    init: true
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health/ready >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+
+  contract-service:
+    depends_on:
+      dcgaimodel:
+        condition: service_healthy
+    environment:
+      SHADOW_INFERENCE_ENABLED: ${SHADOW_INFERENCE_ENABLED:-true}
+      SHADOW_INFERENCE_ENDPOINT: http://dcgaimodel:8080/v1/shadow/predict
