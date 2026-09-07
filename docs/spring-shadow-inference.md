@@ -99,6 +99,11 @@ The default model checkout path is `../../dcgaimodel` relative to this repositor
 `DCG_AI_MODEL_CONTEXT` when the Rust checkout is elsewhere. The Rust service is not published to a
 host port; Java reaches it at `http://dcgaimodel:8080/v1/shadow/predict`.
 
+The override places Rust on an internal-only `shadow-inference` network, while Java joins both that
+network and the database/default network. The local resource defaults are 512 MiB memory, one CPU,
+and 128 processes; adjust them with `DCG_AI_MODEL_MEMORY_LIMIT`, `DCG_AI_MODEL_CPUS`, and
+`DCG_AI_MODEL_PIDS_LIMIT` when running the demo on a smaller machine.
+
 The Rust readiness response confirms that the frozen policy and all three model seeds are loaded and
 that a valid inference can execute. A readiness failure prevents the Compose Java container from
 starting, while an inference failure after startup remains fail-open through the existing Java

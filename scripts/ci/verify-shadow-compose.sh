@@ -47,6 +47,12 @@ wait_for() {
 }
 
 "${compose[@]}" up -d --build >/dev/null
+model_container_id=$("${compose[@]}" ps -q dcgaimodel)
+model_ports=$(docker inspect --format '{{json .NetworkSettings.Ports}}' "$model_container_id")
+if ! jq -e '."8080/tcp" == null or (."8080/tcp" | length == 0)' <<<"$model_ports" >/dev/null; then
+  echo "Rust shadow service must not publish port 8080 to the host" >&2
+  exit 1
+fi
 wait_for "Java health" curl -fsS "http://127.0.0.1:${service_port}/actuator/health"
 wait_for "Rust readiness through Compose DNS" \
   "${compose[@]}" exec -T contract-service curl -fsS http://dcgaimodel:8080/health/ready
