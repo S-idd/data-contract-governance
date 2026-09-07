@@ -1,0 +1,87 @@
+name: Shadow inference integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/shadow-inference-compose.yml"
+      - "contract-service/**"
+      - "docker/**"
+      - "docker-compose*.yml"
+      - "docs/spring-shadow-inference.md"
+      - "scripts/ci/verify-shadow-compose.sh"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - ".github/workflows/shadow-inference-compose.yml"
+      - "contract-service/**"
+      - "docker/**"
+      - "docker-compose*.yml"
+      - "docs/spring-shadow-inference.md"
+      - "scripts/ci/verify-shadow-compose.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  shadow-compose:
+    name: Java-Rust Compose integration
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data-contract-governance
+    steps:
+      - name: Checkout Java service
+        uses: actions/checkout@v7
+        with:
+          path: data-contract-governance
+
+      - name: Checkout pinned Rust model service
+        uses: actions/checkout@v7
+        with:
+          repository: S-idd/dcgaimodel
+          ref: ef819fe58865c643a240ee067cf61d506f04a778
+          path: dcgaimodel
+
+      - name: Record integration revisions
+        run: |
+          echo "Java revision:"
+          git rev-parse HEAD
+          echo "Rust revision:"
+          git -C "${GITHUB_WORKSPACE}/dcgaimodel" rev-parse HEAD
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: data-contract-governance/pom.xml
+
+      - name: Run Java shadow integration tests
+        run: |
+          ./mvnw --batch-mode --no-transfer-progress \
+            -pl contract-service \
+            -am \
+            -DskipITs \
+            -Dsurefire.failIfNoSpecifiedTests=false \
+            -Dtest=ShadowInferenceObserverTest,CheckRunnerIntegrationTest,CheckRunnerShadowIsolationTest,HttpShadowInferenceGatewayTest,DemoComparisonServiceTest \
+            test
+
+      - name: Run Compose integration verifier
+        env:
+          DCG_MODEL_ROOT: ${{ github.workspace }}/dcgaimodel
+          DCG_SHADOW_COMPOSE_PROJECT: dcg-shadow-ci-${{ github.run_id }}
+          DCG_SHADOW_COMPOSE_PORT: "18080"
+        run: ./scripts/ci/verify-shadow-compose.sh
+
+      - name: Collect Compose logs on failure
+        if: failure()
+        run: |
+          docker compose \
+            --project-name "dcg-shadow-ci-${{ github.run_id }}" \
+            -f docker-compose.sqlite.yml \
+            -f docker-compose.shadow-inference.yml \
+            logs --no-color || true

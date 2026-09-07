@@ -68,6 +68,23 @@ The timeout is an overall deadline for all attempts; retry delay is bounded by t
 
 Production evidence import requires `Authorization: Bearer <CI-issued OIDC JWT>`. DCG validates the token signature and issuer, requires the configured audience, and then authorizes an exact `contractId` / repository / ref combination. It records verified issuer, subject, audience, repository, and ref as provenance; the client-supplied `ciIdentity` remains an untrusted label.
 
+### GitHub Actions production workflow
+
+[`evidence-oidc-import.yml`](../.github/workflows/evidence-oidc-import.yml) runs only for
+protected `main` revisions (or a manual dispatch of that same branch). It requests a short-lived
+GitHub Actions OIDC token with audience `dcg-evidence`, performs the local compatibility gate,
+and imports the exact JSON evidence artifact. It neither uses nor stores a GitHub personal access
+token, application password, or OIDC token as a repository secret.
+
+Before enabling it, create a protected GitHub `production` environment and set its
+`DCG_EVIDENCE_SERVICE_URL` **configuration variable** to the externally reachable HTTPS DCG
+service URL. Configure the deployed service separately with the approved issuer, the same
+audience, and an exact authorization rule for `S-idd/data-contract-governance`, `refs/heads/main`,
+and `orders.created`. The service policy belongs in deployment configuration or a secret manager;
+do not put it in an `.env` file or GitHub Actions workflow. A `401` means token validation failed;
+a `403` means the signed token was valid but the service's contract/repository/ref policy rejected
+it.
+
 Use [evidence-oidc.properties.example](../config/evidence-oidc.properties.example) as the deployment configuration template. The service fails closed at startup unless `issuer-uri` is present in an explicit, unique `trusted-issuers` allowlist, and unless audience, claim names, and non-empty unique contract authorization rules are configured. This deployment supports one issuer endpoint per service instance; do not add an issuer merely because its tokens are cryptographically valid. Basic authentication is only available in an explicitly selected local/demo profile (`APP_SECURITY_EVIDENCE_AUTH_MODE=BASIC` and `APP_SECURITY_EVIDENCE_AUTH_ALLOW_BASIC=true`); it is not a production fallback.
 
 Evidence API failures use stable codes: `AUTH_FAILED`, `CONTRACT_NOT_AUTHORIZED`, `MALFORMED_DOCUMENT`, `EVIDENCE_PAYLOAD_REQUIRED`, `EVIDENCE_PAYLOAD_TOO_LARGE`, `EVIDENCE_RATE_LIMITED`, and `EVIDENCE_IDEMPOTENCY_CONFLICT`. A stored verification outcome remains `VERIFIED`, `VERSION_SKEW`, `REJECTED`, or `UNVERIFIED`; it is not an HTTP authentication result.

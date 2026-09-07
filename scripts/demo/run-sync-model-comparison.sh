@@ -9,7 +9,7 @@ fi
 
 script_dir=$(cd "$(dirname "$0")" && pwd)
 project_root=$(cd "$script_dir/../.." && pwd)
-model_root=$(cd "$project_root/.." && pwd)
+model_root=${DCG_MODEL_ROOT:-"$project_root/../../dcgaimodel"}
 fixture_manifest="$model_root/data/external/kubernetes-openapi-v1/scored-accepted-v1/kubernetes-accepted-external-manifest-v3.json"
 cli_jar=${DCG_DEMO_CLI_JAR:-"$project_root/contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar"}
 endpoint=${DCG_DEMO_ENDPOINT:-"http://127.0.0.1:8081/demo/compare"}
@@ -29,6 +29,12 @@ esac
 
 if [[ ! -f "$cli_jar" ]]; then
   echo "CLI jar not found: $cli_jar. Build it with: mvn -pl contract-cli -am package -DskipTests" >&2
+  exit 2
+fi
+
+if [[ ! -f "$fixture_manifest" ]]; then
+  echo "Rust model fixture manifest not found: $fixture_manifest" >&2
+  echo "Set DCG_MODEL_ROOT to the dcgaimodel checkout if it is not at the default sibling path." >&2
   exit 2
 fi
 

@@ -81,3 +81,70 @@ queue never grows without bound. Once full, the executor rejects each new observ
 Spring logs it with `event=shadow_inference_call_failed` and `failure_stage=DISPATCH`, drops that
 shadow observation, and leaves the already-persisted authoritative decision untouched. It does not
 retry or block waiting for queue capacity.
+
+## Compose deployment
+
+The base Compose files keep shadow inference disabled unless the integration override is supplied.
+The override builds the sibling `dcgaimodel` checkout, keeps Rust on the internal Compose network,
+waits for `/health/ready`, and points Spring at the Compose service name:
+
+```bash
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.shadow-inference.yml \
+  up --build
+```
+
+The default model checkout path is `../../dcgaimodel` relative to this repository. Set
+`DCG_AI_MODEL_CONTEXT` when the Rust checkout is elsewhere. The Rust service is not published to a
+host port; Java reaches it at `http://dcgaimodel:8080/v1/shadow/predict`.
+
+The Rust readiness response confirms that the frozen policy and all three model seeds are loaded and
+that a valid inference can execute. A readiness failure prevents the Compose Java container from
+starting, while an inference failure after startup remains fail-open through the existing Java
+shadow observer.
+
+The `Shadow inference integration` workflow checks out this repository and the pinned Rust commit,
+runs the Java shadow tests, and executes `scripts/ci/verify-shadow-compose.sh`. The verifier
+covers readiness, a successful three-seed prediction, Java authoritative-result persistence, Rust
+unavailability, fail-open completion, and Rust recovery. Set `DCG_MODEL_ROOT` locally when the Rust
+checkout is not at the default sibling path.
+
+## Rollback
+
+Shadow inference can be rolled back without changing contracts, policies, or the authoritative
+check-run store. The Java compatibility engine remains available when Rust is stopped because the
+observer is asynchronous and fail-open.
+
+For a temporary Rust outage, restart only the model service with the same Compose project and
+override files:
+
+```bash
+docker compose \
+  --project-name dcg-postgres-shadow \
+  -f docker-compose.yml \
+  -f docker-compose.shadow-inference.yml \
+  up -d dcgaimodel
+```
+
+For a full shadow-inference rollback, stop the stack without removing volumes, then start the base
+Compose deployment without the shadow override. The base deployment keeps shadow inference at its
+safe default of disabled:
+
+```bash
+docker compose \
+  --project-name dcg-postgres-shadow \
+  -f docker-compose.yml \
+  -f docker-compose.shadow-inference.yml \
+  down
+
+docker compose \
+  --project-name dcg-postgres-shadow \
+  -f docker-compose.yml \
+  up -d --no-build
+```
+
+Use the equivalent base file for SQLite or MySQL. Do not add `--volumes` during rollback; that
+would remove the database volume. Verify the Java health endpoint and submit one authoritative
+check after rollback. Re-enable shadow inference only after the Rust readiness endpoint and the
+Compose smoke verifier pass again.

@@ -1,0 +1,102 @@
+name: Import verified DCG evidence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/orders.created/**"
+      - "contracts/policy-packs.json"
+      - ".github/workflows/evidence-oidc-import.yml"
+  workflow_dispatch:
+
+# An OIDC token is a production workload credential.  Do not add pull_request
+# here: untrusted fork code must never receive an identity token for DCG.
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dcg-evidence-import-main
+  cancel-in-progress: false
+
+jobs:
+  import-evidence:
+    # Manual dispatch is allowed only from the protected branch as well.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DCG_EVIDENCE_SERVICE_URL: ${{ vars.DCG_EVIDENCE_SERVICE_URL }}
+      DCG_OIDC_AUDIENCE: dcg-evidence
+      DCG_CONTRACT_ID: orders.created
+    steps:
+      - name: Checkout protected revision
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "${DCG_EVIDENCE_SERVICE_URL}" =~ ^https://[^/]+ ]]; then
+            echo "::error::Set the production environment variable DCG_EVIDENCE_SERVICE_URL to an HTTPS DCG service URL."
+            exit 1
+          fi
+          printf 'DCG_EVIDENCE_SERVICE_URL=%s\n' "${DCG_EVIDENCE_SERVICE_URL%/}" >> "$GITHUB_ENV"
+
+      - name: Build and test DCG
+        run: ./mvnw --batch-mode --no-transfer-progress test
+
+      - name: Install the Maven compatibility plugin
+        run: ./mvnw --batch-mode --no-transfer-progress -pl contract-maven-plugin -am install -DskipTests
+
+      - name: Run local gate and import immutable evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report_file="target/dcg-evidence/${DCG_CONTRACT_ID}-${GITHUB_SHA}.json"
+          mkdir -p "$(dirname "$report_file")"
+
+          response="$(curl --fail --silent --show-error --retry 2 --retry-all-errors \
+            --connect-timeout 5 \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${DCG_OIDC_AUDIENCE}")"
+          oidc_token="$(jq --exit-status --raw-output '.value' <<<"$response")"
+          if [[ -z "$oidc_token" || "$oidc_token" == "null" ]]; then
+            echo "::error::GitHub Actions did not return an OIDC token."
+            exit 1
+          fi
+          echo "::add-mask::$oidc_token"
+
+          ./mvnw --batch-mode --no-transfer-progress --non-recursive \
+            com.ideas.contracts:contract-maven-plugin:0.1.0-SNAPSHOT:check-compat \
+            -Ddcg.baseSchema="contracts/${DCG_CONTRACT_ID}/v1.json" \
+            -Ddcg.candidateSchema="contracts/${DCG_CONTRACT_ID}/v2.json" \
+            -Ddcg.mode=BACKWARD \
+            -Ddcg.reportFile="$report_file" \
+            -Ddcg.contractId="$DCG_CONTRACT_ID" \
+            -Ddcg.commitSha="$GITHUB_SHA" \
+            -Ddcg.triggeredBy=github-actions-oidc \
+            -Ddcg.ciIdentity=github-actions \
+            -Ddcg.buildUrl="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            -Ddcg.remoteReportingMode=REQUIRED \
+            -Ddcg.remoteServiceUrl="$DCG_EVIDENCE_SERVICE_URL" \
+            -Ddcg.remoteAuthorization="Bearer $oidc_token" \
+            -Ddcg.remoteTimeoutSeconds=15 \
+            -Ddcg.remoteMaxAttempts=2
+          unset oidc_token response
+
+      - name: Preserve local evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dcg-evidence-${{ github.sha }}
+          path: target/dcg-evidence/*.json
+          if-no-files-found: warn
+          retention-days: 90
