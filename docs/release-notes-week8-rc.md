@@ -1,5 +1,8 @@
 # Release Notes Draft: Week 8 RC
 
+Historical draft, not the current publication version. This candidate identifier is
+superseded by `4.0.0-alpha.1`; see [release policy](release-and-versioning.md).
+
 Date: 2026-03-10
 Candidate: `0.1.0-rc1` (draft)
 

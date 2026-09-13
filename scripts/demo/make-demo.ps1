@@ -6,7 +6,7 @@ Set-Location $root
 Write-Host "Building CLI fat jar..."
 mvn -pl contract-cli -am package
 
-$jar = "contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar"
+$jar = "contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar"
 if (-not (Test-Path $jar)) {
   throw "CLI jar not found at $jar"
 }

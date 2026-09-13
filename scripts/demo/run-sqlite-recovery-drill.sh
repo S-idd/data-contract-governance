@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SERVICE_JAR="${DCG_SQLITE_RECOVERY_SERVICE_JAR:-$ROOT_DIR/contract-service/target/contract-service-0.1.0-SNAPSHOT.jar}"
+SERVICE_JAR="${DCG_SQLITE_RECOVERY_SERVICE_JAR:-$ROOT_DIR/contract-service/target/contract-service-4.0.0-alpha.1.jar}"
 SERVICE_PORT="${DCG_SQLITE_RECOVERY_PORT:-18080}"
 SERVICE_URL="http://127.0.0.1:${SERVICE_PORT}"
 APP_USERNAME="${DCG_SQLITE_RECOVERY_USERNAME:-recovery-demo}"

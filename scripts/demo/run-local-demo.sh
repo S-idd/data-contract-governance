@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-CLI_JAR="$ROOT_DIR/contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar"
+CLI_JAR="$ROOT_DIR/contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar"
 SERVICE_DIR="$ROOT_DIR/contract-service"
 SERVICE_LOG="${DEMO_SERVICE_LOG:-$ROOT_DIR/contract-service-demo.log}"
 APP_PORT="${DEMO_APP_PORT:-8080}"

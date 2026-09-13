@@ -18,7 +18,7 @@ cd /path/to/data-contract-governance
 Command:
 
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar --help
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar --help
 ```
 
 Output:
@@ -39,7 +39,7 @@ Commands:
 Command:
 
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar lint --path contracts/orders.created
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar lint --path contracts/orders.created
 ```
 
 Output:
@@ -53,7 +53,7 @@ Lint passed: contracts/orders.created
 Command:
 
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar diff \
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar diff \
   --base contracts/orders.created/v1.json \
   --candidate contracts/orders.created/v2.json
 ```
@@ -71,7 +71,7 @@ Schema diff:
 Command:
 
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat \
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar check-compat \
   --base contracts/orders.created/v1.json \
   --candidate contracts/orders.created/v2.json \
   --mode BACKWARD

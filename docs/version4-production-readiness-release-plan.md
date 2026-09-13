@@ -1,5 +1,9 @@
 # Version 4 Planning: Robust, Secure, Recoverable Platform
 
+Current publication scope: `4.0.0-alpha.1`, a local-demo prerelease. The production goals
+below remain a longer-term roadmap, not an alpha readiness claim. See
+[release policy](release-and-versioning.md) and [packaging](local-prerelease-packaging.md).
+
 - Plan ID: `PLAN-2026-V4`
 - Status: `In progress`
 - Created date: `2026-05-23`

@@ -50,22 +50,22 @@ mvn -pl contract-cli -am package
 
 Help:
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar --help
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar --help
 ```
 
 Lint sample contract:
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar lint --path contracts/orders.created
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar lint --path contracts/orders.created
 ```
 
 Diff sample versions:
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar diff --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar diff --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json
 ```
 
 Check compatibility:
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD
 ```
 
 ## Enterprise JSON Schema Support
@@ -82,19 +82,19 @@ DCG has offline-first Maven and Gradle integrations. They run `contract-core` lo
 
 Record compatibility result to SQLite:
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD --record-db checks.db --contract-id orders.created --commit-sha local-dev
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD --record-db checks.db --contract-id orders.created --commit-sha local-dev
 ```
 
 Record compatibility result to PostgreSQL:
 ```bash
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD --record-jdbc-url "jdbc:postgresql://localhost:5432/contracts" --record-db-user contracts_user --record-db-password change-me --contract-id orders.created --commit-sha local-dev
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD --record-jdbc-url "jdbc:postgresql://localhost:5432/contracts" --record-db-user contracts_user --record-db-password change-me --contract-id orders.created --commit-sha local-dev
 ```
 
 Record compatibility result to PostgreSQL using env-secret references:
 ```bash
 export CONTRACT_DB_USER="contracts_user"
 export CONTRACT_DB_PASSWORD="change-me"
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD --record-jdbc-url "jdbc:postgresql://localhost:5432/contracts" --record-db-user-env CONTRACT_DB_USER --record-db-password-env CONTRACT_DB_PASSWORD --contract-id orders.created --commit-sha local-dev
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar check-compat --base contracts/orders.created/v1.json --candidate contracts/orders.created/v2.json --mode BACKWARD --record-jdbc-url "jdbc:postgresql://localhost:5432/contracts" --record-db-user-env CONTRACT_DB_USER --record-db-password-env CONTRACT_DB_PASSWORD --contract-id orders.created --commit-sha local-dev
 ```
 
 ## CI Contract Checks (Changed Contracts Only)
@@ -174,7 +174,7 @@ export CHECKS_DB_USERNAME="contracts_user"
 export CHECKS_DB_PASSWORD="change-me"
 export PSQL_URL="postgresql://contracts_user:change-me@localhost:5432/contracts"
 
-java -jar contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar \
+java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar \
   check-compat \
   --base contracts/orders.created/v1.json \
   --candidate contracts/orders.created/v2.json \

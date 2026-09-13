@@ -2,10 +2,17 @@
 
 ## Release support
 
-DCG is currently a `0.x` public beta. A `0.x` release may change APIs, configuration, storage
-behavior, and operational requirements before `1.0`. Maintainers support the latest published
-minor line for security fixes and best-effort bug fixes; no uptime SLA, response-time guarantee,
-or managed hosting service is offered.
+DCG is preparing `4.0.0-alpha.1` for local macOS/Linux demos. This supersedes the stale
+0.x public-beta policy; historical tags remain unchanged. The alpha may change APIs,
+configuration, storage behavior and operational requirements. Alpha fixes are best-effort
+and target the latest alpha; no long-term maintenance, uptime SLA, response-time guarantee
+or managed hosting service is offered. Production approval is not implied by the version.
+
+The package requires separately installed Java 21. Build and acceptance testing are pinned
+to Eclipse Temurin OpenJDK HotSpot 21.0.12.1+1. macOS/Linux architecture and minimum OS/glibc
+claims require extracted-package test evidence before publication; they are not yet verified.
+See [packaging](local-prerelease-packaging.md) and [version policy](release-and-versioning.md).
+The matrix below describes backend/source capabilities, not certification of the alpha package.
 
 | Area | Supported baseline | Support level | Notes |
 | --- | --- | --- | --- |

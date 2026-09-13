@@ -33,7 +33,7 @@ public final class CompatibilityEngineIdentity {
     } catch (Exception ignored) {
       // A development classes directory has no Maven metadata; use the explicit dev fallback.
     }
-    return "0.1.0-SNAPSHOT";
+    return "4.0.0-alpha.1";
   }
 
   public static String policyPackSha256(PolicyPack policyPack) {

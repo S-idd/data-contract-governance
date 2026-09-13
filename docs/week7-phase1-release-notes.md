@@ -1,5 +1,8 @@
 # Release Notes: Phase 1 GA Candidate
 
+Historical planning record, not the current publication version. This candidate identifier
+is superseded by `4.0.0-alpha.1`; see [release policy](release-and-versioning.md).
+
 Date: `2026-04-24`  
 Candidate: `0.1.0-ga-candidate.1`  
 Scope: `Week 1 -> Week 7`

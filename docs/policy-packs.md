@@ -189,7 +189,7 @@ Manual CLI build command:
 Manual CLI check (uses contract metadata + policy pack):
 
 ```bash
-java -jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/target/contract-cli-0.1.0-SNAPSHOT-all.jar \
+java -jar /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar \
   check-compat \
   --base /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contracts/orders.created/v1.json \
   --candidate /Users/siddarthkanamadi/Personal_Projects/dcg/data-contract-governance/contracts/orders.created/v2.json \

@@ -11,7 +11,14 @@ described in [the release policy](docs/release-and-versioning.md).
 - Open-source contribution, security, support, release, and production-boundary documentation.
 - CI checks for secret scanning, dependency review, vulnerability scanning, and SBOM generation.
 
-## [0.1.0] - Unreleased initial public beta
+## [4.0.0-alpha.1] - Unreleased local-demo prerelease
+
+### Changed
+
+- Align all Maven reactor project/parent versions with the V4 alpha publication decision.
+- Reconcile release/support policy and executable artifact references. Historical release tags
+  remain unchanged; the former unreleased 0.1.0 heading was stale, not a published release.
+- Package assembly, platform acceptance and publication remain pending.
 
 ### Added
 

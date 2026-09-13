@@ -47,7 +47,7 @@ RUN apt-get update \
 RUN groupadd --system dcg && useradd --system --gid dcg --create-home dcg
 WORKDIR /app
 
-COPY --from=build /workspace/contract-service/target/contract-service-0.1.0-SNAPSHOT.jar /app/contract-service.jar
+COPY --from=build /workspace/contract-service/target/contract-service-4.0.0-alpha.1.jar /app/contract-service.jar
 COPY --from=build /workspace/contracts /app/contracts
 
 RUN mkdir -p /var/lib/dcg \

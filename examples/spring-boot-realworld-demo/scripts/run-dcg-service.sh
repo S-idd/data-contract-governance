@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$DEMO_DIR/../.." && pwd)"
 RUNTIME_DIR="$DEMO_DIR/.runtime"
 SERVICE_PORT="${DCG_DEMO_SERVICE_PORT:-8080}"
 APP_PORT="${DEMO_APP_PORT:-8081}"
-SERVICE_JAR="$ROOT_DIR/contract-service/target/contract-service-0.1.0-SNAPSHOT.jar"
+SERVICE_JAR="$ROOT_DIR/contract-service/target/contract-service-4.0.0-alpha.1.jar"
 
 if ! command -v lsof >/dev/null 2>&1; then
   echo "Missing required command: lsof" >&2
