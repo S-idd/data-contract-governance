@@ -1,32 +1,32 @@
 package com.ideas.contracts.service;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint;
-import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
-import java.util.LinkedHashMap;
 
 @Configuration
 @EnableConfigurationProperties(EvidenceAuthProperties.class)
@@ -116,7 +116,7 @@ public class SecurityConfig {
 
   private AuthenticationEntryPoint oidcAuthenticationEntryPoint() {
     LinkedHashMap<RequestMatcher, AuthenticationEntryPoint> entryPoints = new LinkedHashMap<>();
-    entryPoints.put(new AntPathRequestMatcher("/checks/evidence"),
+    entryPoints.put(PathPatternRequestMatcher.withDefaults().matcher("/checks/evidence"),
         new BearerTokenAuthenticationEntryPoint());
     DelegatingAuthenticationEntryPoint entryPoint = new DelegatingAuthenticationEntryPoint(entryPoints);
     entryPoint.setDefaultEntryPoint(basicEntryPoint());
