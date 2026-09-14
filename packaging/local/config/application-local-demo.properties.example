@@ -1,0 +1,16 @@
+# Consumed by bin/start. Edit only while stopped; never put private credentials in an archive.
+app.security.username=${APP_SECURITY_USERNAME}
+app.security.password=${APP_SECURITY_PASSWORD}
+app.security.roles=USER,WRITER
+app.ui.enabled=true
+checks.runner.enabled=true
+checks.db.fail-fast-startup=true
+checks.db.sqlite.wal-enabled=true
+checks.db.sqlite.integrity-check-on-startup=true
+checks.db.sqlite.synchronous=FULL
+shadow.inference.timeout=500ms
+shadow.inference.worker-threads=2
+shadow.inference.queue-capacity=100
+notifications.enabled=false
+management.endpoints.web.exposure.include=health,info
+management.endpoint.health.show-details=never

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source "$(cd "$(dirname "$0")" && pwd -P)/dcg"
+state_init
+java_check
+lock
+if alive java && alive rust; then
+  ready http://127.0.0.1:8080/actuator/health && ready http://127.0.0.1:8081/health/ready || die 'Processes exist but are not ready; inspect logs or run bin/stop.'
+  printf 'DCG is already running.\n'; exit 0
+fi
+if alive java || alive rust; then die 'Partial instance detected. Run bin/stop before restarting.'; fi
+command -v lsof >/dev/null || die 'Install lsof for startup port-conflict checks.'
+for port in 8080 8081; do
+  if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then die "Port $port is already in use."; fi
+done
+[[ -x "$ROOT/bin/dcgaimodel" && -f "$ROOT/lib/contract-service-$VERSION.jar" ]] || die 'Package runtime files are missing.'
+if [[ ! -e "$DATA/contracts" ]]; then cp -R "$ROOT/contracts" "$DATA/contracts"; fi
+if [[ ! -e "$DATA/application-local-demo.properties" ]]; then
+  cp "$ROOT/config/application-local-demo.properties.example" "$DATA/application-local-demo.properties"
+fi
+if [[ ! -f "$DATA/password" ]]; then
+  od -An -N24 -tx1 /dev/urandom | tr -d ' \n' > "$DATA/password"
+fi
+[[ -s "$DATA/password" ]] || die 'Local password file is empty.'
+chmod 600 "$DATA/password"
+started_rust=0
+started_java=0
+cleanup_start() {
+  local result=$?
+  if [[ "$result" != 0 ]]; then
+    [[ "$started_java" == 0 ]] || stop_one java || true
+    [[ "$started_rust" == 0 ]] || stop_one rust || true
+    printf 'DCG startup failed; see %s/logs.\n' "$DATA" >&2
+  fi
+  rmdir "$STATE/lock"
+}
+trap cleanup_start EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+cd "$DATA"
+nohup "$ROOT/bin/dcgaimodel" serve-shadow-inference --artifact-root "$ROOT/model" --bind 127.0.0.1:8081 >> "$DATA/logs/rust.log" 2>&1 < /dev/null &
+rust_pid=$!
+remember rust "$rust_pid"
+started_rust=1
+wait_ready rust http://127.0.0.1:8081/health/ready || die 'Rust readiness failed.'
+export APP_SECURITY_USERNAME=demo
+APP_SECURITY_PASSWORD=$(< "$DATA/password")
+export APP_SECURITY_PASSWORD
+# Explicit options keep this package local even if inherited environment uses shared profiles.
+nohup "$JAVA" -jar "$ROOT/lib/contract-service-$VERSION.jar" \
+  --spring.config.location="file:$DATA/application-local-demo.properties" \
+  --spring.profiles.active=local-demo --server.address=127.0.0.1 --server.port=8080 \
+  --management.server.port=8080 \
+  --contracts.root="$DATA/contracts" --contracts.policy-packs="$DATA/contracts/policy-packs.json" \
+  --contracts.artifact.backend=filesystem --checks.db.url= --checks.db.path="$DATA/checks.db" \
+  --app.security.enabled=true --app.security.require-non-default-credentials=true \
+  --app.security.evidence-auth.mode=DISABLED \
+  --shadow.inference.enabled=true --shadow.inference.endpoint=http://127.0.0.1:8081/v1/shadow/predict \
+  >> "$DATA/logs/java.log" 2>&1 < /dev/null &
+java_pid=$!
+remember java "$java_pid"
+started_java=1
+wait_ready java http://127.0.0.1:8080/actuator/health || die 'Java readiness failed.'
+printf 'DCG ready: http://127.0.0.1:8080/ui\nLogin: demo; password file: %s/password\nLogs: %s/logs\n' "$DATA" "$DATA"

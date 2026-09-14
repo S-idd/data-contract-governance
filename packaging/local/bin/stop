@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source "$(cd "$(dirname "$0")" && pwd -P)/dcg"
+state_init
+lock
+result=0
+stop_one java || result=1
+stop_one rust || result=1
+[[ "$result" != 0 ]] || printf 'DCG stopped; persistent data retained at %s\n' "$DATA"
+exit "$result"

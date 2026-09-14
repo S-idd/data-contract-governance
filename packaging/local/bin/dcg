@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Shared launcher functions also live here to preserve the four-script manifest.
+set -euo pipefail
+export LC_ALL=C
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+VERSION=4.0.0-alpha.1
+die() { printf 'DCG: %s\n' "$*" >&2; exit 1; }
+java_check() {
+  JAVA=${JAVA_HOME:+$JAVA_HOME/bin/}java
+  command -v "$JAVA" >/dev/null || die 'Install Java 21 or set JAVA_HOME to a Java 21 JDK.'
+  local version
+  version=$("$JAVA" -version 2>&1) || die 'Java cannot start.'
+  [[ "$version" =~ version\ \"21[\.\"] ]] || die 'Java 21 is required (other major versions are not validated).'
+}
+state_init() {
+  umask 077
+  DATA=${DCG_DATA_DIR:-"${HOME:?HOME must be set}/.local/share/dcg/4.0.0-alpha.1"}
+  [[ "$DATA" = /* && "$DATA" != / ]] || die 'DCG_DATA_DIR must be an absolute non-root directory.'
+  mkdir -p "$DATA"
+  DATA=$(cd "$DATA" && pwd -P)
+  case "$DATA/" in "$ROOT/"*) die 'DCG_DATA_DIR must be outside the package.';; esac
+  mkdir -p "$DATA/run" "$DATA/logs"
+  STATE="$DATA/run"
+  for utility in ps curl; do command -v "$utility" >/dev/null || die "Required utility missing: $utility"; done
+}
+lock() {
+  mkdir "$STATE/lock" 2>/dev/null || die "Another launcher holds $STATE/lock. If interrupted, confirm no launcher is running before removing this empty lock directory."
+  trap 'rmdir "$STATE/lock"' EXIT
+}
+signature() { ps -p "$1" -o lstart= -o args= 2>/dev/null; }
+alive() {
+  [[ -f "$STATE/$1.pid" ]] || return 1
+  local pid saved current expected
+  pid=$(head -n 1 "$STATE/$1.pid")
+  [[ "$pid" =~ ^[0-9]+$ && "$pid" -gt 1 ]] || return 1
+  saved=$(tail -n +2 "$STATE/$1.pid")
+  current=$(signature "$pid") || return 1
+  [[ -n "$saved" && "$saved" == "$current" ]] || return 1
+  if [[ "$1" == java ]]; then expected="$ROOT/lib/contract-service-$VERSION.jar"; else expected="$ROOT/bin/dcgaimodel"; fi
+  [[ "$current" == *"$expected"* ]] || return 1
+  [[ "$(ps -p "$pid" -o stat=)" != *Z* ]]
+}
+remember() {
+  local sig command expected i
+  expected=dcgaimodel
+  [[ "$1" != java ]] || expected=java
+  # Wait for nohup to exec the actual executable before recording its command.
+  for ((i=0; i<50; i++)); do
+    command=$(ps -p "$2" -o comm= 2>/dev/null) || break
+    if [[ "${command##*/}" == "$expected" ]]; then
+      sig=$(signature "$2") || break
+      printf '%s\n%s\n' "$2" "$sig" > "$STATE/$1.pid"
+      return 0
+    fi
+    sleep 0.1
+  done
+  die "$1 exited or did not exec before its process identity could be recorded."
+}
+stop_one() {
+  local name=$1 pid i
+  if alive "$name"; then
+    pid=$(head -n 1 "$STATE/$name.pid")
+    kill -TERM "$pid" || return 1
+    for ((i=0; i<30; i++)); do
+      if ! alive "$name"; then rm -f "$STATE/$name.pid"; return 0; fi
+      sleep 1
+    done
+    printf 'DCG: %s did not stop; preserving identity file. No forced kill sent.\n' "$name" >&2
+    return 1
+  fi
+  # A stale/reused PID is never signalled.
+  rm -f "$STATE/$name.pid"
+}
+ready() { curl --noproxy '*' -fsS --connect-timeout 1 --max-time 2 "$1" >/dev/null 2>&1; }
+wait_ready() {
+  local i
+  for ((i=0; i<60; i++)); do
+    alive "$1" || return 1
+    if ready "$2"; then return 0; fi
+    sleep 1
+  done
+  return 1
+}
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  java_check
+  exec "$JAVA" -jar "$ROOT/lib/contract-cli-$VERSION-all.jar" "$@"
+fi
