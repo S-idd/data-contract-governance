@@ -43,7 +43,25 @@ Technical validation is not a vulnerability scan, signed attestation or legal cl
 Finish target-host acceptance, redistribution/security review and final asset review before
 tagging or publishing.
 
-## Rollback
+## Security disposition added 2026-09-14 (next assembly)
+
+Current candidates bundle Tomcat 10.1.55. CVE-2026-65182, CVE-2026-65905 and
+CVE-2026-68525 remain open and explicitly deferred pending a tested upgrade. Static review
+found no application-defined container security constraints, Tomcat DIGEST or FORM auth;
+DCG uses Spring Security Basic authentication and disables Spring form login. These findings
+limit apparent applicability but are not proof of unreachability or permission to publish.
+GitHub suggests 10.1.58; Apache says its release vote failed and directs users to 10.1.59.
+Java 21 is within Tomcat 10.1's documented Java support; integration compatibility remains
+untested. Upgrade core/el/websocket together, approve a new Java pin and regenerate/retest
+all release artifacts before public release, or obtain an explicit reviewed risk decision.
+[Apache advisory](https://tomcat.apache.org/security-10.html).
+
+Rust repository Dependabot visibility was unavailable (API reported alerts disabled), not
+verified clean. No alerts were dismissed. This note is committed for the next assembly;
+existing tested Step 7 archives were not silently modified. Detailed assessment is in
+repository `docs/local-alpha-security-review.md`.
+
+## Rollback procedure
 
 1. Run the current package's bin/stop using its original DCG_DATA_DIR. Confirm both processes
    stopped before touching state. Do not delete PID records to bypass a shutdown failure.

@@ -27,3 +27,11 @@ Private runtime logs/database/password must not be published.
 Task 3: Java build commit remains `dac3ed509d03e1bef75c47b497ca80bbdd1f2e04`.
 Packaging is versioned separately; committing packaging does not replace binary source pins.
 No alpha tag is authorized until Linux, licensing and vulnerability gates are resolved.
+
+Packaging implementation and acceptance tooling were committed/pushed as
+`bf75df68478a2967cf1cb622b3673f0f186c8316`. The Java build pin is reachable from remote main.
+Task 4's three alerts each have an explicit deferred disposition in
+[the security review](local-alpha-security-review.md) and the next-assembly release notes.
+This meets the requested investigation/disposition scope, not vulnerability remediation.
+Rust alert visibility is unavailable. Existing archive bytes remain unchanged; future
+assembly incorporating updated notes needs new checksums and exact-archive acceptance.
