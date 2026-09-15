@@ -11,7 +11,7 @@ remote alert closure is not claimed. Pause before assembly for the user's design
 
 ## Source upgrade — 2026-09-15
 
-The working-tree Maven pin now aligns tomcat-embed-core/el/websocket at 10.1.59.
+The committed Maven pin aligns tomcat-embed-core/el/websocket at 10.1.59.
 Full reactor `./mvnw -B -ntp verify` succeeded using Temurin 21.0.12.1+1:
 251 tests, 232 passed, 19 skipped, zero failures/errors. Inspected the newly built service
 JAR and confirmed all three embedded Tomcat JARs are exactly 10.1.59.
@@ -20,9 +20,9 @@ version, not by suppressing alerts or assuming unreachability. No CVE exploit re
 or comprehensive vulnerability scan is claimed.
 
 This is a local source/build change, not an updated published candidate. Existing Step 7
-archives still contain 10.1.55 and retain their old security dispositions below. Commit/push,
-approval of a new final Java source pin, regenerated SBOM/notices/build-info and exact-archive
-Mac/WSL2 retesting remain required. No remote alert closure is claimed.
+archives still contain 10.1.55 and retain their old security dispositions below. The new
+final Java pin is committed/pushed as recorded above; regenerated SBOM/notices/build-info
+and exact-archive Mac/WSL2 retesting remain required. No remote alert closure is claimed.
 Build log: `/Users/siddarthkanamadi/Downloads/dcg-tomcat-10159-verify.log`.
 
 Live native Mac diagnostic smoke also passed CLI, paired readiness, loopback listeners,
