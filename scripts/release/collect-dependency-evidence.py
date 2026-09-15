@@ -50,7 +50,7 @@ def collect(args):
         purl = component["purl"]
         if group == "com.ideas.contracts":
             component["licenses"] = [{"license": {"id": "Apache-2.0"}}]
-            component["externalReferences"] = [{"type": "vcs", "url": "https://github.com/S-idd/data-contract-governance/tree/4ca0fa42c769749f37fd1d5306bbf5b1c0054aa0"}]
+            component["externalReferences"] = [{"type": "vcs", "url": "https://github.com/S-idd/data-contract-governance/tree/d54a518c3b308d1c54a440f016d81086e0a73155"}]
             add(purl + " / LICENSE", (java / "LICENSE").read_bytes())
             continue
         qualifiers = parse_qs(urlsplit(purl).query)

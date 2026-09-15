@@ -15,7 +15,7 @@ import tempfile
 import zipfile
 
 VERSION = "4.0.0-alpha.1"
-JAVA_SHA = "4ca0fa42c769749f37fd1d5306bbf5b1c0054aa0"
+JAVA_SHA = "d54a518c3b308d1c54a440f016d81086e0a73155"
 RUST_SHA = "32ca579095ed5b91749b8c33999556624e58758f"
 RUSTC_SHA = "ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96"
 TARGETS = {"macos-arm64": "aarch64-apple-darwin", "macos-x64": "x86_64-apple-darwin",

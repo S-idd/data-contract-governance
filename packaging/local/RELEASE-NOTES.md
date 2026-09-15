@@ -22,7 +22,7 @@ candidate. External-state/final manual-process cleanup clarifications remain out
 Existing archives are unchanged; these notes apply to the next assembly.
 
 - Version: `4.0.0-alpha.1`; intended tag: `v4.0.0-alpha.1` (not created).
-- Java source for next assembly: `4ca0fa42c769749f37fd1d5306bbf5b1c0054aa0` (Tomcat 10.1.59, pushed).
+- Java source for next assembly: `d54a518c3b308d1c54a440f016d81086e0a73155` (Tomcat 10.1.59, pushed).
 - Existing Step 7 archives retain source `dac3ed509d03e1bef75c47b497ca80bbdd1f2e04` and Tomcat 10.1.55; rebuild and retest before publication.
 - Rust source and frozen policy/models for next assembly: `32ca579095ed5b91749b8c33999556624e58758f` (Parquet 60, pushed).
 - Existing Step 7 archives retain Rust source `ef819fe58865c643a240ee067cf61d506f04a778`; rebuild before publication.

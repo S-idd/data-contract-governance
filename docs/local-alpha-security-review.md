@@ -2,7 +2,7 @@
 
 ## Remote build pin established — 2026-09-15
 
-Tomcat upgrade committed and pushed as `4ca0fa42c769749f37fd1d5306bbf5b1c0054aa0`.
+Tomcat upgrade committed and pushed as `d54a518c3b308d1c54a440f016d81086e0a73155`.
 Fetched origin/main and verified this commit is reachable using merge-base --is-ancestor.
 Assembler, staging (via assembler constants) and SBOM source references now select this
 revision for the next build. A regression test rejects the superseded Java pin. Earlier
