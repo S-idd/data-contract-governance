@@ -20,6 +20,18 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class PackagingTests(unittest.TestCase):
+    def test_release_pins_loaded_from_manifest(self):
+        pins = json.loads(assembly.PIN_FILE.read_text())
+        self.assertEqual(assembly.VERSION, pins["version"])
+        self.assertEqual(assembly.JAVA_SHA, pins["java_build_commit"])
+        self.assertEqual(assembly.RUST_SHA, pins["rust_commit"])
+        self.assertEqual(assembly.RUSTC_SHA, pins["rustc_commit"])
+        self.assertEqual(assembly.TARGETS, pins["targets"])
+        self.assertEqual(assembly.JDK_HASHES, set(pins["jdk_archive_sha256"]))
+        self.assertEqual(assembly.FROZEN, pins["frozen_artifacts"])
+        for name in (assembly.JAVA_SHA, assembly.RUST_SHA, assembly.RUSTC_SHA):
+            self.assertRegex(name, r"^[0-9a-f]{40}$")
+
     def jar(self, version="4.0.0-alpha.1", executable=True):
         output = io.BytesIO()
         with zipfile.ZipFile(output, "w") as jar:
@@ -143,6 +155,7 @@ stop_one java
         provenance = {"version": assembly.VERSION, "java_build_commit": assembly.JAVA_SHA,
                       "rust_commit": assembly.RUST_SHA, "target": "aarch64-apple-darwin",
                       "java_vendor": "Eclipse Temurin", "java_version": "21.0.12.1+1",
+                      "release_pins_sha256": assembly.digest(assembly.PIN_FILE.read_bytes()),
                       "jdk_archive_sha256": sorted(assembly.JDK_HASHES)[0],
                       "rustc_verbose": assembly.RUSTC_SHA, "cargo_version": "cargo 1.96.0 (fixture)",
                       "artifacts": {f"lib/{name}": assembly.digest((path / name).read_bytes()) for name in [assembly.CLI, assembly.SERVICE]}}

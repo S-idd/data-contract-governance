@@ -68,11 +68,14 @@ Fresh archives were assembled outside the source checkout from Java
 `d54a518c3b308d1c54a440f016d81086e0a73155` and Rust
 `32ca579095ed5b91749b8c33999556624e58758f`:
 
+The release-pin manifest is `scripts/release/release-pins.json`, SHA-256
+`5b95d7b5deb33b092c51d95f07c05306ece00317a8230f7fb64ceac12244080a`.
+
 - macOS ARM64: `dcg-4.0.0-alpha.1-macos-arm64.tar.gz`, SHA-256
-  `c31250e371c6b9bb27ef619b846ee40b3d9ba93ce0fd59197310c3cca0eb30a`; 24 payload files
+  `a482b84b481d4f4c4e29a1b9639e1a730850620d95f0224e5f21769d0ae2582e`; 24 payload files
   and 23 internal checksum entries.
 - Linux x64: `dcg-4.0.0-alpha.1-linux-x64.tar.gz`, SHA-256
-  `9995e4dc0eaf2fde1d924898cc47b1b05ac59f08fa4bb97ff5a723ac5ce45df6`; 24 payload files
+  `5712d8d5101f070d33badcb1bc3e3235bc7be12247f3888b42edab70bc4d76da`; 24 payload files
   and 23 internal checksum entries.
 
 Both extracted candidates passed checksum verification, SBOM graph/reference validation,

@@ -1,9 +1,11 @@
 # Local archive assembly (maintainer-only)
 
 Requires Python 3.9+, Git and already-built inputs. No build/CI/publish operation is hidden
-inside the assembler. Java source pin is `d54a518c3b308d1c54a440f016d81086e0a73155`;
-Rust source pin is `32ca579095ed5b91749b8c33999556624e58758f`. Packaging-only changes are
-recorded by file hashes and do not silently replace the Java build pin.
+inside the assembler. Release identity pins are maintained in
+`scripts/release/release-pins.json`, not embedded as release data in the assembler. The
+assembler records the manifest SHA-256 in `build-info.json` and rejects staged evidence
+from a different pin manifest. Packaging-only changes are recorded by file hashes and do
+not silently replace the Java build pin.
 
 Supply an input directory with exactly these required input names:
 
@@ -24,6 +26,7 @@ package documents come from `packaging/local/` in this checkout and are hashed i
 - `version`: `4.0.0-alpha.1`
 - `java_build_commit`: `d54a518c3b308d1c54a440f016d81086e0a73155`
 - `rust_commit`: `32ca579095ed5b91749b8c33999556624e58758f`
+- `release_pins_sha256`: SHA-256 of `scripts/release/release-pins.json`
 - `target`: exact Rust target triple corresponding to `--platform`
 - `java_vendor`: `Eclipse Temurin`; `java_version`: `21.0.12.1+1`
 - `jdk_archive_sha256`: one of the four verified upstream archive digests

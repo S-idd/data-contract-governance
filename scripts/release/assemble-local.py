@@ -14,24 +14,15 @@ import tarfile
 import tempfile
 import zipfile
 
-VERSION = "4.0.0-alpha.1"
-JAVA_SHA = "d54a518c3b308d1c54a440f016d81086e0a73155"
-RUST_SHA = "32ca579095ed5b91749b8c33999556624e58758f"
-RUSTC_SHA = "ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96"
-TARGETS = {"macos-arm64": "aarch64-apple-darwin", "macos-x64": "x86_64-apple-darwin",
-           "linux-arm64": "aarch64-unknown-linux-gnu", "linux-x64": "x86_64-unknown-linux-gnu"}
-JDK_HASHES = {
-    "3623232f33a9c3baadf304480b2535f9a3cba8a58d42ecbb438ba267315d9998",
-    "44db0f08196daf19a47f90d13388b0c943b67663cb537f998fe29e836fa842ce",
-    "23e37e026f12f3e706f18938ff611db3032d075b09d0879a25d06718c773e223",
-    "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94",
-}
-FROZEN = {
-    "data/inference/frozen-v9/policy-packs-v5-compositional.json": "8f82b058f81ace43c89180803c7ec26ac734b84d0092036a77115688337e1bb6",
-    "data/experiments/v9-multiclass-cpu-100e/models/seed-20260826-normal-family-split.json": "5da2fedbee5d1b3c84c79cb75e2cd10c0b3462066b66571570e93fb7ccd84988",
-    "data/experiments/v9-multiclass-cpu-100e/models/seed-20260827-normal-family-split.json": "bd464322c272b8ec1d5ab88605022d4a48e3738b63ab1791a4c7e56f37222ac8",
-    "data/experiments/v9-multiclass-cpu-100e/models/seed-20260828-normal-family-split.json": "24ec9e4e758370093c228af34e3b05ac65820b3fd413ca80a269206ce1edd2c0",
-}
+PIN_FILE = Path(__file__).with_name("release-pins.json")
+PINS = json.loads(PIN_FILE.read_text())
+VERSION = PINS["version"]
+JAVA_SHA = PINS["java_build_commit"]
+RUST_SHA = PINS["rust_commit"]
+RUSTC_SHA = PINS["rustc_commit"]
+TARGETS = PINS["targets"]
+JDK_HASHES = set(PINS["jdk_archive_sha256"])
+FROZEN = PINS["frozen_artifacts"]
 CLI = f"contract-cli-{VERSION}-all.jar"
 SERVICE = f"contract-service-{VERSION}.jar"
 TEMPLATES = Path(__file__).resolve().parents[2] / "packaging/local"
@@ -95,7 +86,8 @@ def payload(args):
     provenance = json.loads(read_input(inputs, "build-info.json"))
     for key, expected in {"version": VERSION, "java_build_commit": JAVA_SHA,
                           "rust_commit": RUST_SHA, "target": TARGETS[args.platform],
-                          "java_vendor": "Eclipse Temurin", "java_version": "21.0.12.1+1"}.items():
+                          "java_vendor": "Eclipse Temurin", "java_version": "21.0.12.1+1",
+                          "release_pins_sha256": digest(PIN_FILE.read_bytes())}.items():
         require(provenance.get(key) == expected, f"Provenance mismatch: {key}")
     require(provenance.get("jdk_archive_sha256") in JDK_HASHES, "Unverified JDK archive digest")
     require(RUSTC_SHA in provenance.get("rustc_verbose", ""), "Wrong/missing full Rust compiler identity")
