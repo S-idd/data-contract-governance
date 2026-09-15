@@ -1,5 +1,33 @@
 # Local alpha alert disposition — 2026-09-14
 
+## Source upgrade — 2026-09-15
+
+The working-tree Maven pin now aligns tomcat-embed-core/el/websocket at 10.1.59.
+Full reactor `./mvnw -B -ntp verify` succeeded using Temurin 21.0.12.1+1:
+251 tests, 232 passed, 19 skipped, zero failures/errors. Inspected the newly built service
+JAR and confirmed all three embedded Tomcat JARs are exactly 10.1.59.
+The three CVEs below are addressed by the upstream fixes in this newly built dependency
+version, not by suppressing alerts or assuming unreachability. No CVE exploit reproduction
+or comprehensive vulnerability scan is claimed.
+
+This is a local source/build change, not an updated published candidate. Existing Step 7
+archives still contain 10.1.55 and retain their old security dispositions below. Commit/push,
+approval of a new final Java source pin, regenerated SBOM/notices/build-info and exact-archive
+Mac/WSL2 retesting remain required. No remote alert closure is claimed.
+Build log: `/Users/siddarthkanamadi/Downloads/dcg-tomcat-10159-verify.log`.
+
+Live native Mac diagnostic smoke also passed CLI, paired readiness, loopback listeners,
+port-conflict rejection, repeat start, authentication, AI outage handling, repeated stop,
+restart and persistence. Used a fresh extracted copy with only the service JAR replaced;
+this is NOT a release package and its original checksums/provenance no longer describe
+the substituted JAR. Source archives were untouched. Diagnostic directory:
+`/Users/siddarthkanamadi/Downloads/dcg-tomcat-10159-smoke-AXWmzi`.
+All smoke-owned services stopped; retained runtime state is private.
+New service JAR SHA-256:
+`44478b0c2ab7c8b35f045a5c980692fbe2154846c458bbc245902b3650aa6825`.
+
+## Historical candidate assessment
+
 Scope: exact current Step 7 candidate, Java source
 `dac3ed509d03e1bef75c47b497ca80bbdd1f2e04`. GitHub authenticated Dependabot API returned
 three open critical alerts. Actual service JAR BOOT-INF/lib and its SBOM both contain
