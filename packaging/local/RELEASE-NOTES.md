@@ -7,8 +7,23 @@ This is an unpublished local-demo candidate, not a production deployment or stab
 
 ## Locked build inputs
 
+Source upgrade in progress (2026-09-15): Maven now selects embedded Tomcat 10.1.59 for
+core, EL and WebSocket. Full Java reactor verification passed (251 tests, 19 skipped,
+zero failures/errors). Existing candidate archives still bundle 10.1.55; the pins and
+historical dispositions below describe those archives, not a newly released fixed binary.
+A new committed/pushed Java build pin and regenerated/retested artifacts are required.
+
+Release scope (user decision, 2026-09-15): native macOS ARM64 and Linux x64 on
+AlmaLinux/WSL2 only. Intel macOS and Linux ARM64 are excluded, not awaiting acceptance
+for this prerelease. No bare-metal Linux or general Linux-distribution support is claimed.
+This supersedes the historical four-platform acceptance matrix below. The current Step 7
+Mac candidate passed native tests; a passing operator report identifies the current WSL2
+candidate. External-state/final manual-process cleanup clarifications remain outstanding.
+Existing archives are unchanged; these notes apply to the next assembly.
+
 - Version: `4.0.0-alpha.1`; intended tag: `v4.0.0-alpha.1` (not created).
-- Java source: `dac3ed509d03e1bef75c47b497ca80bbdd1f2e04`.
+- Java source for next assembly: `4ca0fa42c769749f37fd1d5306bbf5b1c0054aa0` (Tomcat 10.1.59, pushed).
+- Existing Step 7 archives retain source `dac3ed509d03e1bef75c47b497ca80bbdd1f2e04` and Tomcat 10.1.55; rebuild and retest before publication.
 - Rust source and frozen policy/models: `ef819fe58865c643a240ee067cf61d506f04a778`.
 - Build/acceptance JDK: Eclipse Temurin `21.0.12.1+1`, supplied separately.
 - Rust: `1.96.0`, compiler commit `ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96`, locked dependencies.

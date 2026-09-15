@@ -1,6 +1,6 @@
 # Local prerelease packaging specification
 
-Status: all four local platform archives built and checksum-verified, 2026-09-14. The real macOS ARM64 archive passed runtime smoke. No prerelease published; full cross-platform acceptance and redistribution review remain pending.
+Status (2026-09-15): release scope narrowed by the user to native macOS ARM64 and Linux x64 on AlmaLinux/WSL2 only. Mac acceptance passed and a passing WSL2 operator report was received. Report clarifications and redistribution/security review remain open; nothing published. Earlier four-platform build records below are historical, not publication commitments.
 
 ## 1. Publication version decision
 
@@ -14,7 +14,13 @@ Release-history reference: https://github.com/S-idd/data-contract-governance/rel
 
 ## Runtime distribution
 
-Target macOS and Linux. Build and smoke-test each architecture before advertising support; the proposed matrix is ARM64 and x86_64 on both systems. Require an installed Java 21 runtime. Recipients should not need Maven, Cargo, Docker, or either source checkout.
+Publish only `dcg-4.0.0-alpha.1-macos-arm64.tar.gz` for native Apple Silicon macOS and
+`dcg-4.0.0-alpha.1-linux-x64.tar.gz` for the tested AlmaLinux/WSL2 x64 environment.
+Intel macOS and Linux ARM64 are explicitly excluded; their existing local archives are
+retained as build evidence and must not be attached to this prerelease. Their tests are
+not release gates. WSL2 evidence does not certify bare-metal Linux or other distributions.
+Require installed Java 21; recipients need no Maven, Cargo, Docker or source checkout.
+This scope decision supersedes broader platform requirements in historical sections below.
 
 ## 2. Definitive macOS ARM64 manifest
 
@@ -65,7 +71,7 @@ Maven project/parent versions are now aligned to `4.0.0-alpha.1`, producing the 
 
 ## 3. Locked source and toolchain inputs
 
-- Java source preparation baseline: `71e0823ac359f63c536ef19f0b79352ba81c1ef5`. Final Java build commit after version alignment: `dac3ed509d03e1bef75c47b497ca80bbdd1f2e04`. Assemble Java JARs built from this immutable revision, not a moving branch. Packaging-only files are independently hashed in provenance; any later Java build-input change requires explicitly replacing the Java pin and retesting.
+- Java source preparation baseline: `71e0823ac359f63c536ef19f0b79352ba81c1ef5`. Final Java build commit for the next assembly (Tomcat 10.1.59): `4ca0fa42c769749f37fd1d5306bbf5b1c0054aa0`, pushed to origin/main. This supersedes `dac3ed509d03e1bef75c47b497ca80bbdd1f2e04`, which still describes the existing Step 7 archives. Build fresh Java JARs from the new immutable revision; do not relabel old binaries. Packaging-only files are independently hashed; any later Java build-input change requires a new pin and retesting.
 - Java build and acceptance-test distribution: **Eclipse Temurin OpenJDK HotSpot 21.0.12.1+1**, compiling with Java release 21. macOS ARM64 upstream asset: `OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.12.1_1.tar.gz`. Other targets use the corresponding `x64_mac`, `x64_linux` or `aarch64_linux` asset at the same release. Verify upstream archive checksums before use and record them in provenance. All four upstream archives were downloaded and checksum-verified in Step 2; macOS ARM64 was reverified before the Step 4 diagnostic build.
 - Upstream Java release: https://github.com/adoptium/temurin21-binaries/releases/tag/jdk-21.0.12.1%2B1 . Installed local Oracle Java 21.0.10 is not the locked release build distribution. Recipients install Java 21 separately; no JDK is bundled. Exact Temurin build is the acceptance baseline, not a claim that every Java 21 vendor has been tested.
 - Rust source and frozen artifact revision: **`ef819fe58865c643a240ee067cf61d506f04a778`** in the companion `dcgaimodel` repository. Build the executable and copy all four frozen files from this same immutable commit, not `WEEK1`.

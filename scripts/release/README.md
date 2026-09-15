@@ -1,7 +1,7 @@
 # Local archive assembly (maintainer-only)
 
 Requires Python 3.9+, Git and already-built inputs. No build/CI/publish operation is hidden
-inside the assembler. Java source pin is `dac3ed509d03e1bef75c47b497ca80bbdd1f2e04`;
+inside the assembler. Java source pin is `4ca0fa42c769749f37fd1d5306bbf5b1c0054aa0`;
 Rust source pin is `ef819fe58865c643a240ee067cf61d506f04a778`. Packaging-only changes are
 recorded by file hashes and do not silently replace the Java build pin.
 
@@ -22,7 +22,7 @@ package documents come from `packaging/local/` in this checkout and are hashed i
 `build-info.json` must have these fields from the real builds:
 
 - `version`: `4.0.0-alpha.1`
-- `java_build_commit`: `dac3ed509d03e1bef75c47b497ca80bbdd1f2e04`
+- `java_build_commit`: `4ca0fa42c769749f37fd1d5306bbf5b1c0054aa0`
 - `rust_commit`: `ef819fe58865c643a240ee067cf61d506f04a778`
 - `target`: exact Rust target triple corresponding to `--platform`
 - `java_vendor`: `Eclipse Temurin`; `java_version`: `21.0.12.1+1`

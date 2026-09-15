@@ -1,5 +1,14 @@
 # Local alpha alert disposition — 2026-09-14
 
+## Remote build pin established — 2026-09-15
+
+Tomcat upgrade committed and pushed as `4ca0fa42c769749f37fd1d5306bbf5b1c0054aa0`.
+Fetched origin/main and verified this commit is reachable using merge-base --is-ancestor.
+Assembler, staging (via assembler constants) and SBOM source references now select this
+revision for the next build. A regression test rejects the superseded Java pin. Earlier
+local-only status below is historical. Existing archives have not been rebuilt or relabelled;
+remote alert closure is not claimed. Pause before assembly for the user's design discussion.
+
 ## Source upgrade — 2026-09-15
 
 The working-tree Maven pin now aligns tomcat-embed-core/el/websocket at 10.1.59.

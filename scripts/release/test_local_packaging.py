@@ -204,6 +204,16 @@ stop_one java
             with self.assertRaisesRegex(ValueError, "both Maven and Cargo"):
                 assembly.payload(args)
 
+    def test_superseded_java_pin_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            args = self.fixture_inputs(path)
+            info = json.loads((path / "build-info.json").read_text())
+            info["java_build_commit"] = "dac3ed509d03e1bef75c47b497ca80bbdd1f2e04"
+            (path / "build-info.json").write_text(json.dumps(info))
+            with self.assertRaisesRegex(ValueError, "java_build_commit"):
+                assembly.payload(args)
+
 
 if __name__ == "__main__":
     unittest.main()
