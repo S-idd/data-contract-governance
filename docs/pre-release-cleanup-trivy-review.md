@@ -1,14 +1,17 @@
 # Prerelease cleanup and Trivy review — 2026-09-15
 
-Release decision: NOT CLEAR. This scan is evidence for remediation, not release approval.
+Release decision: NOT CLEAR FOR PUBLIC RELEASE. The regenerated local-demo candidates pass
+technical archive checks and package scans, but Linux WSL2 acceptance of these exact rebuilt
+bytes, redistribution/license review, and final operator approval remain release gates.
 
 ## Cleanup
 
 Inspected 498 tracked files and ignore rules. No tracked generated logs, databases, classes
 or target/cache directories were found. The Maven wrapper JAR is intentional. Preserved
 examples, tests, source, local credentials and build/test evidence. Corrected stale local-only
-Tomcat upgrade wording in security documentation/release notes. No destructive cleanup or
-dependency changes performed. Packaging regressions: 18 passed; git diff --check passed.
+Tomcat upgrade wording in security documentation/release notes, upgraded the resolved Java
+dependencies, updated the Rust lockfile, and refreshed the pinned license-source map. No
+destructive cleanup was performed. Packaging regressions: 18 passed; git diff --check passed.
 
 ## Scan scope and method
 
@@ -21,7 +24,7 @@ Raw outputs/logs are private under
   target directories excluded. Includes ignored local files, so it is not a release inventory.
 - Tracked source: copied current tracked working-tree files outside the checkout and
   scanned with the same three scanners, without local environment files or Maven cache.
-- Rust: exact Cargo.toml/Cargo.lock exported from ef819fe58865c643a240ee067cf61d506f04a778.
+- Rust: exact Cargo.toml/Cargo.lock exported from 32ca579095ed5b91749b8c33999556624e58758f.
 - Java: copied newly built CLI/service JARs for direct rootfs vulnerability scanning.
   An initial fs scan detected zero language files and is NOT counted as a clean JAR scan.
 
@@ -53,8 +56,31 @@ rotate/revoke if genuine and exposed. No claim of leakage or validity has been e
 Do not upload source.json or the entire scan workspace publicly without redaction.
 
 After remediation, direct scans of the rebuilt Java JARs returned zero findings and the
-updated Rust lockfile scan returned zero findings. The workspace scan remains non-clean
-because it includes ignored local credential-pattern files and deployment-file configuration
-findings; neither belongs in the binary manifest. A final scan of regenerated selected
-archives is still required. The Java remediation commit and Rust remediation commit are
-separate from the package commit; existing archives remain unchanged.
+updated Rust lockfile scan returned zero findings. The current tracked-source scan returned
+zero vulnerabilities and secrets; its three Kubernetes configuration findings remain outside
+the local binary manifest. The broad workspace scan remains non-clean because it includes
+ignored local credential-pattern files and deployment-file configuration findings; neither
+belongs in the binary manifest. No ignored credential values were copied into a package.
+
+## Regenerated candidate validation — 2026-09-15
+
+Fresh archives were assembled outside the source checkout from Java
+`d54a518c3b308d1c54a440f016d81086e0a73155` and Rust
+`32ca579095ed5b91749b8c33999556624e58758f`:
+
+- macOS ARM64: `dcg-4.0.0-alpha.1-macos-arm64.tar.gz`, SHA-256
+  `c31250e371c6b9bb27ef619b846ee40b3d9ba93ce0fd59197310c3cca0eb30a`; 24 payload files
+  and 23 internal checksum entries.
+- Linux x64: `dcg-4.0.0-alpha.1-linux-x64.tar.gz`, SHA-256
+  `9995e4dc0eaf2fde1d924898cc47b1b05ac59f08fa4bb97ff5a723ac5ce45df6`; 24 payload files
+  and 23 internal checksum entries.
+
+Both extracted candidates passed checksum verification, SBOM graph/reference validation,
+and Trivy 0.72.0 scans with vulnerability, misconfiguration, and secret counts all zero.
+The macOS ARM64 regenerated candidate also passed native CLI, loopback readiness, repeat
+start/stop, and clean-shutdown checks. Linux WSL2 acceptance must be rerun by the operator
+against this regenerated archive; the earlier WSL2 report applies to the prior archive only.
+
+Candidate files and raw scan output are private under
+`/Users/siddarthkanamadi/Downloads/dcg-final-release-20260915`; they are not repository
+artifacts and were not committed.
