@@ -87,3 +87,25 @@ against this regenerated archive; the earlier WSL2 report applies to the prior a
 Candidate files and raw scan output are private under
 `/Users/siddarthkanamadi/Downloads/dcg-final-release-20260915`; they are not repository
 artifacts and were not committed.
+
+## Manual inference process follow-up — 2026-09-16
+
+The Linux x64 WSL2 report for SHA-256
+`5712d8d5101f070d33badcb1bc3e3235bc7be12247f3888b42edab70bc4d76da`
+confirmed that a Rust process started manually during outage/recovery remained on port
+8081 after `bin/stop` reported success. The launcher now identifies an untracked
+listener, stops it only if its full command matches the inference binary and model path
+in this extracted package, and returns a failure for any unrelated listener.
+
+The replacement candidate requires a new archive hash and WSL2 acceptance report. Its
+macOS ARM64 counterpart passed full native extracted-package acceptance, including the
+new manual-process check. Linux x64 passed an emulated smoke test of the same behavior;
+that is not a substitute for WSL2 acceptance.
+
+Final replacement archive digests after the launcher and release-note changes:
+
+- macOS ARM64: `e484257de452c77f7dc1655bbfec85351825748393e497e1087f2d6f0d58cb6f`;
+  full standalone native acceptance report status `PASS`.
+- Linux x64: `4a935b4d69140c632aeb965dfff5e05ddfa803b3eaabe83b2f8bfd2c84c9d68b`;
+  external/internal checksums and an extracted-package Trivy scan passed with zero findings.
+  WSL2 acceptance for this exact archive is pending.

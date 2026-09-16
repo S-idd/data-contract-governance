@@ -21,7 +21,7 @@ state_init() {
   case "$DATA/" in "$ROOT/"*) die 'DCG_DATA_DIR must be outside the package.';; esac
   mkdir -p "$DATA/run" "$DATA/logs"
   STATE="$DATA/run"
-  for utility in ps curl; do command -v "$utility" >/dev/null || die "Required utility missing: $utility"; done
+  for utility in ps curl lsof; do command -v "$utility" >/dev/null || die "Required utility missing: $utility"; done
 }
 lock() {
   mkdir "$STATE/lock" 2>/dev/null || die "Another launcher holds $STATE/lock. If interrupted, confirm no launcher is running before removing this empty lock directory."
@@ -70,6 +70,37 @@ stop_one() {
   fi
   # A stale/reused PID is never signalled.
   rm -f "$STATE/$name.pid"
+}
+port_listeners() {
+  lsof -nP -t -iTCP:"$1" -sTCP:LISTEN 2>/dev/null || true
+}
+owned_rust_listener() {
+  local pid=$1 command
+  [[ "$pid" =~ ^[0-9]+$ && "$pid" -gt 1 ]] || return 1
+  command=$(ps -p "$pid" -o args= 2>/dev/null) || return 1
+  [[ "$command" == "$ROOT/bin/dcgaimodel serve-shadow-inference --artifact-root $ROOT/model --bind 127.0.0.1:8081" ]]
+}
+stop_untracked_rust() {
+  local pid remaining i
+  remaining=$(port_listeners 8081)
+  [[ -n "$remaining" ]] || return 0
+  for pid in $remaining; do
+    if ! owned_rust_listener "$pid"; then
+      printf 'DCG: port 8081 is held by untracked PID %s; refusing to signal it. Inspect the process manually.\n' "$pid" >&2
+      return 1
+    fi
+  done
+  for pid in $remaining; do
+    # Recheck ownership and listener identity immediately before sending a signal.
+    owned_rust_listener "$pid" && [[ " $(port_listeners 8081 | tr '\n' ' ') " == *" $pid "* ]] || return 1
+    kill -TERM "$pid" || return 1
+  done
+  for ((i=0; i<30; i++)); do
+    [[ -z "$(port_listeners 8081)" ]] && return 0
+    sleep 1
+  done
+  printf 'DCG: port 8081 is still listening after stopping the untracked Rust process.\n' >&2
+  return 1
 }
 ready() { curl --noproxy '*' -fsS --connect-timeout 1 --max-time 2 "$1" >/dev/null 2>&1; }
 wait_ready() {

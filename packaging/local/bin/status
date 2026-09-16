@@ -7,6 +7,15 @@ for name in java rust; do
   if [[ "$name" == java ]]; then url=http://127.0.0.1:8080/actuator/health; else url=http://127.0.0.1:8081/health/ready; fi
   if alive "$name"; then
     if ready "$url"; then printf '%s: ready\n' "$name"; else printf '%s: running, not ready\n' "$name"; result=1; fi
-  else printf '%s: stopped (or stale identity record)\n' "$name"; result=1; fi
+  else
+    if [[ "$name" == rust ]]; then port=8081; else port=8080; fi
+    listeners=$(port_listeners "$port")
+    if [[ -n "$listeners" ]]; then
+      printf '%s: untracked listener on port %s (PID %s)\n' "$name" "$port" "$(printf '%s' "$listeners" | tr '\n' ' ')"
+    else
+      printf '%s: stopped (or stale identity record)\n' "$name"
+    fi
+    result=1
+  fi
 done
 exit "$result"

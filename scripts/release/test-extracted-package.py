@@ -71,6 +71,7 @@ def main():
               "runner_sha256": sha(Path(__file__)), "checks": [], "status": "RUNNING"}
     package = None
     restored = None
+    manual = None
     sentinel = None
     state = work / "persistent state"
     env = {**os.environ, "JAVA_HOME": str(args.java_home.resolve()), "DCG_DATA_DIR": str(state)}
@@ -172,7 +173,7 @@ def main():
         passed("archive checksum, extraction and native-target match")
         no_java = work / "path without java"
         no_java.mkdir()
-        for utility in ("bash", "dirname", "mkdir", "ps", "curl"):
+        for utility in ("bash", "dirname", "mkdir", "ps", "curl", "lsof"):
             (no_java / utility).symlink_to(shutil.which(utility))
         missing_env = {**env, "PATH": str(no_java)}
         missing_env.pop("JAVA_HOME", None)
@@ -230,6 +231,16 @@ def main():
             clean_shutdown()
             run("status", expected=1)
             passed(f"additional start/stop cycle {cycle + 1}")
+        with (state / "logs/rust.log").open("ab") as log:
+            manual = subprocess.Popen([str(package / "bin/dcgaimodel"), "serve-shadow-inference", "--artifact-root", str(package / "model"),
+                                       "--bind", "127.0.0.1:8081"], cwd=state, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
+        wait_until(lambda: bool(subprocess.run(["curl", "--noproxy", "*", "-fsS", "http://127.0.0.1:8081/health/ready"],
+                                               capture_output=True).returncode == 0), "Manual Rust process did not become ready")
+        require("rust: untracked listener" in run("status", expected=1), "Untracked Rust listener was not reported")
+        run("stop")
+        manual.wait(timeout=10)
+        clean_shutdown()
+        passed("manual package Rust listener is detected and stopped")
         require(password == (state / "password").read_bytes() and sample == (state / "contracts/orders.created/v1.json").read_bytes(), "Persistent data changed unexpectedly")
         with sqlite3.connect(f"file:{state / 'checks.db'}?mode=ro", uri=True) as db:
             require(db.execute("PRAGMA integrity_check").fetchone() == ("ok",), "SQLite integrity check failed")
@@ -251,6 +262,9 @@ def main():
         if restored is not None and restored.poll() is None:
             restored.terminate()  # This Popen child belongs only to this test.
             restored.wait(timeout=10)
+        if manual is not None and manual.poll() is None:
+            manual.terminate()  # This Popen child belongs only to this test.
+            manual.wait(timeout=10)
         if sentinel is not None and sentinel.poll() is None:
             sentinel.terminate()
             sentinel.wait(timeout=10)

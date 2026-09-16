@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -139,6 +140,26 @@ stop_one java
             finally:
                 process.terminate()
                 process.wait()
+
+    def test_untracked_rust_requires_exact_package_command(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            bin_dir = path / "bin"
+            bin_dir.mkdir()
+            (bin_dir / "dcg").write_bytes(assembly.template_path("bin/dcg").read_bytes())
+            fake_tools = path / "tools"
+            fake_tools.mkdir()
+            fake_ps = fake_tools / "ps"
+            fake_ps.write_text('#!/bin/sh\nprintf "%s\\n" "$MOCK_PROCESS_ARGS"\n')
+            fake_ps.chmod(0o755)
+            root = path.resolve()
+            expected = f"{root}/bin/dcgaimodel serve-shadow-inference --artifact-root {root}/model --bind 127.0.0.1:8081"
+            command = ["bash", "-c", 'source "$1"; owned_rust_listener 1234', "test", str(bin_dir / "dcg")]
+            environment = {**os.environ, "PATH": str(fake_tools) + os.pathsep + os.environ["PATH"]}
+            result = subprocess.run(command, env={**environment, "MOCK_PROCESS_ARGS": expected})
+            self.assertEqual(result.returncode, 0)
+            result = subprocess.run(command, env={**environment, "MOCK_PROCESS_ARGS": expected.replace(str(path), "/other")})
+            self.assertNotEqual(result.returncode, 0)
 
     def fixture_inputs(self, path):
         # Deliberately synthetic unit-test artifacts; never published or claimed as an SBOM.
