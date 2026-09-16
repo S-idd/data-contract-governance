@@ -141,7 +141,7 @@ stop_one java
                 process.terminate()
                 process.wait()
 
-    def test_untracked_rust_requires_exact_package_command(self):
+    def test_untracked_rust_resolves_executable_and_requires_exact_arguments(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
             bin_dir = path / "bin"
@@ -152,13 +152,21 @@ stop_one java
             fake_ps = fake_tools / "ps"
             fake_ps.write_text('#!/bin/sh\nprintf "%s\\n" "$MOCK_PROCESS_ARGS"\n')
             fake_ps.chmod(0o755)
+            fake_lsof = fake_tools / "lsof"
+            fake_lsof.write_text('#!/bin/sh\nprintf "p1234\\nftxt\\nn%s\\n" "$MOCK_EXE_PATH"\n')
+            fake_lsof.chmod(0o755)
             root = path.resolve()
-            expected = f"{root}/bin/dcgaimodel serve-shadow-inference --artifact-root {root}/model --bind 127.0.0.1:8081"
+            expected_args = f"serve-shadow-inference --artifact-root {root}/model --bind 127.0.0.1:8081"
             command = ["bash", "-c", 'source "$1"; owned_rust_listener 1234', "test", str(bin_dir / "dcg")]
             environment = {**os.environ, "PATH": str(fake_tools) + os.pathsep + os.environ["PATH"]}
-            result = subprocess.run(command, env={**environment, "MOCK_PROCESS_ARGS": expected})
+            result = subprocess.run(command, env={**environment, "MOCK_EXE_PATH": f"{root}/bin/dcgaimodel",
+                                                  "MOCK_PROCESS_ARGS": f"./bin/dcgaimodel {expected_args}"})
             self.assertEqual(result.returncode, 0)
-            result = subprocess.run(command, env={**environment, "MOCK_PROCESS_ARGS": expected.replace(str(path), "/other")})
+            result = subprocess.run(command, env={**environment, "MOCK_EXE_PATH": "/other/dcgaimodel",
+                                                  "MOCK_PROCESS_ARGS": f"./bin/dcgaimodel {expected_args}"})
+            self.assertNotEqual(result.returncode, 0)
+            result = subprocess.run(command, env={**environment, "MOCK_EXE_PATH": f"{root}/bin/dcgaimodel",
+                                                  "MOCK_PROCESS_ARGS": f"./bin/dcgaimodel {expected_args} --extra"})
             self.assertNotEqual(result.returncode, 0)
 
     def fixture_inputs(self, path):

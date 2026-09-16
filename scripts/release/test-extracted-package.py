@@ -232,15 +232,16 @@ def main():
             run("status", expected=1)
             passed(f"additional start/stop cycle {cycle + 1}")
         with (state / "logs/rust.log").open("ab") as log:
-            manual = subprocess.Popen([str(package / "bin/dcgaimodel"), "serve-shadow-inference", "--artifact-root", str(package / "model"),
-                                       "--bind", "127.0.0.1:8081"], cwd=state, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
+            manual = subprocess.Popen(["./bin/dcgaimodel", "serve-shadow-inference", "--artifact-root", str(package / "model"),
+                                       "--bind", "127.0.0.1:8081"], cwd=package, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
         wait_until(lambda: bool(subprocess.run(["curl", "--noproxy", "*", "-fsS", "http://127.0.0.1:8081/health/ready"],
                                                capture_output=True).returncode == 0), "Manual Rust process did not become ready")
-        require("rust: untracked listener" in run("status", expected=1), "Untracked Rust listener was not reported")
+        require("rust: ready (package-owned listener without PID record" in run("status", expected=1),
+                "Relative-path Rust listener was not recognized as package-owned")
         run("stop")
         manual.wait(timeout=10)
         clean_shutdown()
-        passed("manual package Rust listener is detected and stopped")
+        passed("relative-path manual package Rust listener is detected and stopped")
         require(password == (state / "password").read_bytes() and sample == (state / "contracts/orders.created/v1.json").read_bytes(), "Persistent data changed unexpectedly")
         with sqlite3.connect(f"file:{state / 'checks.db'}?mode=ro", uri=True) as db:
             require(db.execute("PRAGMA integrity_check").fetchone() == ("ok",), "SQLite integrity check failed")

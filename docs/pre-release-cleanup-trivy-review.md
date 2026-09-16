@@ -109,3 +109,25 @@ Final replacement archive digests after the launcher and release-note changes:
 - Linux x64: `4a935b4d69140c632aeb965dfff5e05ddfa803b3eaabe83b2f8bfd2c84c9d68b`;
   external/internal checksums and an extracted-package Trivy scan passed with zero findings.
   WSL2 acceptance for this exact archive is pending.
+
+## Relative-path orphan restart correction — 2026-09-16
+
+The WSL2 retest of the archive above exposed a second ownership gap: a manual
+`./bin/dcgaimodel` restart is the package binary but its argv[0] is not the
+absolute package path. The launcher now checks the program-text executable path
+using `lsof` and requires the exact inference arguments; `status` distinguishes
+this package-owned listener from an unrelated untracked process. The standalone
+runner now recreates that exact relative-path restart. An emulated Linux container
+uses Rosetta as its reported executable, so that container cannot validate this
+particular identity check; real WSL2 acceptance remains necessary.
+
+The current candidate archive SHA-256 values, superseding the pair above, are:
+
+- macOS ARM64: `a1e0fb57085f7d67e121dd54f946de0e4fc678738636bf0a54fb6672a306cc1e`;
+  13/13 standalone native acceptance checks passed, including relative-path restart.
+- Linux x64: `7743d4da4a87ef31d50db6c69064f69c62f9974a2db7eb9e9c16025b1ee0a14f`;
+  external and internal checksums passed; WSL2 acceptance is pending.
+
+Trivy 0.72.0 scans of the extracted current candidates returned no findings, but
+reported zero language-specific and configuration files discovered. These scans
+are not evidence of complete vulnerability coverage.

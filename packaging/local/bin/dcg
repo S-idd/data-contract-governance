@@ -75,10 +75,17 @@ port_listeners() {
   lsof -nP -t -iTCP:"$1" -sTCP:LISTEN 2>/dev/null || true
 }
 owned_rust_listener() {
-  local pid=$1 command
+  local pid=$1 exe_path command expected_args
   [[ "$pid" =~ ^[0-9]+$ && "$pid" -gt 1 ]] || return 1
+  # The first program-text mapping is the executable on macOS and Linux.
+  # -Fn preserves spaces in the path, unlike parsing lsof's tabular output.
+  exe_path=$(lsof -nP -a -p "$pid" -d txt -Fn 2>/dev/null | sed -n '/^n/{s/^n//;p;q;}') || return 1
+  [[ "$exe_path" == "$ROOT/bin/dcgaimodel" ]] || return 1
   command=$(ps -p "$pid" -o args= 2>/dev/null) || return 1
-  [[ "$command" == "$ROOT/bin/dcgaimodel serve-shadow-inference --artifact-root $ROOT/model --bind 127.0.0.1:8081" ]]
+  expected_args="serve-shadow-inference --artifact-root $ROOT/model --bind 127.0.0.1:8081"
+  # argv[0] may be relative, absolute, or contain spaces. Require the exact
+  # remaining arguments after a space, with no trailing or extra arguments.
+  [[ "$command" == *" $expected_args" ]]
 }
 stop_untracked_rust() {
   local pid remaining i

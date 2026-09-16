@@ -11,7 +11,15 @@ for name in java rust; do
     if [[ "$name" == rust ]]; then port=8081; else port=8080; fi
     listeners=$(port_listeners "$port")
     if [[ -n "$listeners" ]]; then
-      printf '%s: untracked listener on port %s (PID %s)\n' "$name" "$port" "$(printf '%s' "$listeners" | tr '\n' ' ')"
+      if [[ "$name" == rust ]] && [[ "$listeners" != *$'\n'* ]] && owned_rust_listener "$listeners"; then
+        if ready "$url"; then
+          printf 'rust: ready (package-owned listener without PID record, PID %s)\n' "$listeners"
+        else
+          printf 'rust: running, not ready (package-owned listener without PID record, PID %s)\n' "$listeners"
+        fi
+      else
+        printf '%s: untracked listener on port %s (PID %s)\n' "$name" "$port" "$(printf '%s' "$listeners" | tr '\n' ' ')"
+      fi
     else
       printf '%s: stopped (or stale identity record)\n' "$name"
     fi

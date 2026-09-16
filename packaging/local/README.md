@@ -48,8 +48,10 @@ and process identity records also live there. Stop retains all data. Logs append
 Tracked processes are signalled only when their recorded start time and command still match.
 If a process will not stop in 30 seconds, shutdown reports failure without a forced kill.
 If a manually started inference process from this exact package owns port 8081, `bin/stop`
-checks its full command and stops it. An unrelated listener is reported and left untouched;
-`bin/status` reports listeners without matching PID records as untracked.
+checks its executable and arguments and stops it, even when launched as
+`./bin/dcgaimodel`. An unrelated listener is reported and left untouched;
+`bin/status` identifies package-owned listeners without PID records separately from
+unrelated untracked listeners. A missing PID record still makes status exit nonzero.
 
 Ports are fixed for this alpha. Stop conflicting services or use a separate demo machine.
 Do not expose these listeners via a tunnel/proxy or use this alpha on a shared/untrusted host.
