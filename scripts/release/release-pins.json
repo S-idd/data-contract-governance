@@ -1,6 +1,6 @@
 {
   "version": "4.0.0-rc.1",
-  "java_build_commit": "d54a518c3b308d1c54a440f016d81086e0a73155",
+  "java_build_commit": "994770c97ed00d00b1a6bf974344a6c68c31d656",
   "rust_commit": "32ca579095ed5b91749b8c33999556624e58758f",
   "rustc_commit": "ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96",
   "targets": {
