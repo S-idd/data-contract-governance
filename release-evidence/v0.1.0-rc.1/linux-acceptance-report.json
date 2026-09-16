@@ -1,0 +1,87 @@
+{
+  "started_at": "2026-09-16T18:19:37.730023+00:00",
+  "archive": "dcg-4.0.0-rc.1-linux-x64.tar.gz",
+  "archive_sha256": "f3f39529704bf5eef3030c9d0e02ab03234778e60843487e8f7967c9ac07b588",
+  "machine": "Windows laptop WSL2 Linux x64",
+  "system": "Linux",
+  "machine_arch": "x86_64",
+  "os_release": "6.18.33.2-microsoft-standard-WSL2",
+  "execution_environment": "WSL2 (not bare-metal Linux)",
+  "runner_sha256": "1ca0cec104a1234f30073d404eae32814e29fecade55e8eca5019d8d37b6ccc9",
+  "checks": [
+    {
+      "check": "archive checksum, extraction and native-target match",
+      "status": "PASS"
+    },
+    {
+      "check": "Java absent produces actionable error",
+      "status": "PASS",
+      "diagnostic": "DCG: Install Java 21 or set JAVA_HOME to a Java 21 JDK."
+    },
+    {
+      "check": "CLI, Java/Rust readiness, loopback listeners and authentication",
+      "status": "PASS",
+      "listeners": "COMMAND     PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\ndcgaimode 19739 sidd    6u  IPv4 113813      0t0  TCP 127.0.0.1:8081 (LISTEN)\njava      19755 sidd   14u  IPv6 112531      0t0  TCP 127.0.0.1:8080 (LISTEN)\n"
+    },
+    {
+      "check": "repeat start leaves original processes running",
+      "status": "PASS"
+    },
+    {
+      "check": "healthy AI prediction",
+      "status": "PASS",
+      "run_id": "037d9d03-61d0-4255-870c-48a4c93ab18c",
+      "authoritative_status": "PASS",
+      "shadow_event": "shadow_inference_prediction",
+      "shadow_evidence": "2026-09-16T23:49:49.200+05:30  INFO 19755 --- [dow-inference-1] c.i.c.service.ShadowInferenceObserver    : event=shadow_inference_prediction component=shadow_inference role=LOG_ONLY observed_at=2026-09-16T18:19:49.149867457Z contract_id=orders.created run_id=037d9d03-61d0-4255-870c-48a4c93ab18c base_version=v1 candidate_version=v2 commit_sha=step6-healthy_AI_prediction base_schema_sha256=ff90f27ded7520f837ff7af16a53b9ae124d6e89be7492f0e0708e24d0ff92d5 candidate_schema_sha256=af23d237df26bb25d3c6587906f11bbcc13b551c385c1d1eb4f843719ce91420 authoritative_label=WARNING authoritative_status=PASS compatibility_mode=BACKWARD policy_pack=baseline breaking_changes_count=0 warnings_count=1 agreement_basis=ALL_THREE agreement=false seed_predictions=[{\"seed\":\"20260826\",\"label\":\"WARNING\",\"probabilities\":{\"safe\":0.0014113047290868733,\"warning\":0.9985696185499723,\"breaking\":1.9076720940694535E-5}},{\"seed\":\"20260827\",\"label\":\"WARNING\",\"probabilities\":{\"safe\":0.03246711883883108,\"warning\":0.9675328811603644,\"breaking\":8.045068403107577E-13}},{\"seed\":\"20260828\",\"label\":\"SAFE\",\"probabilities\":{\"safe\":0.8623643328632933,\"warning\":0.13763566693915588,\"breaking\":1.9755088705331906E-10}}]"
+    },
+    {
+      "check": "AI outage preserves authoritative result",
+      "status": "PASS",
+      "run_id": "347c6bb2-c307-4a1d-9650-505801eca6ca",
+      "authoritative_status": "PASS",
+      "shadow_event": "shadow_inference_call_failed",
+      "shadow_evidence": "2026-09-16T23:49:54.175+05:30  WARN 19755 --- [dow-inference-2] c.i.c.service.ShadowInferenceObserver    : event=shadow_inference_call_failed component=shadow_inference role=LOG_ONLY observed_at=2026-09-16T18:19:54.169043602Z contract_id=orders.created run_id=347c6bb2-c307-4a1d-9650-505801eca6ca base_version=v1 candidate_version=v2 commit_sha=step6-AI_outage_preserves_authoritative_result base_schema_sha256=ff90f27ded7520f837ff7af16a53b9ae124d6e89be7492f0e0708e24d0ff92d5 candidate_schema_sha256=af23d237df26bb25d3c6587906f11bbcc13b551c385c1d1eb4f843719ce91420 authoritative_label=WARNING authoritative_status=PASS compatibility_mode=BACKWARD policy_pack=baseline agreement_basis=ALL_THREE agreement=NOT_APPLICABLE failure_stage=CONNECTION_REFUSED error_type=ShadowInferenceException error_message=shadow_inference_connection_was_refused"
+    },
+    {
+      "check": "AI recovers without restarting Java",
+      "status": "PASS",
+      "run_id": "11eff082-d452-40f3-80b8-61f6e04ba0c5",
+      "authoritative_status": "PASS",
+      "shadow_event": "shadow_inference_prediction",
+      "shadow_evidence": "2026-09-16T23:49:59.189+05:30  INFO 19755 --- [dow-inference-1] c.i.c.service.ShadowInferenceObserver    : event=shadow_inference_prediction component=shadow_inference role=LOG_ONLY observed_at=2026-09-16T18:19:59.181817626Z contract_id=orders.created run_id=11eff082-d452-40f3-80b8-61f6e04ba0c5 base_version=v1 candidate_version=v2 commit_sha=step6-AI_recovers_without_restarting_Java base_schema_sha256=ff90f27ded7520f837ff7af16a53b9ae124d6e89be7492f0e0708e24d0ff92d5 candidate_schema_sha256=af23d237df26bb25d3c6587906f11bbcc13b551c385c1d1eb4f843719ce91420 authoritative_label=WARNING authoritative_status=PASS compatibility_mode=BACKWARD policy_pack=baseline breaking_changes_count=0 warnings_count=1 agreement_basis=ALL_THREE agreement=false seed_predictions=[{\"seed\":\"20260826\",\"label\":\"WARNING\",\"probabilities\":{\"safe\":0.0014113047290868733,\"warning\":0.9985696185499723,\"breaking\":1.9076720940694535E-5}},{\"seed\":\"20260827\",\"label\":\"WARNING\",\"probabilities\":{\"safe\":0.03246711883883108,\"warning\":0.9675328811603644,\"breaking\":8.045068403107577E-13}},{\"seed\":\"20260828\",\"label\":\"SAFE\",\"probabilities\":{\"safe\":0.8623643328632933,\"warning\":0.13763566693915588,\"breaking\":1.9755088705331906E-10}}]"
+    },
+    {
+      "check": "scoped shutdown preserves unrelated sentinel",
+      "status": "PASS",
+      "sentinel_pid": 19653,
+      "before_processes": "      1       0 systemd\n      2       1 init-systemd(Al\n      7       2 init\n     43       1 systemd-journal\n     55       1 systemd-udevd\n     73       1 low-memory-moni\n     92       1 redis-server\n     93       1 rtkit-daemon\n     98       1 systemd-logind\n    102       1 udisksd\n    108       1 upowerd\n    146       1 nginx\n    147     146 nginx\n    148     146 nginx\n    149     146 nginx\n    150     146 nginx\n    163       1 dbus-broker-lau\n    164       1 agetty\n    178     163 dbus-broker\n    188       1 polkitd\n    247       2 login\n    251       1 systemd\n    253     251 (sd-pam)\n    275     247 bash\n   4446       1 catatonit\n   4458     251 dbus-broker-lau\n   4459    4458 dbus-broker\n  15557       2 SessionLeader\n  15559   15557 Relay(15561)\n  15561   15559 bash\n  19627   15561 python3\n  19653   19627 sleep\n  19755   15559 java\n  19978   19627 dcgaimodel\n  20002   19627 ps\n",
+      "after_processes": "      1       0 systemd\n      2       1 init-systemd(Al\n      7       2 init\n     43       1 systemd-journal\n     55       1 systemd-udevd\n     73       1 low-memory-moni\n     92       1 redis-server\n     93       1 rtkit-daemon\n     98       1 systemd-logind\n    102       1 udisksd\n    108       1 upowerd\n    146       1 nginx\n    147     146 nginx\n    148     146 nginx\n    149     146 nginx\n    150     146 nginx\n    163       1 dbus-broker-lau\n    164       1 agetty\n    178     163 dbus-broker\n    188       1 polkitd\n    247       2 login\n    251       1 systemd\n    253     251 (sd-pam)\n    275     247 bash\n   4446       1 catatonit\n   4458     251 dbus-broker-lau\n   4459    4458 dbus-broker\n  15557       2 SessionLeader\n  15559   15557 Relay(15561)\n  15561   15559 bash\n  19627   15561 python3\n  19653   19627 sleep\n  19978   19627 dcgaimodel <defunct>\n  20051   19627 ps\n"
+    },
+    {
+      "check": "clean and repeated shutdown releases ports and removes process records",
+      "status": "PASS"
+    },
+    {
+      "check": "additional start/stop cycle 1",
+      "status": "PASS"
+    },
+    {
+      "check": "additional start/stop cycle 2",
+      "status": "PASS"
+    },
+    {
+      "check": "relative-path manual package Rust listener is detected and stopped",
+      "status": "PASS"
+    },
+    {
+      "check": "persistent data integrity and immutable package files",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "java_runtime_evidence": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+  "package_relocated_before_start": true,
+  "target": "x86_64-unknown-linux-gnu",
+  "finished_at": "2026-09-16T18:20:12.415989+00:00"
+}
