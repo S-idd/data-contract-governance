@@ -24,7 +24,7 @@ package documents come from `packaging/local/` in this checkout and are hashed i
 `build-info.json` must have these fields from the real builds:
 
 - `version`: `4.0.0-rc.1`
-- `java_build_commit`: exact new Java build commit, to be pinned after these edits are committed; the current manifest still contains the historical alpha build SHA and is not yet usable for RC assembly
+- `java_build_commit`: `994770c97ed00d00b1a6bf974344a6c68c31d656` (the exact committed Java RC source revision)
 - `rust_commit`: `32ca579095ed5b91749b8c33999556624e58758f`
 - `release_pins_sha256`: SHA-256 of `scripts/release/release-pins.json`
 - `target`: exact Rust target triple corresponding to `--platform`
