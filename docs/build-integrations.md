@@ -10,7 +10,7 @@ Add the plugin to the consuming project's `pom.xml`:
 <plugin>
   <groupId>com.ideas.contracts</groupId>
   <artifactId>contract-maven-plugin</artifactId>
-  <version>4.0.0-alpha.1</version>
+  <version>4.0.0-rc.1</version>
   <configuration>
     <baseSchema>${project.basedir}/contracts/orders.created/v1.json</baseSchema>
     <candidateSchema>${project.basedir}/contracts/orders.created/v2.json</candidateSchema>
@@ -27,7 +27,7 @@ Publish the plugin JAR to your organization’s plugin repository, then configur
 
 ```groovy
 plugins {
-  id 'com.ideas.contracts.governance' version '4.0.0-alpha.1'
+  id 'com.ideas.contracts.governance' version '4.0.0-rc.1'
 }
 
 dcgCompatibility {
@@ -107,7 +107,7 @@ The default shared quota is 60 imports per authenticated identity and repository
 Preserve the JSON evidence file as a CI artifact. Replay exactly that file—do not regenerate it—once the service is available:
 
 ```bash
-mvn com.ideas.contracts:contract-maven-plugin:4.0.0-alpha.1:replay-evidence \
+mvn com.ideas.contracts:contract-maven-plugin:4.0.0-rc.1:replay-evidence \
   -Ddcg.evidenceFile=target/dcg-compatibility-report.json \
   -Ddcg.remoteServiceUrl=https://dcg.example.com \
   -Ddcg.remoteAuthorization="Bearer $DCG_OIDC_TOKEN"

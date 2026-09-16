@@ -77,7 +77,7 @@ jobs:
           echo "::add-mask::$oidc_token"
 
           ./mvnw --batch-mode --no-transfer-progress --non-recursive \
-            com.ideas.contracts:contract-maven-plugin:4.0.0-alpha.1:check-compat \
+            com.ideas.contracts:contract-maven-plugin:4.0.0-rc.1:check-compat \
             -Ddcg.baseSchema="contracts/${DCG_CONTRACT_ID}/v1.json" \
             -Ddcg.candidateSchema="contracts/${DCG_CONTRACT_ID}/v2.json" \
             -Ddcg.mode=BACKWARD \

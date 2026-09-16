@@ -3,7 +3,7 @@ set -euo pipefail
 
 DEMO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ROOT_DIR="$(cd "$DEMO_DIR/../.." && pwd)"
-CLI_JAR="$ROOT_DIR/contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar"
+CLI_JAR="$ROOT_DIR/contract-cli/target/contract-cli-4.0.0-rc.1-all.jar"
 SERVICE_URL="${DCG_DEMO_SERVICE_BASE_URL:-http://localhost:8080}"
 APP_URL="${DEMO_APP_URL:-http://localhost:8081}"
 CONTRACT_DIR="$DEMO_DIR/contracts/orders.created"

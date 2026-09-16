@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SERVICE_JAR="${DCG_POSTGRES_RECOVERY_SERVICE_JAR:-$ROOT_DIR/contract-service/target/contract-service-4.0.0-alpha.1.jar}"
+SERVICE_JAR="${DCG_POSTGRES_RECOVERY_SERVICE_JAR:-$ROOT_DIR/contract-service/target/contract-service-4.0.0-rc.1.jar}"
 POSTGRES_IMAGE="${DCG_POSTGRES_RECOVERY_IMAGE:-postgres:16}"
 POSTGRES_PORT="${DCG_POSTGRES_RECOVERY_DB_PORT:-15432}"
 SERVICE_PORT="${DCG_POSTGRES_RECOVERY_SERVICE_PORT:-18081}"

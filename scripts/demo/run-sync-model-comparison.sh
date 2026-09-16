@@ -11,7 +11,7 @@ script_dir=$(cd "$(dirname "$0")" && pwd)
 project_root=$(cd "$script_dir/../.." && pwd)
 model_root=${DCG_MODEL_ROOT:-"$project_root/../../dcgaimodel"}
 fixture_manifest="$model_root/data/external/kubernetes-openapi-v1/scored-accepted-v1/kubernetes-accepted-external-manifest-v3.json"
-cli_jar=${DCG_DEMO_CLI_JAR:-"$project_root/contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar"}
+cli_jar=${DCG_DEMO_CLI_JAR:-"$project_root/contract-cli/target/contract-cli-4.0.0-rc.1-all.jar"}
 endpoint=${DCG_DEMO_ENDPOINT:-"http://127.0.0.1:8081/demo/compare"}
 
 case "$case_name" in

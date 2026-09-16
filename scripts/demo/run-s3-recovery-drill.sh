@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SERVICE_JAR="${DCG_S3_RECOVERY_SERVICE_JAR:-$ROOT_DIR/contract-service/target/contract-service-4.0.0-alpha.1.jar}"
+SERVICE_JAR="${DCG_S3_RECOVERY_SERVICE_JAR:-$ROOT_DIR/contract-service/target/contract-service-4.0.0-rc.1.jar}"
 MINIO_IMAGE="${DCG_S3_RECOVERY_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}"
 S3_PORT="${DCG_S3_RECOVERY_PORT:-19000}"
 SERVICE_PORT="${DCG_S3_RECOVERY_SERVICE_PORT:-18083}"

@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEMO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${DEMO_ROOT}/../.." && pwd)"
 CONTRACT_DIR="${DEMO_ROOT}/contracts/orders.created"
-CLI_JAR="${DCG_CLI_JAR:-${REPO_ROOT}/contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar}"
+CLI_JAR="${DCG_CLI_JAR:-${REPO_ROOT}/contract-cli/target/contract-cli-4.0.0-rc.1-all.jar}"
 SERVICE_URL="${DCG_SERVICE_URL:-http://127.0.0.1:8080}"
 AUTH="${DCG_AUTH:-demo:demo-pass}"
 

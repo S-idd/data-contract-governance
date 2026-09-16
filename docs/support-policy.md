@@ -2,17 +2,17 @@
 
 ## Release support
 
-DCG is preparing `4.0.0-alpha.1` for local macOS/Linux demos. This supersedes the stale
-0.x public-beta policy; historical tags remain unchanged. The alpha may change APIs,
-configuration, storage behavior and operational requirements. Alpha fixes are best-effort
-and target the latest alpha; no long-term maintenance, uptime SLA, response-time guarantee
+DCG is preparing `4.0.0-rc.1` for local native macOS ARM64 and Linux x64 on WSL2 demos. This supersedes the stale
+0.x public-beta policy; historical tags remain unchanged. The RC may change APIs,
+configuration, storage behavior and operational requirements. Prerelease fixes are best-effort
+and target the latest prerelease; no long-term maintenance, uptime SLA, response-time guarantee
 or managed hosting service is offered. Production approval is not implied by the version.
 
 The package requires separately installed Java 21. Build and acceptance testing are pinned
 to Eclipse Temurin OpenJDK HotSpot 21.0.12.1+1. macOS/Linux architecture and minimum OS/glibc
-claims require extracted-package test evidence before publication; they are not yet verified.
+claims require fresh RC extracted-package test evidence before publication; they are not yet verified.
 See [packaging](local-prerelease-packaging.md) and [version policy](release-and-versioning.md).
-The matrix below describes backend/source capabilities, not certification of the alpha package.
+The matrix below describes backend/source capabilities, not certification of the RC package. Compose images are not RC assets; Rust remains an embedded shadow-only component pinned by exact commit.
 
 | Area | Supported baseline | Support level | Notes |
 | --- | --- | --- | --- |

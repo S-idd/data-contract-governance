@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-JAR_PATH="contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar"
+JAR_PATH="contract-cli/target/contract-cli-4.0.0-rc.1-all.jar"
 
 if [[ ! -f "$JAR_PATH" ]]; then
   echo "CLI jar not found at $JAR_PATH. Build it before running this script."

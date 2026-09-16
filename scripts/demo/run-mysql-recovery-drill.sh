@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SERVICE_JAR="${DCG_MYSQL_RECOVERY_SERVICE_JAR:-$ROOT_DIR/contract-service/target/contract-service-4.0.0-alpha.1.jar}"
+SERVICE_JAR="${DCG_MYSQL_RECOVERY_SERVICE_JAR:-$ROOT_DIR/contract-service/target/contract-service-4.0.0-rc.1.jar}"
 MYSQL_IMAGE="${DCG_MYSQL_RECOVERY_IMAGE:-mysql:8.4}"
 MYSQL_PORT="${DCG_MYSQL_RECOVERY_DB_PORT:-13306}"
 SERVICE_PORT="${DCG_MYSQL_RECOVERY_SERVICE_PORT:-18082}"

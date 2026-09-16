@@ -5,7 +5,7 @@ DEMO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ROOT_DIR="$(cd "$DEMO_DIR/../.." && pwd)"
 APP_PORT="${DEMO_APP_PORT:-8081}"
 SERVICE_URL="${DCG_DEMO_SERVICE_BASE_URL:-http://localhost:8080}"
-DEMO_JAR="$DEMO_DIR/target/spring-boot-realworld-demo-4.0.0-alpha.1.jar"
+DEMO_JAR="$DEMO_DIR/target/spring-boot-realworld-demo-4.0.0-rc.1.jar"
 
 if ! command -v lsof >/dev/null 2>&1; then
   echo "Missing required command: lsof" >&2

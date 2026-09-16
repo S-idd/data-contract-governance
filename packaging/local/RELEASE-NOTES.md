@@ -1,4 +1,15 @@
-# 4.0.0-alpha.1 local-demo prerelease
+# 4.0.0-rc.1 local-demo release candidate — preparation only
+
+This Java-led candidate is planned for native macOS ARM64 and Linux x64 on WSL2 only.
+The exact future archive names are `dcg-4.0.0-rc.1-macos-arm64.tar.gz` and
+`dcg-4.0.0-rc.1-linux-x64.tar.gz`. No RC archive or tag exists yet. Rust Cargo remains
+`0.1.0`; the executable is embedded at an exact source commit only for asynchronous,
+logging-only, fail-open shadow inference. Java results remain authoritative. A Compose
+archive and independent Rust release are excluded. Fresh RC builds, SBOMs, notices,
+target-host acceptance and human legal approval remain required. The historical alpha
+evidence below is retained for context and does not establish acceptance of RC bytes.
+
+## Historical 4.0.0-alpha.1 candidate notes (not RC evidence)
 
 Java 21 CLI/service with a pinned Rust shadow-inference executable and four frozen artifacts.
 No examples, JDK, development databases, credentials or compiler caches belong in the archive.

@@ -115,7 +115,7 @@ build_cli() {
 
 cli_jar() {
   local jar
-  jar="$ROOT_DIR/contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar"
+  jar="$ROOT_DIR/contract-cli/target/contract-cli-4.0.0-rc.1-all.jar"
   [[ -f "$jar" ]] || die "CLI jar not found after build: $jar"
   printf '%s\n' "$jar"
 }

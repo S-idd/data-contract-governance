@@ -409,7 +409,7 @@ public class UiController {
   }
 
   private String buildCliSnippet(CheckRunResponse checkRun) {
-    return "java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar check-compat"
+    return "java -jar contract-cli/target/contract-cli-4.0.0-rc.1-all.jar check-compat"
         + " --base contracts/" + checkRun.contractId() + "/" + checkRun.baseVersion() + ".json"
         + " --candidate contracts/" + checkRun.contractId() + "/" + checkRun.candidateVersion() + ".json"
         + " --mode BACKWARD"

@@ -9,8 +9,8 @@ not silently replace the Java build pin.
 
 Supply an input directory with exactly these required input names:
 
-- `contract-cli-4.0.0-alpha.1-all.jar`
-- `contract-service-4.0.0-alpha.1.jar`
+- `contract-cli-4.0.0-rc.1-all.jar`
+- `contract-service-4.0.0-rc.1.jar`
 - `dcgaimodel` (the requested target's native executable)
 - `THIRD-PARTY-NOTICES.txt` (reviewed aggregate runtime dependency notices)
 - `sbom.cdx.json` (CycloneDX JSON with Java and Rust runtime dependencies)
@@ -23,16 +23,16 @@ package documents come from `packaging/local/` in this checkout and are hashed i
 
 `build-info.json` must have these fields from the real builds:
 
-- `version`: `4.0.0-alpha.1`
-- `java_build_commit`: `d54a518c3b308d1c54a440f016d81086e0a73155`
+- `version`: `4.0.0-rc.1`
+- `java_build_commit`: exact new Java build commit, to be pinned after these edits are committed; the current manifest still contains the historical alpha build SHA and is not yet usable for RC assembly
 - `rust_commit`: `32ca579095ed5b91749b8c33999556624e58758f`
 - `release_pins_sha256`: SHA-256 of `scripts/release/release-pins.json`
 - `target`: exact Rust target triple corresponding to `--platform`
 - `java_vendor`: `Eclipse Temurin`; `java_version`: `21.0.12.1+1`
 - `jdk_archive_sha256`: one of the four verified upstream archive digests
 - `rustc_verbose`: full rustc -Vv output; `cargo_version`: cargo -V output
-- `artifacts`: object mapping `lib/contract-cli-4.0.0-alpha.1-all.jar`,
-  `lib/contract-service-4.0.0-alpha.1.jar`, and `bin/dcgaimodel` to actual SHA-256 values
+- `artifacts`: object mapping `lib/contract-cli-4.0.0-rc.1-all.jar`,
+  `lib/contract-service-4.0.0-rc.1.jar`, and `bin/dcgaimodel` to actual SHA-256 values
 
 Record additional toolchain/OS build evidence as extra fields. Provenance is checked for
 consistency, not cryptographically attested. Basic SBOM format/ecosystem checks do not prove
@@ -49,7 +49,7 @@ python3 scripts/release/assemble-local.py \
 python3 -m unittest discover -s scripts/release -p 'test_*.py' -v
 ```
 
-Other platforms: macos-x64, linux-arm64, linux-x64. An invocation produces one tar.gz and
+The only other supported platform is linux-x64. An invocation produces one tar.gz and
 an external SHA256SUMS in a fresh output directory. Keep platform outputs separate until
 the later release-asset collection step; no existing output is overwritten. Archive paths,
 file modes, timestamps, owner IDs and checksum ordering are normalized. The internal
@@ -111,7 +111,7 @@ the package runtime prerequisites (Java 21, Bash, curl, lsof and ps). `--work-di
 
 ```sh
 python3 test-extracted-package.py \
-  --archive /absolute/path/to/dcg-4.0.0-alpha.1-macos-arm64.tar.gz \
+  --archive /absolute/path/to/dcg-4.0.0-rc.1-macos-arm64.tar.gz \
   --java-home /absolute/path/to/verified-java-21-home \
   --work-dir /absolute/path/to/new-acceptance-directory \
   --machine-description 'Actual machine and environment description'
@@ -126,5 +126,5 @@ port/PID cleanup, SQLite integrity and unchanged package files. It saves a struc
 
 WSL2 is recorded explicitly as WSL2, not native/bare-metal Linux. WSL1 is not accepted.
 A WSL2 result validates that laptop environment only; do not generalize it to Linux ARM64,
-Intel macOS, or arbitrary Linux distributions. The full Step 6 matrix remains open when
-those machines are unavailable. No CI or emulation success replaces missing host results.
+Intel macOS, or arbitrary Linux distributions. Both selected RC archives require fresh
+matching-host acceptance. No CI or emulation success replaces missing host results.

@@ -11,7 +11,13 @@ described in [the release policy](docs/release-and-versioning.md).
 - Open-source contribution, security, support, release, and production-boundary documentation.
 - CI checks for secret scanning, dependency review, vulnerability scanning, and SBOM generation.
 
-## [4.0.0-alpha.1] - Unreleased local-demo prerelease
+## [4.0.0-rc.1] - Unreleased local-demo release candidate
+
+- Selected Java-led archive version for native macOS ARM64 and Linux x64 on WSL2; Compose is excluded.
+- Rust remains Cargo 0.1.0, embedded at a pinned commit for shadow-only, asynchronous, logging-only, fail-open inference; Java remains authoritative.
+- New RC archives, acceptance results, SBOMs, notices, legal approval, and tag remain pending.
+
+## [4.0.0-alpha.1] - Historical local-demo prerelease candidate
 
 ### Changed
 

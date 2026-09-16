@@ -1,9 +1,10 @@
-# DCG 4.0.0-alpha.1 — local demo
+# DCG 4.0.0-rc.1 — local demo
 
 Not a hosted or production deployment. Install Java 21 separately (acceptance baseline:
 Eclipse Temurin 21.0.12.1+1). Runtime utilities: Bash 3.2+, curl, lsof, ps and standard
 macOS/Linux shell utilities. No Maven, Cargo, Python or Docker is needed by recipients.
-Run only the archive matching your OS and CPU. Minimum OS/glibc support is not yet certified.
+Only native macOS ARM64 and Linux x64 on WSL2 are in this prerelease scope. Run only the
+archive matching your OS and CPU. Minimum OS/glibc support is not yet certified.
 
 ## Evidence supplied with this package
 
@@ -41,7 +42,7 @@ password file, not the password. Rust inference is advisory, asynchronous and fa
 Java remains authoritative. Rust must be ready for initial paired startup. A later Rust
 outage does not stop Java, but `bin/status` reports a degraded instance.
 
-Writable state defaults to `$HOME/.local/share/dcg/4.0.0-alpha.1`. Override it with an
+Writable state defaults to `$HOME/.local/share/dcg/4.0.0-rc.1`. Override it with an
 absolute `DCG_DATA_DIR` outside the package, using the same value for start/status/stop.
 Contracts are copied there once; upgrades never overwrite them. SQLite, logs, credentials
 and process identity records also live there. Stop retains all data. Logs append across runs.
@@ -53,8 +54,8 @@ checks its executable and arguments and stops it, even when launched as
 `bin/status` identifies package-owned listeners without PID records separately from
 unrelated untracked listeners. A missing PID record still makes status exit nonzero.
 
-Ports are fixed for this alpha. Stop conflicting services or use a separate demo machine.
-Do not expose these listeners via a tunnel/proxy or use this alpha on a shared/untrusted host.
+Ports are fixed for this prerelease. Stop conflicting services or use a separate demo machine.
+Do not expose these listeners via a tunnel/proxy or use this prerelease on a shared/untrusted host.
 The Rust loopback API has no authentication. Logs/password files are private local data.
 Do not run launchers via symlinks; invoke them from the actual extracted package path.
 Do not move a running package. Stop it first. If a launcher is interrupted and leaves

@@ -5,7 +5,7 @@
 
   <groupId>com.ideas.contracts</groupId>
   <artifactId>data-contract-governance</artifactId>
-  <version>4.0.0-alpha.1</version>
+  <version>4.0.0-rc.1</version>
   <packaging>pom</packaging>
 
   <name>data-contract-governance</name>

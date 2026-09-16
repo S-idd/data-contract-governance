@@ -3,7 +3,7 @@
 set -euo pipefail
 export LC_ALL=C
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
-VERSION=4.0.0-alpha.1
+VERSION=4.0.0-rc.1
 die() { printf 'DCG: %s\n' "$*" >&2; exit 1; }
 java_check() {
   JAVA=${JAVA_HOME:+$JAVA_HOME/bin/}java
@@ -14,7 +14,7 @@ java_check() {
 }
 state_init() {
   umask 077
-  DATA=${DCG_DATA_DIR:-"${HOME:?HOME must be set}/.local/share/dcg/4.0.0-alpha.1"}
+  DATA=${DCG_DATA_DIR:-"${HOME:?HOME must be set}/.local/share/dcg/4.0.0-rc.1"}
   [[ "$DATA" = /* && "$DATA" != / ]] || die 'DCG_DATA_DIR must be an absolute non-root directory.'
   mkdir -p "$DATA"
   DATA=$(cd "$DATA" && pwd -P)

@@ -81,8 +81,8 @@ def collect(args):
 
     # Spring Boot repackage injects launcher/jarmode code outside the ordinary Maven
     # runtime dependency graph. Inventory and verify those actual packaged bytes too.
-    service_path = java / "contract-service/target/contract-service-4.0.0-alpha.1.jar"
-    service_ref = "pkg:maven/com.ideas.contracts/contract-service@4.0.0-alpha.1?type=jar"
+    service_path = java / "contract-service/target/contract-service-4.0.0-rc.1.jar"
+    service_ref = "pkg:maven/com.ideas.contracts/contract-service@4.0.0-rc.1?type=jar"
     with zipfile.ZipFile(service_path) as service:
         manifest = service.read("META-INF/MANIFEST.MF").decode()
         boot_version = re.search(r"^Spring-Boot-Version: ([^\r\n]+)", manifest, re.M).group(1)
@@ -189,11 +189,11 @@ def collect(args):
     add("Rust 1.96.0 standard library / COPYRIGHT-library.html", (rust_docs / "COPYRIGHT-library.html").read_bytes())
     for path in sorted((rust_docs / "licenses").glob("*.txt")):
         add("Rust 1.96.0 / licenses/" + path.name, path.read_bytes())
-    bom["metadata"]["component"] = {"type": "application", "name": "dcg-local-demo", "version": "4.0.0-alpha.1",
-                                      "bom-ref": "dcg-local-demo-4.0.0-alpha.1"}
-    bom["dependencies"].append({"ref": "dcg-local-demo-4.0.0-alpha.1", "dependsOn": [
-        "pkg:maven/com.ideas.contracts/contract-cli@4.0.0-alpha.1?type=jar",
-        "pkg:maven/com.ideas.contracts/contract-service@4.0.0-alpha.1?type=jar", rust_refs[metadata["resolve"]["root"]]]})
+    bom["metadata"]["component"] = {"type": "application", "name": "dcg-local-demo", "version": "4.0.0-rc.1",
+                                      "bom-ref": "dcg-local-demo-4.0.0-rc.1"}
+    bom["dependencies"].append({"ref": "dcg-local-demo-4.0.0-rc.1", "dependsOn": [
+        "pkg:maven/com.ideas.contracts/contract-cli@4.0.0-rc.1?type=jar",
+        "pkg:maven/com.ideas.contracts/contract-service@4.0.0-rc.1?type=jar", rust_refs[metadata["resolve"]["root"]]]})
     # The original Maven aggregate root is no longer the combined application root.
     bom["dependencies"] = [d for d in bom["dependencies"] if "data-contract-governance@" not in d["ref"]]
     bom["metadata"].setdefault("properties", []).extend([

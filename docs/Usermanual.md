@@ -30,13 +30,13 @@ mvn -pl contract-cli -am package
 The CLI executable is created at:
 
 ```text
-contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar
+contract-cli/target/contract-cli-4.0.0-rc.1-all.jar
 ```
 
 Confirm that it runs:
 
 ```bash
-java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar --help
+java -jar contract-cli/target/contract-cli-4.0.0-rc.1-all.jar --help
 ```
 
 ## Write Your First Contract
@@ -125,7 +125,7 @@ This example adds an optional field, `currency`, and an enum value, `SHIPPED`. U
 Set a convenient variable for the CLI command:
 
 ```bash
-DCG="java -jar contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar"
+DCG="java -jar contract-cli/target/contract-cli-4.0.0-rc.1-all.jar"
 ```
 
 ### Check the contract structure
@@ -280,5 +280,5 @@ mvn -pl contract-cli -am package
 Then rerun the command using:
 
 ```text
-contract-cli/target/contract-cli-4.0.0-alpha.1-all.jar
+contract-cli/target/contract-cli-4.0.0-rc.1-all.jar
 ```

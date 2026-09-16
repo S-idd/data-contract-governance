@@ -1,7 +1,7 @@
 # Version 4 Planning: Robust, Secure, Recoverable Platform
 
-Current publication scope: `4.0.0-alpha.1`, a local-demo prerelease. The production goals
-below remain a longer-term roadmap, not an alpha readiness claim. See
+Current planned publication scope: `4.0.0-rc.1`, a local-demo prerelease for native macOS ARM64 and Linux x64 on WSL2, excluding Compose assets. The production goals
+below remain a longer-term roadmap, not an RC readiness claim. See
 [release policy](release-and-versioning.md) and [packaging](local-prerelease-packaging.md).
 
 - Plan ID: `PLAN-2026-V4`

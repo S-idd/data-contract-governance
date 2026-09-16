@@ -33,7 +33,7 @@ class PackagingTests(unittest.TestCase):
         for name in (assembly.JAVA_SHA, assembly.RUST_SHA, assembly.RUSTC_SHA):
             self.assertRegex(name, r"^[0-9a-f]{40}$")
 
-    def jar(self, version="4.0.0-alpha.1", executable=True):
+    def jar(self, version="4.0.0-rc.1", executable=True):
         output = io.BytesIO()
         with zipfile.ZipFile(output, "w") as jar:
             jar.writestr("META-INF/maven/com.ideas.contracts/contract-cli/pom.properties", f"version={version}\n")
@@ -98,6 +98,8 @@ class PackagingTests(unittest.TestCase):
     def test_manifest_matches_document(self):
         text = (ROOT / "docs/local-prerelease-packaging.md").read_text()
         documented = set(re.findall(r"^\| `([^`]+)` \|", text, re.M))
+        # Historical alpha manifest fixes the layout; substitute only the active JAR version.
+        documented = {name.replace("4.0.0-alpha.1", assembly.VERSION) for name in documented}
         # Ignore the later source-hash table, whose names are prefixed with Rust/Java.
         names = {f"lib/{assembly.CLI}", f"lib/{assembly.SERVICE}", "bin/dcgaimodel",
                  "bin/dcg", "bin/start", "bin/stop", "bin/status", "README.md", "RELEASE-NOTES.md",
@@ -174,7 +176,7 @@ stop_one java
         for name, artifact in [(assembly.CLI, "contract-cli"), (assembly.SERVICE, "contract-service")]:
             output = io.BytesIO()
             with zipfile.ZipFile(output, "w") as jar:
-                jar.writestr(f"META-INF/maven/com.ideas.contracts/{artifact}/pom.properties", "version=4.0.0-alpha.1\n")
+                jar.writestr(f"META-INF/maven/com.ideas.contracts/{artifact}/pom.properties", "version=4.0.0-rc.1\n")
                 jar.writestr("META-INF/MANIFEST.MF", "Main-Class: TestFixture\n")
             (path / name).write_bytes(output.getvalue())
         binary = bytearray(64)
