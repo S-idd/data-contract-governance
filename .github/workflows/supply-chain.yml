@@ -28,7 +28,7 @@ jobs:
   vulnerability-pr:
     name: Dependency vulnerability scan (pull request)
     if: github.event_name == 'pull_request'
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.5.1
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.6.0
     permissions:
       actions: read
       contents: read
