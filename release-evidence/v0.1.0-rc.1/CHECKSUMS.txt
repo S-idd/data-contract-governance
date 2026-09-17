@@ -1,0 +1,8 @@
+48a8331652ed95331bc5d9760fb612daff9165cd662a945470a8abd0cf0cf97d  release-output/v0.1.0-rc.1/dcg-4.0.0-rc.1-macos-arm64.tar.gz
+1a5e80bb22940295207aefbbe70511df8634044205ed98e3e6fcf2659ab08701  release-output/v0.1.0-rc.1/dcg-4.0.0-rc.1-linux-x64.tar.gz
+7921446b1efcc229c2fb02218f8a7cce4412d5b300f2215576c1f253df58be0e  release-output/v0.1.0-rc.1/reviewed-macos-arm64/dcg-4.0.0-rc.1-macos-arm64.tar.gz
+f3f39529704bf5eef3030c9d0e02ab03234778e60843487e8f7967c9ac07b588  release-output/v0.1.0-rc.1/reviewed-linux-x64/dcg-4.0.0-rc.1-linux-x64.tar.gz
+ea96fa38270c00f6236903a323d68e7b76454bb9d0cb35301be7513b5a110d13  release-output/v0.1.0-rc.1/work/evidence-macos-arm64/sbom.cdx.json
+d93a3d2f33ca1305f8bf7084f2cd3df8ef6da21142d706adddc7916b4457d325  release-output/v0.1.0-rc.1/work/evidence-linux-x64/sbom.cdx.json
+deafccec618c145c42abb3afe5225222d97732ec291af065af8c54e5e4241e0e  release-output/v0.1.0-rc.1/work/evidence-macos-arm64/THIRD-PARTY-NOTICES.txt
+56da5233b7df1116f7e19c93aebd6784e93903d2bc07c506dbeeacdd40423204  release-output/v0.1.0-rc.1/work/evidence-linux-x64/THIRD-PARTY-NOTICES.txt

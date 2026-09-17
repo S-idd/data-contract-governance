@@ -9,6 +9,7 @@ import base64
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import re
 import zipfile
@@ -20,7 +21,10 @@ def sha(data):
 
 
 def notice_name(name):
-    return bool(re.match(r"^(licen[cs]e|notice|copying|copyright|authors)([._-].*)?$", Path(name).name, re.I))
+    basename = Path(name).name
+    if basename.lower().endswith((".class", ".jar", ".bin")):
+        return False
+    return bool(re.match(r"^(licen[cs]e|notice|copying|copyright|authors)([._-].*)?$", basename, re.I))
 
 
 def collect(args):
@@ -28,8 +32,10 @@ def collect(args):
     bom = json.loads((java / "target/bom.json").read_text())
     metadata = json.loads(args.cargo_metadata.read_text())
     supplements = json.loads(Path(__file__).with_name("license-sources.json").read_text())
+    pins = json.loads(Path(__file__).with_name("release-pins.json").read_text())
     report = {"maven_components": 0, "cargo_components": 0, "missing_license_text": [],
-              "named_or_copyleft_licenses": [], "source_texts": []}
+              "invalid_license_text": [], "missing_structured_attribution": [],
+              "missing_upstream_source_url": [], "named_or_copyleft_licenses": [], "source_texts": []}
     parts = ["DCG LOCAL DEMO — THIRD-PARTY NOTICES\n\n"
              "Generated from the actual resolved Maven artifacts and target-filtered Cargo metadata.\n"
              "Upstream license/copyright/notice text is preserved below. Build-only Cargo dependencies\n"
@@ -40,6 +46,8 @@ def collect(args):
     def add(origin, data):
         if not data.strip():
             return False
+        if b"\0" in data:
+            raise ValueError(f"Binary content in purported license/notice text: {origin}")
         report["source_texts"].append({"origin": origin, "sha256": sha(data)})
         parts.append(f"\n{'=' * 72}\n{origin}\nSHA-256: {sha(data)}\n{'=' * 72}\n" + data.decode("utf-8", "replace"))
         return True
@@ -50,7 +58,7 @@ def collect(args):
         purl = component["purl"]
         if group == "com.ideas.contracts":
             component["licenses"] = [{"license": {"id": "Apache-2.0"}}]
-            component["externalReferences"] = [{"type": "vcs", "url": "https://github.com/S-idd/data-contract-governance/tree/d54a518c3b308d1c54a440f016d81086e0a73155"}]
+            component["externalReferences"] = [{"type": "vcs", "url": f"https://github.com/S-idd/data-contract-governance/tree/{pins['java_build_commit']}"}]
             add(purl + " / LICENSE", (java / "LICENSE").read_bytes())
             continue
         qualifiers = parse_qs(urlsplit(purl).query)
@@ -75,6 +83,19 @@ def collect(args):
             text = license.get("text", {})
             if text.get("content"):
                 data = base64.b64decode(text["content"]) if text.get("encoding") == "base64" else text["content"].encode()
+                if data.strip() in {b"404: Not Found", b"404 Not Found"}:
+                    # The exact Jakarta binary carries the complete EPL/GPL-with-classpath
+                    # text in META-INF/LICENSE.md. Do not reproduce a broken BOM URL.
+                    if group == "jakarta.annotation" and name == "jakarta.annotation-api" and version == "2.1.1":
+                        with zipfile.ZipFile(io.BytesIO(jar_data)) as jar:
+                            authoritative = jar.read("META-INF/LICENSE.md")
+                        if b"GNU General Public License" not in authoritative or b"CLASSPATH EXCEPTION" not in authoritative:
+                            raise ValueError("Jakarta JAR license text lacks expected GPL/classpath exception")
+                        report.setdefault("replaced_invalid_bom_text", []).append({
+                            "purl": purl, "source": "exact JAR META-INF/LICENSE.md", "sha256": sha(authoritative)})
+                    else:
+                        report["invalid_license_text"].append({"purl": purl, "license": license.get("id", license.get("name", "UNKNOWN"))})
+                    continue
                 found = add(purl + " / BOM license " + license.get("id", license.get("name", "")), data) or found
         if not found:
             report["missing_license_text"].append(purl)
@@ -146,6 +167,8 @@ def collect(args):
             component["licenses"] = [{"expression": expression}]
         if package.get("repository"):
             component["externalReferences"] = [{"type": "vcs", "url": package["repository"]}]
+        elif package.get("homepage"):
+            component["externalReferences"] = [{"type": "website", "url": package["homepage"]}]
         checksum_file = crate / ".cargo-checksum.json"
         if checksum_file.exists():
             checksum = json.loads(checksum_file.read_text()).get("package")
@@ -156,13 +179,18 @@ def collect(args):
         report["cargo_components"] += 1
         parts.append(f"\nComponent: {purl}\nDeclared license: {expression}\nBuild-only: {build_only}\n")
         found = False
-        for path in sorted(crate.rglob("*")):
-            # Compiler caches are never license inputs, including for the root crate.
-            relative = path.relative_to(crate)
-            if "target" in relative.parts or ".git" in relative.parts:
-                continue
+        # The root package owns its top-level LICENSE; avoid traversing unrelated nested
+        # checkouts and compiler caches that can exist beside the pinned source files.
+        if package_id == metadata["resolve"]["root"]:
+            notice_paths = sorted(crate.iterdir())
+        else:
+            notice_paths = []
+            for directory, subdirs, filenames in os.walk(crate):
+                subdirs[:] = sorted(name for name in subdirs if name not in {"target", ".git"})
+                notice_paths.extend(Path(directory) / name for name in sorted(filenames))
+        for path in notice_paths:
             if path.is_file() and not path.is_symlink() and notice_name(path.name):
-                found = add(purl + " / " + relative.as_posix(), path.read_bytes()) or found
+                found = add(purl + " / " + path.relative_to(crate).as_posix(), path.read_bytes()) or found
         for supplement in supplements:
             if f"{package['name']}@{package['version']}" in supplement["crates"]:
                 vcs = json.loads((crate / ".cargo_vcs_info.json").read_text())
@@ -199,12 +227,56 @@ def collect(args):
     bom["metadata"].setdefault("properties", []).extend([
         {"name": "dcg:rust-target", "value": args.target},
         {"name": "dcg:inventory-boundary", "value": "Maven compile/runtime dependencies; Cargo normal/build closure with build-only excluded; Rust standard library. OS dynamic libraries and external JDK are not distributed."}])
+    inventory = ["\nCOMPONENT-BY-COMPONENT INVENTORY — AUTOMATED, LEGAL REVIEW BLOCKED\n",
+                 "Every entry below gives the exact resolved version and a registry artifact/source URL.\n",
+                 "Upstream license/notice/copyright text is preserved in the following sections.\n",
+                 "Where structured attribution or corresponding-source duties are not established,\n",
+                 "UNKNOWN means this file does not establish redistribution clearance.\n"]
+    for component in sorted(bom["components"], key=lambda item: item.get("purl", "")):
+        purl = component.get("purl", "UNKNOWN")
+        name, version = component.get("name", "UNKNOWN"), component.get("version", "UNKNOWN")
+        licenses = [item.get("license", {}).get("id", item.get("license", {}).get("name", item.get("expression", "UNKNOWN")))
+                    for item in component.get("licenses", [])]
+        references = component.get("externalReferences", [])
+        if purl in {
+            "pkg:maven/org.springframework.boot/spring-boot-loader@3.5.15?type=jar",
+            "pkg:maven/org.springframework.boot/spring-boot-jarmode-tools@3.5.15?type=jar",
+        }:
+            references = references + [{"type": "vcs", "url": "https://github.com/spring-projects/spring-boot/tree/v3.5.15"}]
+            component["externalReferences"] = references
+        upstream = next((item.get("url") for item in references if item.get("type") == "vcs" and item.get("url")), None)
+        if not upstream:
+            upstream = next((item.get("url") for item in references if item.get("type") == "website" and item.get("url")), None)
+        if purl.startswith("pkg:maven/"):
+            group = component.get("group", "").replace(".", "/")
+            registry = (f"https://github.com/S-idd/data-contract-governance/tree/{pins['java_build_commit']}"
+                        if component.get("group") == "com.ideas.contracts" else
+                        f"https://repo.maven.apache.org/maven2/{group}/{name}/{version}/{name}-{version}.jar")
+        elif purl.startswith("pkg:cargo/"):
+            registry = f"https://crates.io/api/v1/crates/{name}/{version}/download"
+        elif purl.startswith("pkg:generic/rust-standard-library@"):
+            registry = "https://github.com/rust-lang/rust/tree/1.96.0/library"
+            upstream = registry
+        else:
+            registry = "UNKNOWN"
+        if not upstream:
+            report["missing_upstream_source_url"].append(purl)
+        attribution = component.get("copyright") or "UNKNOWN in structured metadata; inspect the verbatim upstream texts below"
+        if not component.get("copyright"):
+            report["missing_structured_attribution"].append(purl)
+        inventory.append(f"\nComponent: {purl}\nName: {name}\nExact version: {version}\n"
+                         f"Applicable declared license(s): {'; '.join(licenses) or 'UNKNOWN'}\n"
+                         f"Copyright/attribution: {attribution}\n"
+                         f"Authoritative artifact/source registry URL: {registry}\n"
+                         f"Upstream-declared source URL: {upstream or 'UNKNOWN — LEGAL REVIEW REQUIRED'}\n"
+                         "Corresponding-source instructions, if applicable: UNKNOWN — human legal review required before public redistribution.\n")
+    parts[0] += "NOTICE COMPLETENESS: BLOCKED — see UNKNOWN fields and license-audit.json.\n"
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "license-audit.json").write_text(json.dumps(report, indent=2) + "\n")
     if report["missing_license_text"]:
         raise ValueError("Missing upstream license text: " + ", ".join(report["missing_license_text"]))
     (args.output / "sbom.cdx.json").write_text(json.dumps(bom, indent=2) + "\n")
-    (args.output / "THIRD-PARTY-NOTICES.txt").write_text("\n".join(parts) + "\n")
+    (args.output / "THIRD-PARTY-NOTICES.txt").write_text("\n".join(inventory + parts) + "\n")
     print(json.dumps({k: v for k, v in report.items() if k != "source_texts"}, indent=2))
 
 

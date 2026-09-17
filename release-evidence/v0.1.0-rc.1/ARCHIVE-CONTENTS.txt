@@ -1,0 +1,29 @@
+RC build candidates only; not approved for publication.
+Each archive has the following 24 files beneath its own dcg-4.0.0-rc.1-{macos-arm64,linux-x64}/ root. Each internal SHA256SUMS covers the other 23 files and was verified.
+
+LICENSE
+README.md
+RELEASE-NOTES.md
+SHA256SUMS
+THIRD-PARTY-NOTICES.txt
+bin/dcg
+bin/dcgaimodel
+bin/start
+bin/status
+bin/stop
+build-info.json
+config/application-local-demo.properties.example
+contracts/orders.created/metadata.yaml
+contracts/orders.created/v1.json
+contracts/orders.created/v2.json
+contracts/policy-packs.json
+lib/contract-cli-4.0.0-rc.1-all.jar
+lib/contract-service-4.0.0-rc.1.jar
+licenses/dcgaimodel-LICENSE
+model/data/experiments/v9-multiclass-cpu-100e/models/seed-20260826-normal-family-split.json
+model/data/experiments/v9-multiclass-cpu-100e/models/seed-20260827-normal-family-split.json
+model/data/experiments/v9-multiclass-cpu-100e/models/seed-20260828-normal-family-split.json
+model/data/inference/frozen-v9/policy-packs-v5-compositional.json
+sbom.cdx.json
+
+No Compose files, container images, or database images are included. RELEASE-NOTES.md retains an explicitly historical alpha-candidate reference; active RC metadata, scripts, JAR names, and SBOMs use 4.0.0-rc.1.
