@@ -5,6 +5,7 @@ import com.ideas.contracts.service.model.CheckRunCreateResponse;
 import com.ideas.contracts.service.model.CheckRunLogResponse;
 import com.ideas.contracts.service.model.CheckRunPageResponse;
 import com.ideas.contracts.service.model.CheckRunResponse;
+import com.ideas.contracts.service.model.CheckRunAdvisoryResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +41,14 @@ public interface CheckRunRepository {
   CheckRunPageResponse listPage(CheckRunQuery query);
 
   Optional<CheckRunResponse> findByRunId(String runId);
+
+  default Optional<CheckRunAdvisoryResponse> findAdvisory(String runId) {
+    return Optional.empty();
+  }
+
+  default void saveAdvisory(CheckRunAdvisoryResponse advisory) {
+    throw new UnsupportedOperationException("Advisory persistence is unavailable.");
+  }
 
   List<CheckRunLogResponse> listLogs(String runId);
 

@@ -13,6 +13,7 @@ import com.ideas.contracts.service.model.CheckRunCreateResponse;
 import com.ideas.contracts.service.model.CheckRunLogResponse;
 import com.ideas.contracts.service.model.CheckRunPageResponse;
 import com.ideas.contracts.service.model.CheckRunResponse;
+import com.ideas.contracts.service.model.CheckRunAdvisoryResponse;
 import com.ideas.contracts.service.model.EvidenceImportRequest;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -64,9 +65,9 @@ public class CheckRunStore implements MetadataStore {
   private static final String STATUS_QUEUED = "QUEUED";
   private static final String STATUS_RUNNING = "RUNNING";
   private static final String LATEST_DEFAULT_MIGRATION_RESOURCE =
-      "db/migration/V11__add_evidence_raw_payload_purge_marker.sql";
+      "db/migration/V13__create_check_run_advisories.sql";
   private static final String LATEST_MYSQL_MIGRATION_RESOURCE =
-      "db/migration-mysql/V11__add_evidence_raw_payload_purge_marker.sql";
+      "db/migration-mysql/V13__create_check_run_advisories.sql";
   private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
   private static final TypeReference<Map<String, String>> STRING_MAP_TYPE = new TypeReference<>() {};
   private static final Logger LOGGER = LoggerFactory.getLogger(CheckRunStore.class);
@@ -248,6 +249,77 @@ public class CheckRunStore implements MetadataStore {
     } catch (SQLException e) {
       logDbFailure("find_check_run_by_id", e, null, null);
       throw new CheckRunStoreException("Failed to query check run from configured database.", e);
+    }
+  }
+
+  @Override
+  public Optional<CheckRunAdvisoryResponse> findAdvisory(String runId) {
+    ensureInitialized();
+    String sql = "SELECT * FROM check_run_advisories WHERE run_id = ?";
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, runId);
+      try (ResultSet rs = statement.executeQuery()) {
+        if (!rs.next()) {
+          return Optional.empty();
+        }
+        Map<String, Double> probabilities = rs.getString("probabilities_json") == null
+            ? null : objectMapper.readValue(rs.getString("probabilities_json"), new TypeReference<>() {});
+        List<CheckRunAdvisoryResponse.SeedPrediction> predictions =
+            rs.getString("seed_predictions_json") == null ? null
+                : objectMapper.readValue(rs.getString("seed_predictions_json"), new TypeReference<>() {});
+        return Optional.of(new CheckRunAdvisoryResponse(
+            rs.getString("run_id"), rs.getBoolean("advisory_only"),
+            rs.getBoolean("test_only_adapter"), rs.getString("status"),
+            rs.getString("model_version"), rs.getString("model_artifact_sha256"),
+            rs.getString("feature_schema_version"), rs.getString("input_hash"),
+            rs.getString("prediction_label"), probabilities, predictions,
+            rs.getLong("inference_duration_ms"), rs.getString("agreement"),
+            rs.getString("created_at"), rs.getString("completed_at")));
+      }
+    } catch (SQLException | JsonProcessingException error) {
+      throw new CheckRunStoreException("Failed to query check run advisory.", error);
+    }
+  }
+
+  @Override
+  public void saveAdvisory(CheckRunAdvisoryResponse advisory) {
+    ensureInitialized();
+    String sql = """
+        INSERT INTO check_run_advisories (
+          run_id, status, advisory_only, test_only_adapter, model_version, model_artifact_sha256,
+          feature_schema_version, input_hash, prediction_label, probabilities_json,
+          seed_predictions_json, inference_duration_ms, agreement, created_at, completed_at)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        FROM check_runs WHERE run_id = ? AND status IN ('PASS', 'FAIL')
+        """;
+    try (Connection connection = openConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      applyQueryTimeout(statement);
+      statement.setString(1, advisory.runId());
+      statement.setString(2, advisory.status());
+      statement.setBoolean(3, advisory.advisoryOnly());
+      statement.setBoolean(4, advisory.testOnlyAdapter());
+      statement.setString(5, advisory.modelVersion());
+      statement.setString(6, advisory.modelArtifactSha256());
+      statement.setString(7, advisory.featureSchemaVersion());
+      statement.setString(8, advisory.inputHash());
+      statement.setString(9, advisory.predictionLabel());
+      statement.setString(10, advisory.probabilities() == null ? null
+          : objectMapper.writeValueAsString(advisory.probabilities()));
+      statement.setString(11, advisory.seedPredictions() == null ? null
+          : objectMapper.writeValueAsString(advisory.seedPredictions()));
+      statement.setLong(12, advisory.inferenceDurationMs());
+      statement.setString(13, advisory.agreement());
+      statement.setString(14, advisory.createdAt());
+      statement.setString(15, advisory.completedAt());
+      statement.setString(16, advisory.runId());
+      if (statement.executeUpdate() != 1) {
+        throw new CheckRunStoreException("Advisory requires a completed check run.");
+      }
+    } catch (SQLException | JsonProcessingException error) {
+      throw new CheckRunStoreException("Failed to persist check run advisory.", error);
     }
   }
 

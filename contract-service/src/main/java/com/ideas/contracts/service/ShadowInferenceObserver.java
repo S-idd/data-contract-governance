@@ -5,10 +5,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ideas.contracts.core.CompatibilityEngineIdentity;
 import com.ideas.contracts.core.CompatibilityResult;
+import com.ideas.contracts.service.model.CheckRunAdvisoryResponse;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -30,6 +33,19 @@ class ShadowInferenceObserver {
   private final ObjectMapper objectMapper;
   private final Executor executor;
   private final ExecutorService ownedExecutor;
+  private MetadataStore checkRunStore;
+  private static final String MODEL_VERSION = "frozen-v9-three-seed";
+  private static final String FEATURE_VERSION = "dcg-features-v6";
+  private static final String MODEL_ARTIFACT_SHA256 = CompatibilityEngineIdentity.sha256((
+      "5da2fedbee5d1b3c84c79cb75e2cd10c0b3462066b66571570e93fb7ccd84988"
+      + "bd464322c272b8ec1d5ab88605022d4a48e3738b63ab1791a4c7e56f37222ac8"
+      + "24ec9e4e758370093c228af34e3b05ac65820b3fd413ca80a269206ce1edd2c0")
+      .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+  @Autowired
+  void attachStore(MetadataStore store) {
+    this.checkRunStore = store;
+  }
 
   @Autowired
   ShadowInferenceObserver(
@@ -62,10 +78,7 @@ class ShadowInferenceObserver {
         : null;
   }
 
-  /**
-   * Enqueues a log-only observation. This method never waits for inference and never propagates a
-   * shadow failure into the authoritative check path.
-   */
+  /** Enqueues an optional advisory after the authoritative check has been persisted. */
   void observe(ShadowInferenceObservation observation) {
     if (!properties.isEnabled()) {
       return;
@@ -74,6 +87,7 @@ class ShadowInferenceObserver {
       executor.execute(() -> runObservation(observation));
     } catch (RuntimeException error) {
       logFailure(observation, Instant.now(), "-", "-", "DISPATCH", error);
+      persistFailure(observation, Instant.now(), 0, "UNAVAILABLE", null);
     }
   }
 
@@ -81,6 +95,7 @@ class ShadowInferenceObserver {
     Instant observedAt = Instant.now();
     String baseSha256 = "-";
     String candidateSha256 = "-";
+    String inputHash = null;
     try {
       byte[] baseBytes = Files.readAllBytes(observation.baseSchemaPath());
       byte[] candidateBytes = Files.readAllBytes(observation.candidateSchemaPath());
@@ -88,11 +103,12 @@ class ShadowInferenceObserver {
       candidateSha256 = CompatibilityEngineIdentity.sha256(candidateBytes);
       JsonNode baseSchema = readSchema("base", baseBytes);
       JsonNode candidateSchema = readSchema("candidate", candidateBytes);
-      ShadowInferenceResponse response = gateway.predict(new ShadowInferenceRequest(
-          baseSchema,
-          candidateSchema,
-          observation.policyPack()));
+      ShadowInferenceRequest request = new ShadowInferenceRequest(
+          baseSchema, candidateSchema, observation.policyPack());
+      inputHash = CompatibilityEngineIdentity.sha256(objectMapper.writeValueAsBytes(request));
+      ShadowInferenceResponse response = gateway.predict(request);
       logPrediction(observation, observedAt, baseSha256, candidateSha256, response);
+      persistPrediction(observation, observedAt, inputHash, response);
     } catch (ShadowInferenceException error) {
       logFailure(
           observation,
@@ -101,6 +117,8 @@ class ShadowInferenceObserver {
           candidateSha256,
           error.failureStage(),
           error);
+      persistFailure(observation, observedAt, elapsed(observedAt),
+          failureStatus(error.failureStage()), inputHash);
     } catch (IOException error) {
       logFailure(
           observation,
@@ -109,6 +127,7 @@ class ShadowInferenceObserver {
           candidateSha256,
           "SCHEMA_READ",
           error);
+      persistFailure(observation, observedAt, elapsed(observedAt), "UNAVAILABLE", inputHash);
     } catch (RuntimeException error) {
       logFailure(
           observation,
@@ -117,7 +136,74 @@ class ShadowInferenceObserver {
           candidateSha256,
           "UNEXPECTED",
           error);
+      persistFailure(observation, observedAt, elapsed(observedAt), "UNAVAILABLE", inputHash);
     }
+  }
+
+  private void persistPrediction(
+      ShadowInferenceObservation observation, Instant started, String inputHash,
+      ShadowInferenceResponse response) {
+    String authoritative = authoritativeLabel(observation.authoritativeResult());
+    Map<String, Long> votes = response.predictions().stream().collect(
+        java.util.stream.Collectors.groupingBy(ShadowInferenceResponse.SeedPrediction::label,
+            java.util.stream.Collectors.counting()));
+    String label = List.of("SAFE", "WARNING", "BREAKING").stream()
+        .max(java.util.Comparator.comparingLong(name -> votes.getOrDefault(name, 0L)))
+        .orElse("SAFE");
+    Map<String, Double> probabilities = Map.of(
+        "SAFE", response.predictions().stream().mapToDouble(p -> p.probabilities().safe()).average().orElse(0),
+        "WARNING", response.predictions().stream().mapToDouble(p -> p.probabilities().warning()).average().orElse(0),
+        "BREAKING", response.predictions().stream().mapToDouble(p -> p.probabilities().breaking()).average().orElse(0));
+    List<CheckRunAdvisoryResponse.SeedPrediction> seeds = response.predictions().stream()
+        .map(p -> new CheckRunAdvisoryResponse.SeedPrediction(p.seed(), p.label(),
+            Map.of("SAFE", p.probabilities().safe(), "WARNING", p.probabilities().warning(),
+                "BREAKING", p.probabilities().breaking())))
+        .toList();
+    persist(new CheckRunAdvisoryResponse(observation.runId(), true,
+        properties.isTestOnlyAdapter(), "AVAILABLE",
+        properties.isTestOnlyAdapter() ? "test-only-adapter" : MODEL_VERSION,
+        properties.isTestOnlyAdapter() ? null : MODEL_ARTIFACT_SHA256,
+        properties.isTestOnlyAdapter() ? null : FEATURE_VERSION, inputHash, label,
+        probabilities, seeds, elapsed(started),
+        authoritative.equals(label) ? "AGREES" : "DISAGREES",
+        started.toString(), Instant.now().toString()));
+  }
+
+  private void persistFailure(ShadowInferenceObservation observation, Instant started,
+      long durationMs, String status, String inputHash) {
+    persist(new CheckRunAdvisoryResponse(observation.runId(), true,
+        properties.isTestOnlyAdapter(), status,
+        properties.isTestOnlyAdapter() ? "test-only-adapter" : MODEL_VERSION,
+        properties.isTestOnlyAdapter() ? null : MODEL_ARTIFACT_SHA256,
+        properties.isTestOnlyAdapter() ? null : FEATURE_VERSION, inputHash, null,
+        null, null, durationMs, "NOT_AVAILABLE", started.toString(), Instant.now().toString()));
+  }
+
+  private void persist(CheckRunAdvisoryResponse advisory) {
+    if (checkRunStore == null) {
+      return;
+    }
+    try {
+      checkRunStore.saveAdvisory(advisory);
+      checkRunStore.appendLog(advisory.runId(), "INFO",
+          "code=ai_advisory_completed advisory_only=true status=" + advisory.status()
+              + " agreement=" + advisory.agreement());
+    } catch (RuntimeException error) {
+      LOGGER.warn("event=shadow_inference_persist_failed run_id={} error_type={}",
+          safe(advisory.runId()), error.getClass().getSimpleName());
+    }
+  }
+
+  private static String failureStatus(String stage) {
+    return switch (stage) {
+      case "TIMEOUT" -> "TIMEOUT";
+      case "MALFORMED_RESPONSE" -> "INVALID_OUTPUT";
+      default -> "UNAVAILABLE";
+    };
+  }
+
+  private static long elapsed(Instant started) {
+    return Math.max(0, java.time.Duration.between(started, Instant.now()).toMillis());
   }
 
   private JsonNode readSchema(String role, byte[] bytes) {
