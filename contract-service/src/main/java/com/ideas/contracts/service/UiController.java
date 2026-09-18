@@ -276,6 +276,7 @@ public class UiController {
           .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Check run not found: " + runId));
       List<CheckRunLogResponse> checkLogs = checkRunStore.listLogs(runId);
       model.addAttribute("checkRun", checkRun);
+      model.addAttribute("advisory", checkRunStore.findAdvisory(runId).orElse(null));
       model.addAttribute("guidance", buildGuidance(checkRun));
       model.addAttribute("curlSnippet", "curl \"http://localhost:8080/checks/" + checkRun.runId() + "\"");
       model.addAttribute("cliSnippet", buildCliSnippet(checkRun));
@@ -286,6 +287,7 @@ public class UiController {
     } catch (CheckRunStoreException ex) {
       response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
       model.addAttribute("checkRun", null);
+      model.addAttribute("advisory", null);
       model.addAttribute("guidance", List.of());
       model.addAttribute("curlSnippet", "");
       model.addAttribute("cliSnippet", "");

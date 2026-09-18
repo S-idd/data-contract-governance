@@ -295,6 +295,18 @@ public class CheckController {
         .orElseThrow(() -> new CheckRunNotFoundException(runId));
   }
 
+  @GetMapping("/{runId}/advisory")
+  @Operation(summary = "Get optional AI advisory",
+      description = "Returns a non-authoritative advisory for a completed check. HTTP 204 means disabled or still pending; the check status remains authoritative.")
+  public ResponseEntity<com.ideas.contracts.service.model.CheckRunAdvisoryResponse> getAdvisory(
+      @PathVariable("runId") String runId) {
+    checkRunStore.findByRunId(runId)
+        .orElseThrow(() -> new CheckRunNotFoundException(runId));
+    return checkRunStore.findAdvisory(runId)
+        .map(ResponseEntity::ok)
+        .orElseGet(() -> ResponseEntity.noContent().build());
+  }
+
   @GetMapping("/{runId}/logs")
   @Operation(summary = "Get check run logs", description = "Returns execution logs for a single check run.")
   @ApiResponses({
