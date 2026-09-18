@@ -3,10 +3,11 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd -P)/dcg"
 state_init
 lock
+running_ai_mode
 result=0
 stop_one java || result=1
 stop_one rust || result=1
-stop_untracked_rust || result=1
+if [[ "$RUNNING_AI_ENABLED" == true ]]; then stop_untracked_rust || result=1; fi
 if [[ -n "$(port_listeners 8080)" ]]; then
   printf 'DCG: port 8080 still has a listener; inspect it manually.\n' >&2
   result=1

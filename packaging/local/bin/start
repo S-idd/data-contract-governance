@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd -P)/dcg"
+requested_ai_mode
+advisory_startup_timeout
 state_init
 java_check
 lock
-if alive java && alive rust; then
-  ready http://127.0.0.1:8080/actuator/health && ready http://127.0.0.1:8081/health/ready || die 'Processes exist but are not ready; inspect logs or run bin/stop.'
+running_ai_mode
+if alive java; then
+  [[ "$AI_ENABLED" == "$RUNNING_AI_ENABLED" ]] || die 'AI mode differs from the running instance. Run bin/stop before changing modes.'
+  if [[ "$AI_ENABLED" == true ]]; then
+    if alive rust && ready http://127.0.0.1:8081/health/ready; then
+      printf 'AI advisory: available.\n'
+    else
+      printf 'AI advisory: unavailable; continuing with deterministic DCG enforcement.\n'
+    fi
+  else
+    ! alive rust || die 'Unexpected tracked Rust process. Run bin/stop before restarting.'
+  fi
+  ready http://127.0.0.1:8080/actuator/health || die 'Java is not ready; inspect logs or run bin/stop.'
   printf 'DCG is already running.\n'; exit 0
 fi
-if alive java || alive rust; then die 'Partial instance detected. Run bin/stop before restarting.'; fi
+if alive rust; then die 'Partial instance detected. Run bin/stop before restarting.'; fi
 command -v lsof >/dev/null || die 'Install lsof for startup port-conflict checks.'
-for port in 8080 8081; do
-  if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then die "Port $port is already in use."; fi
-done
-[[ -x "$ROOT/bin/dcgaimodel" && -f "$ROOT/lib/contract-service-$VERSION.jar" ]] || die 'Package runtime files are missing.'
+if lsof -nP -iTCP:8080 -sTCP:LISTEN >/dev/null 2>&1; then die 'Port 8080 is already in use.'; fi
+[[ -f "$ROOT/lib/contract-service-$VERSION.jar" ]] || die 'Package Java service is missing.'
 if [[ ! -e "$DATA/contracts" ]]; then cp -R "$ROOT/contracts" "$DATA/contracts"; fi
 if [[ ! -e "$DATA/application-local-demo.properties" ]]; then
   cp "$ROOT/config/application-local-demo.properties.example" "$DATA/application-local-demo.properties"
@@ -38,11 +49,6 @@ trap cleanup_start EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 cd "$DATA"
-nohup "$ROOT/bin/dcgaimodel" serve-shadow-inference --artifact-root "$ROOT/model" --bind 127.0.0.1:8081 >> "$DATA/logs/rust.log" 2>&1 < /dev/null &
-rust_pid=$!
-remember rust "$rust_pid"
-started_rust=1
-wait_ready rust http://127.0.0.1:8081/health/ready || die 'Rust readiness failed.'
 export APP_SECURITY_USERNAME=demo
 APP_SECURITY_PASSWORD=$(< "$DATA/password")
 export APP_SECURITY_PASSWORD
@@ -55,10 +61,41 @@ nohup "$JAVA" -jar "$ROOT/lib/contract-service-$VERSION.jar" \
   --contracts.artifact.backend=filesystem --checks.db.url= --checks.db.path="$DATA/checks.db" \
   --app.security.enabled=true --app.security.require-non-default-credentials=true \
   --app.security.evidence-auth.mode=DISABLED \
-  --shadow.inference.enabled=true --shadow.inference.endpoint=http://127.0.0.1:8081/v1/shadow/predict \
+  --shadow.inference.enabled="$AI_ENABLED" --shadow.inference.endpoint=http://127.0.0.1:8081/v1/shadow/predict \
   >> "$DATA/logs/java.log" 2>&1 < /dev/null &
 java_pid=$!
-remember java "$java_pid"
+remember java "$java_pid" || die 'Java exited or did not exec before its process identity could be recorded.'
 started_java=1
 wait_ready java http://127.0.0.1:8080/actuator/health || die 'Java readiness failed.'
+printf '%s\n' "$AI_ENABLED" > "$STATE/ai-enabled"
+if [[ "$AI_ENABLED" == true ]]; then
+  printf 'STARTING\n' > "$STATE/advisory-state"
+  if [[ ! -x "$ROOT/bin/dcgaimodel" || ! -d "$ROOT/model" ]]; then
+    printf 'UNAVAILABLE\n' > "$STATE/advisory-state"
+  elif [[ -n "$(port_listeners 8081)" ]]; then
+    printf 'UNAVAILABLE\n' > "$STATE/advisory-state"
+  else
+    nohup "$ROOT/bin/dcgaimodel" serve-shadow-inference --artifact-root "$ROOT/model" --bind 127.0.0.1:8081 >> "$DATA/logs/rust.log" 2>&1 < /dev/null &
+    rust_pid=$!
+    if remember rust "$rust_pid"; then
+      started_rust=1
+      if wait_ready rust http://127.0.0.1:8081/health/ready "$AI_STARTUP_TIMEOUT"; then
+        printf 'AVAILABLE\n' > "$STATE/advisory-state"
+      else
+        printf 'UNAVAILABLE\n' > "$STATE/advisory-state"
+        stop_one rust || true
+      fi
+    else
+      printf 'UNAVAILABLE\n' > "$STATE/advisory-state"
+    fi
+  fi
+  if [[ "$(< "$STATE/advisory-state")" == AVAILABLE ]]; then
+    printf 'AI advisory: available.\n'
+  else
+    printf 'AI advisory: unavailable; continuing with deterministic DCG enforcement.\n'
+  fi
+else
+  printf 'DISABLED\n' > "$STATE/advisory-state"
+  printf 'AI disabled: no Rust model process started.\n'
+fi
 printf 'DCG ready: http://127.0.0.1:8080/ui\nLogin: demo; password file: %s/password\nLogs: %s/logs\n' "$DATA" "$DATA"
