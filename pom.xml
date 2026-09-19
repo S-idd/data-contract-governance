@@ -45,7 +45,7 @@
     <httpclient5.version>5.6.3</httpclient5.version>
     <httpcore5.version>5.4.3</httpcore5.version>
     <postgresql.version>42.7.12</postgresql.version>
-    <commons-lang3.version>3.18.0</commons-lang3.version>
+    <commons-lang3.version>3.20.0</commons-lang3.version>
     <thymeleaf.version>3.1.5.RELEASE</thymeleaf.version>
     <logback.version>1.5.34</logback.version>
     <log4j.version>2.25.5</log4j.version>
