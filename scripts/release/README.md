@@ -128,3 +128,28 @@ WSL2 is recorded explicitly as WSL2, not native/bare-metal Linux. WSL1 is not ac
 A WSL2 result validates that laptop environment only; do not generalize it to Linux ARM64,
 Intel macOS, or arbitrary Linux distributions. Both selected RC archives require fresh
 matching-host acceptance. No CI or emulation success replaces missing host results.
+
+## Explicit development assemblies
+
+Pass `--development-info /path/to/frozen-development.json` to use a separate identity.
+The JSON requires `version` (for example `4.0.0-phase1-no-ai-dev.20260917`),
+`base_version` equal to the pinned artifact version, `assembled_at` as a UTC ISO timestamp,
+and `packaging_source` containing the full `commit`, boolean `dirty`, and SHA-256
+`worktree_inventory_sha256`. Record source inventories before assembly and reuse this
+same JSON and all inputs for both reproducibility runs. Extra evidence fields are preserved.
+
+The development archive retains the verified runtime JAR names and embedded versions,
+labels its README/release notes and provenance as unpublished development, and isolates its
+default state directory. It never changes release pins or existing archives. Provenance
+records source template hashes separately from transformed packaged launcher hashes.
+Development assembly requires `dependency_evidence.notices_sha256` and `sbom_sha256` to
+match the inputs before creating checksums; notices are copied as bytes, preserving upstream
+line endings. Developer home/temp paths are rejected, including inside nested JAR entries.
+A necessary path-remapped binary rebuild must record the original and replacement hashes,
+exact source/toolchain, reason, command and build log hash; it does not inherit RC acceptance.
+
+Use `DCG_TEST_INSTALLED_LAUNCHERS=true` with `DCG_TEST_PACKAGE`, `IEMS_TEST_ROOT` and Java 21
+to run `test_no_ai_foundation.py` with launchers copied from the installed development
+package. Controlled missing-artifact and breaking fixtures never edit the primary installation
+or the project's approved contracts. Verify the primary installation's checksums and lifecycle
+separately. The AI-enabled host acceptance runner above is outside this no-AI verification.

@@ -12,6 +12,12 @@
   <name>contract-gradle-plugin</name>
   <description>Offline-first Gradle compatibility checks for DCG</description>
   <dependencies>
+    <!-- Used directly and exposed by contract-build-support API signatures. -->
+    <dependency>
+      <groupId>com.ideas.contracts</groupId>
+      <artifactId>contract-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.ideas.contracts</groupId>
       <artifactId>contract-build-support</artifactId>

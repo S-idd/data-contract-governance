@@ -5,6 +5,15 @@ export LC_ALL=C
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 VERSION=4.0.0-rc.1
 die() { printf 'DCG: %s\n' "$*" >&2; exit 1; }
+requested_ai_mode() {
+  AI_ENABLED=${DCG_AI_ENABLED-true}
+  case "$AI_ENABLED" in true|false) ;; *) die 'DCG_AI_ENABLED must be true or false.';; esac
+}
+running_ai_mode() {
+  RUNNING_AI_ENABLED=true
+  if [[ -f "$STATE/ai-enabled" ]]; then RUNNING_AI_ENABLED=$(< "$STATE/ai-enabled"); fi
+  case "$RUNNING_AI_ENABLED" in true|false) ;; *) die 'Invalid saved AI mode; inspect the instance state.';; esac
+}
 java_check() {
   JAVA=${JAVA_HOME:+$JAVA_HOME/bin/}java
   command -v "$JAVA" >/dev/null || die 'Install Java 21 or set JAVA_HOME to a Java 21 JDK.'
@@ -27,17 +36,23 @@ lock() {
   mkdir "$STATE/lock" 2>/dev/null || die "Another launcher holds $STATE/lock. If interrupted, confirm no launcher is running before removing this empty lock directory."
   trap 'rmdir "$STATE/lock"' EXIT
 }
-signature() { ps -p "$1" -o lstart= -o args= 2>/dev/null; }
+signature() { ps -p "$1" -o lstart= 2>/dev/null; }
 alive() {
   [[ -f "$STATE/$1.pid" ]] || return 1
-  local pid saved current expected
+  local pid saved current expected args
   pid=$(head -n 1 "$STATE/$1.pid")
   [[ "$pid" =~ ^[0-9]+$ && "$pid" -gt 1 ]] || return 1
   saved=$(tail -n +2 "$STATE/$1.pid")
   current=$(signature "$pid") || return 1
   [[ -n "$saved" && "$saved" == "$current" ]] || return 1
+  args=$(ps -p "$pid" -o args= 2>/dev/null) || return 1
   if [[ "$1" == java ]]; then expected="$ROOT/lib/contract-service-$VERSION.jar"; else expected="$ROOT/bin/dcgaimodel"; fi
-  [[ "$current" == *"$expected"* ]] || return 1
+  [[ "$args" == *"$expected"* ]] || return 1
+  if [[ "$1" == rust ]]; then
+    [[ "$args" == *"serve-shadow-inference --artifact-root $ROOT/model --bind 127.0.0.1:8081" ]] || return 1
+  else
+    [[ "$args" == *"--spring.config.location=file:$DATA/application-local-demo.properties"* ]] || return 1
+  fi
   [[ "$(ps -p "$pid" -o stat=)" != *Z* ]]
 }
 remember() {
@@ -54,7 +69,7 @@ remember() {
     fi
     sleep 0.1
   done
-  die "$1 exited or did not exec before its process identity could be recorded."
+  return 1
 }
 stop_one() {
   local name=$1 pid i
@@ -88,36 +103,47 @@ owned_rust_listener() {
   [[ "$command" == *" $expected_args" ]]
 }
 stop_untracked_rust() {
-  local pid remaining i
+  local pid remaining i still_owned owned=()
   remaining=$(port_listeners 8081)
   [[ -n "$remaining" ]] || return 0
   for pid in $remaining; do
-    if ! owned_rust_listener "$pid"; then
-      printf 'DCG: port 8081 is held by untracked PID %s; refusing to signal it. Inspect the process manually.\n' "$pid" >&2
-      return 1
+    if owned_rust_listener "$pid"; then
+      owned+=("$pid")
+    else
+      printf 'DCG: port 8081 has an unrelated listener (PID %s); leaving it untouched.\n' "$pid" >&2
     fi
   done
-  for pid in $remaining; do
+  for pid in "${owned[@]}"; do
     # Recheck ownership and listener identity immediately before sending a signal.
     owned_rust_listener "$pid" && [[ " $(port_listeners 8081 | tr '\n' ' ') " == *" $pid "* ]] || return 1
     kill -TERM "$pid" || return 1
   done
+  [[ "${#owned[@]}" -gt 0 ]] || return 0
   for ((i=0; i<30; i++)); do
-    [[ -z "$(port_listeners 8081)" ]] && return 0
+    remaining=$(port_listeners 8081)
+    still_owned=0
+    for pid in "${owned[@]}"; do
+      if [[ " $(printf '%s' "$remaining" | tr '\n' ' ') " == *" $pid "* ]]; then still_owned=1; fi
+    done
+    [[ "$still_owned" == 0 ]] && return 0
     sleep 1
   done
-  printf 'DCG: port 8081 is still listening after stopping the untracked Rust process.\n' >&2
+  printf 'DCG: owned Rust listener is still present after shutdown.\n' >&2
   return 1
 }
 ready() { curl --noproxy '*' -fsS --connect-timeout 1 --max-time 2 "$1" >/dev/null 2>&1; }
 wait_ready() {
-  local i
-  for ((i=0; i<60; i++)); do
+  local i attempts=${3:-60}
+  for ((i=0; i<attempts; i++)); do
     alive "$1" || return 1
     if ready "$2"; then return 0; fi
     sleep 1
   done
   return 1
+}
+advisory_startup_timeout() {
+  AI_STARTUP_TIMEOUT=${DCG_AI_STARTUP_TIMEOUT_SECONDS:-3}
+  [[ "$AI_STARTUP_TIMEOUT" =~ ^[1-9]$|^10$ ]] || die 'DCG_AI_STARTUP_TIMEOUT_SECONDS must be 1..10.'
 }
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   java_check

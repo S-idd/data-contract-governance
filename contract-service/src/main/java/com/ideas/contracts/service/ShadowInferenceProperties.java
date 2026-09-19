@@ -1,6 +1,10 @@
 package com.ideas.contracts.service;
 
 import java.time.Duration;
+import jakarta.annotation.PostConstruct;
+import java.util.Arrays;
+import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +16,26 @@ public class ShadowInferenceProperties {
   private Duration timeout = Duration.ofMillis(500);
   private int workerThreads = 2;
   private int queueCapacity = 100;
+  private boolean testOnlyAdapter;
+  @Autowired(required = false)
+  private Environment environment;
+
+  @PostConstruct
+  void validateTestOnlyMode() {
+    if (testOnlyAdapter && (environment == null || Arrays.stream(environment.getActiveProfiles())
+        .noneMatch("phase2-rehearsal"::equals))) {
+      throw new IllegalStateException(
+          "Test-only advisory adapter requires the phase2-rehearsal profile.");
+    }
+  }
+
+  public boolean isTestOnlyAdapter() {
+    return testOnlyAdapter;
+  }
+
+  public void setTestOnlyAdapter(boolean testOnlyAdapter) {
+    this.testOnlyAdapter = testOnlyAdapter;
+  }
 
   public boolean isEnabled() {
     return enabled;

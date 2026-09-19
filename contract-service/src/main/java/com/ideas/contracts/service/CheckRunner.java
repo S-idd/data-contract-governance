@@ -96,13 +96,6 @@ public class CheckRunner {
         LOGGER.warn("event=check_run_update_skipped component=check_runner run_id={} message=Run not updated", run.runId());
         return;
       }
-      dispatchShadowObservation(
-          run,
-          baseSchema,
-          candidateSchema,
-          mode,
-          policyPack,
-          result);
       retryCounts.remove(run.runId());
       Duration duration = Duration.between(startedAt, Instant.now());
       checkMetrics.recordCompleted(run.contractId(), result.status().name(), duration);
@@ -114,6 +107,8 @@ public class CheckRunner {
           run.runId(),
           "INFO",
           "code=check_run_completed status=" + result.status().name() + " message=Check run completed.");
+      dispatchShadowObservation(
+          run, baseSchema, candidateSchema, mode, policyPack, result);
     } catch (Exception ex) {
       handleFailure(run, ex, startedAt);
     }

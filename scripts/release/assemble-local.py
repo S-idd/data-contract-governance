@@ -8,6 +8,8 @@ import gzip
 import hashlib
 import io
 import json
+import re
+from datetime import datetime
 from pathlib import Path
 import subprocess
 import tarfile
@@ -76,6 +78,34 @@ def validate_binary(data, platform):
         require(cpu == (0x100000c if platform.endswith("arm64") else 0x1000007), "Wrong Mach-O architecture")
 
 
+def development_identity(info):
+    version = info.get("version", "")
+    require(bool(re.fullmatch(r"[0-9][A-Za-z0-9.-]*-dev(?:\.[A-Za-z0-9-]+)*", version))
+            and "rc" not in version.lower(), "Development version must be distinct, end in -dev[.identifier], and not be an RC")
+    require(info.get("base_version") == VERSION, "Development base version mismatch")
+    require(info.get("assembled_at", "").endswith("Z"), "Explicit UTC assembly timestamp required")
+    datetime.fromisoformat(info["assembled_at"].replace("Z", "+00:00"))
+    source = info.get("packaging_source", {})
+    require(bool(re.fullmatch(r"[0-9a-f]{40}", source.get("commit", "")))
+            and isinstance(source.get("dirty"), bool)
+            and bool(re.fullmatch(r"[0-9a-f]{64}", source.get("worktree_inventory_sha256", ""))),
+            "Explicit packaging commit, dirty state and working-tree inventory digest required")
+    return version
+
+
+def check_developer_paths(name, data):
+    # Inspect compressed Java members too; a raw archive scan misses those paths.
+    # Do not flag upstream URL paths such as /home/standards or upstream CI
+    # constants. Check this host's home plus macOS developer/temp path roots.
+    for prefix in (str(Path.home()).rstrip("/").encode() + b"/", b"/Users/",
+                   b"/private/var/folders/", b"/var/folders/"):
+        require(prefix not in data, f"Developer absolute path in {name}")
+    if name.endswith((".jar", ".zip")):
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            for entry in archive.infolist():
+                check_developer_paths(name + "!" + entry.filename, archive.read(entry))
+
+
 def payload(args):
     inputs = Path(args.inputs)
     files = {f"lib/{CLI}": read_input(inputs, CLI), f"lib/{SERVICE}": read_input(inputs, SERVICE),
@@ -102,6 +132,11 @@ def payload(args):
             "SBOM must describe both Maven and Cargo runtime components")
     notices = read_input(inputs, "THIRD-PARTY-NOTICES.txt")
     require(len(notices.strip()) > 80, "Dependency notices missing/empty")
+    development = getattr(args, "development_info", None)
+    if development or "dependency_evidence" in provenance:
+        for key, data in [("notices_sha256", notices), ("sbom_sha256", sbom_data)]:
+            require(provenance.get("dependency_evidence", {}).get(key) == digest(data),
+                    f"Dependency evidence digest mismatch: {key}")
     for name in ["bin/dcg", "bin/start", "bin/stop", "bin/status", "README.md", "RELEASE-NOTES.md",
                  "config/application-local-demo.properties.example"]:
         files[name] = template_path(name).read_bytes()
@@ -121,9 +156,29 @@ def payload(args):
                                       if name in ["bin/dcg", "bin/start", "bin/stop", "bin/status", "README.md", "RELEASE-NOTES.md"] or name.startswith("config/")}
     provenance["assembler_sha256"] = digest(Path(__file__).read_bytes())
     provenance["transformations"] = "Source files copied verbatim; bin modes 0755, others 0644; archive uid/gid/mtime normalized to zero."
+    if development:
+        info = json.loads(Path(development).read_bytes())
+        version = development_identity(info)
+        provenance.update(base_version=VERSION, version=version, development=info,
+                          publication_status="Unpublished local development package; not an accepted RC")
+        # Runtime artifact filenames retain their verified embedded Maven version.
+        old = f"/.local/share/dcg/{VERSION}".encode()
+        require(files["bin/dcg"].count(old) == 1, "Expected one default state-directory placeholder")
+        files["bin/dcg"] = files["bin/dcg"].replace(old, f"/.local/share/dcg/{version}".encode())
+        for name in ("README.md", "RELEASE-NOTES.md"):
+            files[name] = (f"# Development package {version}\n\nUnpublished local development assembly. "
+                           f"Runtime artifacts retain base version {VERSION}. "
+                           "No RC acceptance is implied. See build-info.json for provenance.\n\n"
+                           "The following base-package documentation is retained for reference.\n\n").encode() + files[name]
+        provenance["transformations"] += " Development-only: isolate default state directory and prepend development identity to README/release notes."
+        provenance["packaged_launcher_sha256"] = {name: digest(files[name]) for name in
+                                                   ("bin/dcg", "bin/start", "bin/stop", "bin/status")}
     files["THIRD-PARTY-NOTICES.txt"] = notices
     files["sbom.cdx.json"] = sbom_data
     files["build-info.json"] = (json.dumps(provenance, indent=2, sort_keys=True) + "\n").encode()
+    if development:
+        for name, data in files.items():
+            check_developer_paths(name, data)
     files["SHA256SUMS"] = "".join(f"{digest(data)}  {name}\n" for name, data in sorted(files.items())).encode()
     return files
 
@@ -156,13 +211,15 @@ def main():
     for option in ["inputs", "java-repo", "rust-repo", "output"]:
         parser.add_argument(f"--{option}", required=True)
     parser.add_argument("--platform", choices=TARGETS, required=True)
+    parser.add_argument("--development-info", help="Frozen development identity/provenance JSON; does not change runtime artifact pins")
     args = parser.parse_args()
     files = payload(args)
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
     # One invocation owns a fresh output directory, avoiding races updating release checksums.
     require(not any(output.iterdir()), "Output directory must be empty; do not overwrite prior artifacts")
-    root = f"dcg-{VERSION}-{args.platform}"
+    version = development_identity(json.loads(Path(args.development_info).read_bytes())) if args.development_info else VERSION
+    root = f"dcg-{version}-{args.platform}"
     archive = output / f"{root}.tar.gz"
     checksum = write_archive(files, archive, root)
     (output / "SHA256SUMS").write_text(f"{checksum}  {archive.name}\n", encoding="ascii")

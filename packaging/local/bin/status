@@ -2,28 +2,32 @@
 set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd -P)/dcg"
 state_init
+running_ai_mode
 result=0
-for name in java rust; do
-  if [[ "$name" == java ]]; then url=http://127.0.0.1:8080/actuator/health; else url=http://127.0.0.1:8081/health/ready; fi
-  if alive "$name"; then
-    if ready "$url"; then printf '%s: ready\n' "$name"; else printf '%s: running, not ready\n' "$name"; result=1; fi
-  else
-    if [[ "$name" == rust ]]; then port=8081; else port=8080; fi
-    listeners=$(port_listeners "$port")
-    if [[ -n "$listeners" ]]; then
-      if [[ "$name" == rust ]] && [[ "$listeners" != *$'\n'* ]] && owned_rust_listener "$listeners"; then
-        if ready "$url"; then
-          printf 'rust: ready (package-owned listener without PID record, PID %s)\n' "$listeners"
-        else
-          printf 'rust: running, not ready (package-owned listener without PID record, PID %s)\n' "$listeners"
-        fi
-      else
-        printf '%s: untracked listener on port %s (PID %s)\n' "$name" "$port" "$(printf '%s' "$listeners" | tr '\n' ' ')"
-      fi
-    else
-      printf '%s: stopped (or stale identity record)\n' "$name"
-    fi
+if alive java && ready http://127.0.0.1:8080/actuator/health; then
+  printf 'Java service: RUNNING\nDeterministic enforcement: ACTIVE\n'
+else
+  printf 'Java service: STOPPED\nDeterministic enforcement: INACTIVE\n'
+  result=1
+fi
+if [[ "$RUNNING_AI_ENABLED" == false ]]; then
+  if alive rust; then
+    printf 'AI advisory mode: UNAVAILABLE\nRust advisory process: RUNNING (unexpected in no-AI mode)\n'
     result=1
+  else
+    printf 'AI advisory mode: DISABLED\nRust advisory process: STOPPED\nrust: disabled (no-AI mode)\n'
   fi
-done
+elif alive rust; then
+  if ready http://127.0.0.1:8081/health/ready; then
+    printf 'AI advisory mode: AVAILABLE\nRust advisory process: RUNNING\n'
+  elif [[ -f "$STATE/advisory-state" && "$(< "$STATE/advisory-state")" == STARTING ]]; then
+    printf 'AI advisory mode: STARTING\nRust advisory process: RUNNING\n'
+  else
+    printf 'AI advisory mode: UNAVAILABLE\nRust advisory process: RUNNING\n'
+  fi
+elif [[ -n "$(port_listeners 8081)" ]]; then
+  printf 'AI advisory mode: UNAVAILABLE\nRust advisory process: NOT OWNED\n'
+else
+  printf 'AI advisory mode: UNAVAILABLE\nRust advisory process: STOPPED\n'
+fi
 exit "$result"

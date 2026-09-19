@@ -15,6 +15,9 @@ target/
 # Local Maven caches accidentally created in the repo
 .m2/
 
+# Local release assembly, extracted packages and private evidence
+/release-output/
+
 # Runtime databases and logs
 *.db
 *.db-shm

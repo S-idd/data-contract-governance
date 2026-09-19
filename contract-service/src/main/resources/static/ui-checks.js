@@ -174,6 +174,54 @@
     const runs = collectStatusElements();
     const pollInterval = resolveIntervalMs();
 
+    const advisorySection = document.querySelector("[data-advisory-run-id]");
+    if (advisorySection) {
+      const runId = advisorySection.dataset.advisoryRunId;
+      const content = advisorySection.querySelector("#advisory-content");
+      let attempts = 0;
+      const refreshAdvisory = async () => {
+        if (!runId || !content || attempts++ >= 20) return true;
+        try {
+          const response = await fetch(`/checks/${encodeURIComponent(runId)}/advisory`,
+            { headers: { Accept: "application/json" } });
+          if (response.status === 204) return false;
+          if (!response.ok) return false;
+          const advisory = await response.json();
+          content.replaceChildren();
+          if (advisory.testOnlyAdapter) {
+            const warning = document.createElement("div");
+            warning.className = "warning";
+            warning.textContent = "Test-only advisory scenario — not a real model prediction.";
+            content.appendChild(warning);
+          }
+          const line = (label, value) => {
+            const row = document.createElement("div");
+            const strong = document.createElement("strong");
+            strong.textContent = `${label}: `;
+            row.append(strong, document.createTextNode(value));
+            content.appendChild(row);
+          };
+          line("Status", advisory.status);
+          if (advisory.predictionLabel) line("Prediction", advisory.predictionLabel);
+          if (advisory.probabilities) {
+            const p = advisory.probabilities;
+            line("Probabilities", `SAFE ${p.SAFE}, WARNING ${p.WARNING}, BREAKING ${p.BREAKING}`);
+          }
+          line("Relationship", advisory.agreement);
+          line("Model", advisory.modelVersion || "Unknown");
+          return true;
+        } catch (_) {
+          return false;
+        }
+      };
+      refreshAdvisory().then((done) => {
+        if (done) return;
+        const timer = setInterval(() => {
+          refreshAdvisory().then((finished) => { if (finished) clearInterval(timer); });
+        }, pollInterval);
+      });
+    }
+
     if (runs.size > 0) {
       pollStatuses(runs).catch(() => {});
       const statusTimer = setInterval(() => {

@@ -32,6 +32,22 @@ run `shasum -a 256 -c SHA256SUMS` (or `sha256sum -c SHA256SUMS` on Linux).
 ./bin/stop
 ```
 
+For deterministic operation without loading or starting the Rust model:
+
+```sh
+DCG_AI_ENABLED=false ./bin/start
+./bin/status
+./bin/stop
+```
+
+The default remains `DCG_AI_ENABLED=true`; only `true` and `false` are accepted.
+No-AI mode requires no Rust binary or model directory and leaves port 8081 alone.
+Java receives an explicit `--shadow.inference.enabled=false`, overriding inherited
+inference configuration. Status and stop use the saved instance mode, so the flag
+need not be repeated. Stop before changing modes. Legacy state without a saved
+mode is treated as AI-enabled. The application's compatibility gate remains a
+separate CLI/build integration; disabling AI does not alter its PASS/FAIL rules.
+
 Use the absolute path to these scripts when working elsewhere. They support spaces in paths.
 CLI arguments are passed unchanged, so relative schema arguments resolve from your current
 directory. Sample schemas are in this archive's `contracts/orders.created/` directory.
@@ -39,8 +55,14 @@ directory. Sample schemas are in this archive's `contracts/orders.created/` dire
 Java listens only on 127.0.0.1:8080 and Rust only on 127.0.0.1:8081. Open
 http://127.0.0.1:8080/ui . Login is `demo`; startup prints the location of a generated
 password file, not the password. Rust inference is advisory, asynchronous and fail-open;
-Java remains authoritative. Rust must be ready for initial paired startup. A later Rust
-outage does not stop Java, but `bin/status` reports a degraded instance.
+Java remains authoritative. In AI-enabled mode Java starts first, then Rust starts
+best-effort. A missing binary/model, occupied Rust port, failed process or readiness
+timeout prints `AI advisory: unavailable` while Java continues. `bin/status` reports
+the Java and advisory states independently. `DCG_AI_STARTUP_TIMEOUT_SECONDS` may be
+set to 1–10 (default 3); the Java inference request timeout remains configured by
+`shadow.inference.timeout` (default 500 ms). The IEMS application performs its own
+deterministic CLI checks before dispatching Java; this service launcher does not
+replace that IEMS gate.
 
 Writable state defaults to `$HOME/.local/share/dcg/4.0.0-rc.1`. Override it with an
 absolute `DCG_DATA_DIR` outside the package, using the same value for start/status/stop.
@@ -51,8 +73,10 @@ If a process will not stop in 30 seconds, shutdown reports failure without a for
 If a manually started inference process from this exact package owns port 8081, `bin/stop`
 checks its executable and arguments and stops it, even when launched as
 `./bin/dcgaimodel`. An unrelated listener is reported and left untouched;
-`bin/status` identifies package-owned listeners without PID records separately from
-unrelated untracked listeners. A missing PID record still makes status exit nonzero.
+In AI-enabled mode, `bin/status` exits successfully while deterministic Java is healthy,
+even when the optional advisory process is unavailable. A listener without a tracked PID
+is reported as `NOT OWNED`. `bin/stop` signals it only when the executable and arguments
+match this exact package; unrelated listeners remain untouched.
 
 Ports are fixed for this prerelease. Stop conflicting services or use a separate demo machine.
 Do not expose these listeners via a tunnel/proxy or use this prerelease on a shared/untrusted host.

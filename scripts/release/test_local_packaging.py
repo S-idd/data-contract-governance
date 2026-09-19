@@ -258,6 +258,68 @@ stop_one java
             with self.assertRaisesRegex(ValueError, "java_build_commit"):
                 assembly.payload(args)
 
+    def development_info(self):
+        return {"version": "4.0.0-phase1-no-ai-dev.20260917", "base_version": assembly.VERSION,
+                "assembled_at": "2026-09-17T00:00:00Z", "packaging_source": {
+                    "commit": "a" * 40, "dirty": True, "worktree_inventory_sha256": "b" * 64}}
+
+    def test_development_identity_rejects_rc_and_unsafe_names(self):
+        info = self.development_info()
+        self.assertEqual(assembly.development_identity(info), info["version"])
+        for version in (assembly.VERSION, "4.0.0-rc.1-dev", "../dev", "4.0.0"):
+            with self.assertRaises(ValueError):
+                assembly.development_identity({**info, "version": version})
+        with self.assertRaises(ValueError):
+            assembly.development_identity({**info, "packaging_source": {}})
+
+    def test_development_paths_detected_inside_nested_jar(self):
+        inner = io.BytesIO()
+        with zipfile.ZipFile(inner, "w", compression=zipfile.ZIP_DEFLATED) as jar:
+            jar.writestr("test.class", b"/Users/example/source.rs")
+        outer = io.BytesIO()
+        with zipfile.ZipFile(outer, "w", compression=zipfile.ZIP_DEFLATED) as jar:
+            jar.writestr("BOOT-INF/lib/test.jar", inner.getvalue())
+        with self.assertRaisesRegex(ValueError, "Developer absolute path"):
+            assembly.check_developer_paths("service.jar", outer.getvalue())
+
+    def test_notice_tampering_rejected_before_assembly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            args = self.fixture_inputs(path)
+            info = json.loads((path / "build-info.json").read_text())
+            info["dependency_evidence"] = {"notices_sha256": assembly.digest((path / "THIRD-PARTY-NOTICES.txt").read_bytes()),
+                                           "sbom_sha256": assembly.digest((path / "sbom.cdx.json").read_bytes())}
+            (path / "build-info.json").write_text(json.dumps(info))
+            (path / "THIRD-PARTY-NOTICES.txt").write_bytes(b"changed notice " * 20)
+            with self.assertRaisesRegex(ValueError, "notices_sha256"):
+                assembly.payload(args)
+
+    def test_development_payload_retains_runtime_pins_and_notice_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            args = self.fixture_inputs(path)
+            notice = b"Mixed upstream notice\r\n" * 10 + b"lone CR\r"
+            (path / "THIRD-PARTY-NOTICES.txt").write_bytes(notice)
+            info = json.loads((path / "build-info.json").read_text())
+            info["dependency_evidence"] = {"notices_sha256": assembly.digest(notice),
+                                           "sbom_sha256": assembly.digest((path / "sbom.cdx.json").read_bytes())}
+            (path / "build-info.json").write_text(json.dumps(info))
+            args.development_info = path / "development.json"
+            args.development_info.write_text(json.dumps(self.development_info()))
+            def source(repo, revision, name):
+                return (ROOT / name).read_bytes() if name == "contracts/policy-packs.json" else b"fixture"
+            with patch.object(assembly, "git_file", side_effect=source), patch.object(assembly, "FROZEN", {n: assembly.digest(b"fixture") for n in assembly.FROZEN}):
+                files = assembly.payload(args)
+            self.assertEqual(files["THIRD-PARTY-NOTICES.txt"], notice)
+            self.assertIn(b"VERSION=4.0.0-rc.1", files["bin/dcg"])
+            self.assertIn(b"/.local/share/dcg/4.0.0-phase1-no-ai-dev.20260917", files["bin/dcg"])
+            metadata = json.loads(files["build-info.json"])
+            self.assertEqual(metadata["version"], self.development_info()["version"])
+            self.assertTrue(metadata["development"]["packaging_source"]["dirty"])
+            for line in files["SHA256SUMS"].decode().splitlines():
+                sha, name = line.split("  ", 1)
+                self.assertEqual(sha, assembly.digest(files[name]))
+
 
 if __name__ == "__main__":
     unittest.main()

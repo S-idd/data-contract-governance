@@ -44,6 +44,24 @@
     </div>
   </section>
 
+  <section class="card" th:if="${checkRun != null}" th:attr="data-advisory-run-id=${checkRun.runId}">
+    <h2 class="title" style="font-size:20px;">AI Advisory</h2>
+    <p class="subtitle">Advisory only — does not change enforcement. The deterministic decision above is final.</p>
+    <div id="advisory-content" th:if="${advisory == null}" class="muted">Advisory disabled or pending.</div>
+    <div id="advisory-content" th:if="${advisory != null}">
+      <div class="warning" th:if="${advisory.testOnlyAdapter}">Test-only advisory scenario — not a real model prediction.</div>
+      <div><strong>Status:</strong> <span th:text="${advisory.status}">AVAILABLE</span></div>
+      <div th:if="${advisory.predictionLabel != null}"><strong>Prediction:</strong> <span th:text="${advisory.predictionLabel}">SAFE</span></div>
+      <div th:if="${advisory.probabilities != null}"><strong>Probabilities:</strong>
+        SAFE <span th:text="${advisory.probabilities['SAFE']}">0</span>,
+        WARNING <span th:text="${advisory.probabilities['WARNING']}">0</span>,
+        BREAKING <span th:text="${advisory.probabilities['BREAKING']}">0</span>
+      </div>
+      <div><strong>Relationship:</strong> <span th:text="${advisory.agreement}">AGREES</span></div>
+      <div class="muted">Model: <span th:text="${advisory.modelVersion}">model</span></div>
+    </div>
+  </section>
+
   <section class="grid-two" th:if="${checkRun != null}">
     <article class="card">
       <h2 class="title" style="font-size:20px;">Breaking Changes</h2>
