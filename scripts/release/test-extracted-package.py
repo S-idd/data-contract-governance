@@ -199,8 +199,15 @@ def main():
         baseline = contract_check("healthy AI prediction", "shadow_inference_prediction")
         subprocess.run(["bash", "-c", 'source "$1"; state_init; lock; stop_one rust', "acceptance", str(package / "bin/dcg")],
                        env=env, cwd=work, check=True, timeout=40)
-        require("rust: stopped" in run("status", expected=1), "Outage not reported")
-        require("Partial instance" in run("start", expected=1), "Partial start must not spawn duplicates")
+        outage_status = run("status")
+        require("AI advisory mode: UNAVAILABLE" in outage_status
+                and "Rust advisory process: STOPPED" in outage_status,
+                "Advisory outage not reported while deterministic enforcement remains active")
+        outage_start = run("start")
+        require("AI advisory: unavailable" in outage_start and "already running" in outage_start,
+                "Repeat start did not preserve the deterministic service during an advisory outage")
+        require(identity == (state / "run/java.pid").read_bytes(),
+                "Advisory outage repeat start replaced Java")
         unavailable = contract_check("AI outage preserves authoritative result", "shadow_inference_call_failed")
         require(unavailable == baseline, "AI outage changed authoritative output")
         require(identity == (state / "run/java.pid").read_bytes() and http("/actuator/health")[0] == 200, "Java did not survive model outage")
@@ -236,8 +243,8 @@ def main():
                                        "--bind", "127.0.0.1:8081"], cwd=package, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
         wait_until(lambda: bool(subprocess.run(["curl", "--noproxy", "*", "-fsS", "http://127.0.0.1:8081/health/ready"],
                                                capture_output=True).returncode == 0), "Manual Rust process did not become ready")
-        require("rust: ready (package-owned listener without PID record" in run("status", expected=1),
-                "Relative-path Rust listener was not recognized as package-owned")
+        require("Rust advisory process: NOT OWNED" in run("status", expected=1),
+                "Relative-path Rust listener without a PID record was not reported")
         run("stop")
         manual.wait(timeout=10)
         clean_shutdown()

@@ -73,8 +73,10 @@ If a process will not stop in 30 seconds, shutdown reports failure without a for
 If a manually started inference process from this exact package owns port 8081, `bin/stop`
 checks its executable and arguments and stops it, even when launched as
 `./bin/dcgaimodel`. An unrelated listener is reported and left untouched;
-`bin/status` identifies package-owned listeners without PID records separately from
-unrelated untracked listeners. A missing PID record still makes status exit nonzero.
+In AI-enabled mode, `bin/status` exits successfully while deterministic Java is healthy,
+even when the optional advisory process is unavailable. A listener without a tracked PID
+is reported as `NOT OWNED`. `bin/stop` signals it only when the executable and arguments
+match this exact package; unrelated listeners remain untouched.
 
 Ports are fixed for this prerelease. Stop conflicting services or use a separate demo machine.
 Do not expose these listeners via a tunnel/proxy or use this prerelease on a shared/untrusted host.
