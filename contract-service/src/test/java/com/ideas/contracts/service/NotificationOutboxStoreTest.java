@@ -5,8 +5,18 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -71,6 +81,50 @@ class NotificationOutboxStoreTest {
     assertEquals(firstClaim.deliveryId(), reclaimed.deliveryId());
     assertEquals(NotificationDeliveryStatus.IN_FLIGHT, reclaimed.status());
     assertEquals(2, reclaimed.attemptCount());
+  }
+
+  @Test
+  void retriesNotificationClaimAfterTransientSqliteWriterContention() throws Exception {
+    Path databasePath = tempDir.resolve("notification-busy-retry.db");
+    CheckStoreProperties properties = new CheckStoreProperties();
+    properties.setPath(databasePath.toString());
+    properties.getSqlite().setBusyTimeout(Duration.ofMillis(1));
+    CheckRunStore store = new CheckRunStore(properties);
+    store.initialize();
+    MetadataStore.NotificationEnqueueResult enqueued =
+        store.enqueueNotificationDelivery(sampleEvent(), "webhook");
+
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try (Connection blocker = DriverManager.getConnection("jdbc:sqlite:" + databasePath)) {
+      blocker.setAutoCommit(false);
+      try (PreparedStatement statement = blocker.prepareStatement("""
+          UPDATE notification_deliveries
+          SET status = status
+          WHERE delivery_id = ?
+          """)) {
+        statement.setString(1, enqueued.delivery().deliveryId());
+        assertEquals(1, statement.executeUpdate());
+      }
+
+      CountDownLatch claimStarted = new CountDownLatch(1);
+      Future<Optional<NotificationDelivery>> claimed = executor.submit(() -> {
+        claimStarted.countDown();
+        Instant claimedAt = Instant.now();
+        return store.claimNextNotificationDelivery(claimedAt, claimedAt.minusSeconds(60));
+      });
+
+      assertTrue(claimStarted.await(1, TimeUnit.SECONDS));
+      Thread.sleep(80);
+      blocker.rollback();
+
+      NotificationDelivery delivery = claimed.get(2, TimeUnit.SECONDS).orElseThrow();
+      assertEquals(enqueued.delivery().deliveryId(), delivery.deliveryId());
+      assertEquals(NotificationDeliveryStatus.IN_FLIGHT, delivery.status());
+      assertEquals(1, delivery.attemptCount());
+    } finally {
+      executor.shutdownNow();
+      store.shutdown();
+    }
   }
 
   @Test

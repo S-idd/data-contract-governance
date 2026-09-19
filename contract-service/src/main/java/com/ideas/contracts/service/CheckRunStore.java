@@ -64,6 +64,9 @@ public class CheckRunStore implements MetadataStore {
       Set.of("BACKWARD", "FORWARD", "FULL");
   private static final String STATUS_QUEUED = "QUEUED";
   private static final String STATUS_RUNNING = "RUNNING";
+  private static final int DEFAULT_NOTIFICATION_CLAIM_MAX_ATTEMPTS = 3;
+  private static final int SQLITE_NOTIFICATION_CLAIM_MAX_ATTEMPTS = 8;
+  private static final int SQLITE_BUSY_ERROR_CODE = 5;
   private static final String LATEST_DEFAULT_MIGRATION_RESOURCE =
       "db/migration/V13__create_check_run_advisories.sql";
   private static final String LATEST_MYSQL_MIGRATION_RESOURCE =
@@ -1174,62 +1177,105 @@ public class CheckRunStore implements MetadataStore {
     ensureInitialized();
     Instant claimedAt = now == null ? Instant.now() : now;
     Instant staleBefore = staleClaimBefore == null ? claimedAt : staleClaimBefore;
+    int maximumAttempts = databaseBackend == DatabaseBackend.SQLITE
+        ? SQLITE_NOTIFICATION_CLAIM_MAX_ATTEMPTS
+        : DEFAULT_NOTIFICATION_CLAIM_MAX_ATTEMPTS;
 
-    for (int attempt = 0; attempt < 3; attempt++) {
+    for (int attempt = 0; attempt < maximumAttempts; attempt++) {
       try (Connection connection = openConnection()) {
         connection.setAutoCommit(false);
-        NotificationDelivery candidate = null;
-        try (PreparedStatement select = connection.prepareStatement(
-            CheckRunSqlQueries.SELECT_NEXT_NOTIFICATION_DELIVERY)) {
-          applyQueryTimeout(select);
-          select.setString(1, NotificationDeliveryStatus.PENDING.name());
-          select.setString(2, NotificationDeliveryStatus.FAILED_RETRYABLE.name());
-          select.setString(3, claimedAt.toString());
-          select.setString(4, NotificationDeliveryStatus.IN_FLIGHT.name());
-          select.setString(5, staleBefore.toString());
-          try (ResultSet resultSet = select.executeQuery()) {
-            if (resultSet.next()) {
-              candidate = mapNotificationDelivery(resultSet);
+        try {
+          NotificationDelivery candidate = null;
+          try (PreparedStatement select = connection.prepareStatement(
+              CheckRunSqlQueries.SELECT_NEXT_NOTIFICATION_DELIVERY)) {
+            applyQueryTimeout(select);
+            select.setString(1, NotificationDeliveryStatus.PENDING.name());
+            select.setString(2, NotificationDeliveryStatus.FAILED_RETRYABLE.name());
+            select.setString(3, claimedAt.toString());
+            select.setString(4, NotificationDeliveryStatus.IN_FLIGHT.name());
+            select.setString(5, staleBefore.toString());
+            try (ResultSet resultSet = select.executeQuery()) {
+              if (resultSet.next()) {
+                candidate = mapNotificationDelivery(resultSet);
+              }
             }
           }
-        }
 
-        if (candidate == null) {
-          connection.commit();
-          return Optional.empty();
-        }
-
-        try (PreparedStatement update = connection.prepareStatement(
-            CheckRunSqlQueries.CLAIM_NOTIFICATION_DELIVERY)) {
-          applyQueryTimeout(update);
-          update.setString(1, NotificationDeliveryStatus.IN_FLIGHT.name());
-          update.setString(2, claimedAt.toString());
-          update.setString(3, candidate.deliveryId());
-          update.setString(4, candidate.status().name());
-          if (update.executeUpdate() == 0) {
-            connection.rollback();
-            continue;
+          if (candidate == null) {
+            connection.commit();
+            return Optional.empty();
           }
+
+          try (PreparedStatement update = connection.prepareStatement(
+              CheckRunSqlQueries.CLAIM_NOTIFICATION_DELIVERY)) {
+            applyQueryTimeout(update);
+            update.setString(1, NotificationDeliveryStatus.IN_FLIGHT.name());
+            update.setString(2, claimedAt.toString());
+            update.setString(3, candidate.deliveryId());
+            update.setString(4, candidate.status().name());
+            if (update.executeUpdate() == 0) {
+              connection.rollback();
+              continue;
+            }
+          }
+          connection.commit();
+          return Optional.of(new NotificationDelivery(
+              candidate.deliveryId(),
+              candidate.event(),
+              candidate.sinkName(),
+              NotificationDeliveryStatus.IN_FLIGHT,
+              candidate.attemptCount() + 1,
+              candidate.createdAt(),
+              claimedAt,
+              candidate.deliveredAt(),
+              candidate.nextAttemptAt(),
+              candidate.failureMessage()));
+        } catch (SQLException error) {
+          rollbackAfterFailure(connection, error);
+          throw error;
         }
-        connection.commit();
-        return Optional.of(new NotificationDelivery(
-            candidate.deliveryId(),
-            candidate.event(),
-            candidate.sinkName(),
-            NotificationDeliveryStatus.IN_FLIGHT,
-            candidate.attemptCount() + 1,
-            candidate.createdAt(),
-            claimedAt,
-            candidate.deliveredAt(),
-            candidate.nextAttemptAt(),
-            candidate.failureMessage()));
       } catch (SQLException error) {
+        if (isRetryableSqliteBusy(error) && attempt < maximumAttempts - 1) {
+          pauseBeforeNotificationClaimRetry(attempt);
+          continue;
+        }
         logDbFailure("claim_notification_delivery", error, null, null);
         throw new CheckRunStoreException("Failed to claim notification delivery.", error);
       }
     }
 
     return Optional.empty();
+  }
+
+  private void rollbackAfterFailure(Connection connection, SQLException failure) {
+    try {
+      connection.rollback();
+    } catch (SQLException rollbackError) {
+      failure.addSuppressed(rollbackError);
+    }
+  }
+
+  private boolean isRetryableSqliteBusy(SQLException error) {
+    if (databaseBackend != DatabaseBackend.SQLITE) {
+      return false;
+    }
+    for (SQLException current = error; current != null; current = current.getNextException()) {
+      if (current.getErrorCode() == SQLITE_BUSY_ERROR_CODE
+          || safeValue(current.getMessage()).toUpperCase(Locale.ROOT).contains("SQLITE_BUSY")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private void pauseBeforeNotificationClaimRetry(int attempt) {
+    try {
+      Thread.sleep(Math.min(100L, 10L * (attempt + 1)));
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      throw new CheckRunStoreException(
+          "Interrupted while retrying notification delivery claim.", error);
+    }
   }
 
   @Override
