@@ -106,7 +106,7 @@ def stage(args):
         "java_version": "21.0.12.1+1", "jdk_archive_sha256": jdk_sha,
         "java_runtime_evidence": java_version, "rustc_verbose": rustc, "cargo_version": cargo,
         "cargo_lock_sha256": digest(rust_source / "Cargo.lock"), "rust_builder": builder,
-        "java_build_command": "JAVA_HOME=<verified Temurin> ./mvnw -B -ntp -pl contract-cli,contract-service -am package org.cyclonedx:cyclonedx-maven-plugin:2.9.2:makeAggregateBom -DincludeTestScope=false -DincludeProvidedScope=false -DincludeSystemScope=false -DincludeLicenseText=true -DoutputFormat=json",
+        "java_build_command": "JAVA_HOME=<verified Temurin> ./mvnw -B -ntp -pl contract-cli,contract-service -am package org.cyclonedx:cyclonedx-maven-plugin:2.9.2:makeAggregateBom -DincludeTestScope=false -DincludeProvidedScope=false -DincludeSystemScope=false -DincludeLicenseText=true -DoutputFormat=json -Dmaven.repo.local=<selected Maven repository>",
         "rust_build_command": f"cargo +1.96.0 build --release --locked --target {target}",
         "release_pins_sha256": digest(assembly.PIN_FILE),
         "java_build_log_sha256": digest(work / "java-build.log"), "rust_build_log_sha256": digest(build_log),

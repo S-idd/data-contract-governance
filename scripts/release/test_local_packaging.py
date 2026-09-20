@@ -20,6 +20,9 @@ SPEC.loader.exec_module(assembly)
 STAGE_SPEC = importlib.util.spec_from_file_location("staging", Path(__file__).with_name("stage-local-inputs.py"))
 staging = importlib.util.module_from_spec(STAGE_SPEC)
 STAGE_SPEC.loader.exec_module(staging)
+WSL_SPEC = importlib.util.spec_from_file_location("wsl_workflow", Path(__file__).with_name("build-development-linux-wsl2.py"))
+wsl_workflow = importlib.util.module_from_spec(WSL_SPEC)
+WSL_SPEC.loader.exec_module(wsl_workflow)
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -116,6 +119,31 @@ class PackagingTests(unittest.TestCase):
     def test_shell_syntax(self):
         for script in (ROOT / "packaging/local/bin").iterdir():
             subprocess.run(["bash", "-n", str(script)], check=True)
+
+    def test_wsl_development_workflow_help_is_host_independent(self):
+        result = subprocess.run(
+            ["python3", str(ROOT / "scripts/release/build-development-linux-wsl2.py"), "--help"],
+            capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--skip-acceptance", result.stdout)
+        self.assertIn("--jdk-archive", result.stdout)
+
+    def test_wsl_development_workflow_verifies_external_checksums(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            artifact = path / "artifact.tar.gz"
+            artifact.write_bytes(b"verified artifact")
+            (path / "SHA256SUMS").write_text(
+                f"{hashlib.sha256(artifact.read_bytes()).hexdigest()}  {artifact.name}\n")
+            wsl_workflow.verify_external_checksums(path)
+            artifact.write_bytes(b"tampered")
+            with self.assertRaisesRegex(RuntimeError, "Checksum mismatch"):
+                wsl_workflow.verify_external_checksums(path)
+
+    def test_wsl_development_workflow_rejects_windows_mount_workspace(self):
+        with patch.object(Path, "resolve", return_value=Path("/mnt/c/dcg-build")):
+            with self.assertRaisesRegex(RuntimeError, "WSL ext4 filesystem"):
+                wsl_workflow.require_outside_windows_mount(Path("fixture"))
 
     def test_java_wrong_major_rejected(self):
         with tempfile.TemporaryDirectory(prefix="dcg test ") as directory:

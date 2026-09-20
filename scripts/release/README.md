@@ -1,5 +1,11 @@
 # Local archive assembly (maintainer-only)
 
+For the maintained end-to-end AlmaLinux/WSL2 current-source build, reproducibility, and
+real-host acceptance workflow, see
+[`docs/wsl2-development-package.md`](../../docs/wsl2-development-package.md) and run
+`build-development-linux-wsl2.py`. The lower-level commands below remain available for
+maintainer inspection and targeted recovery.
+
 Requires Python 3.9+, Git and already-built inputs. No build/CI/publish operation is hidden
 inside the assembler. Release identity pins are maintained in
 `scripts/release/release-pins.json`, not embedded as release data in the assembler. The
@@ -189,6 +195,10 @@ python3 scripts/release/collect-dependency-evidence.py \
   --target x86_64-unknown-linux-gnu \
   --java-build-commit "$JAVA_COMMIT"
 ```
+
+The maintained WSL2 workflow passes `-Dmaven.repo.local=<selected Maven repository>` to the
+documented Java build so the repository consumed by evidence collection is the repository
+that Maven actually populated.
 
 Pass the identical frozen JSON to staging and both assembly runs:
 
