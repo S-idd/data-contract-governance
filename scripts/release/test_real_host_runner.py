@@ -1,4 +1,6 @@
 import importlib.util
+import hashlib
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -48,6 +50,40 @@ class RealHostRunnerTests(unittest.TestCase):
             (path / "SHA256SUMS").write_text("0" * 64 + "  ../outside\n")
             with self.assertRaisesRegex(AssertionError, "Invalid checksum path"):
                 runner.check_files(path)
+
+    def test_status_protocols_and_expected_output(self):
+        current = b"printf 'AI advisory mode: AVAILABLE\\nRust advisory process: RUNNING\\n'"
+        legacy = (b"printf '%s: stopped (or stale identity record)\\n' rust; "
+                  b"printf 'rust: ready (package-owned listener without PID record, PID %s)\\n' 123")
+        self.assertEqual(runner.status_protocol(current), "advisory-v2")
+        self.assertEqual(runner.status_protocol(legacy), "legacy-v1")
+        runner.require_status("advisory-v2", "outage",
+                              "Java service: RUNNING\nDeterministic enforcement: ACTIVE\n"
+                              "AI advisory mode: UNAVAILABLE\nRust advisory process: STOPPED\n")
+        runner.require_status("legacy-v1", "manual",
+                              "java: stopped (or stale identity record)\n"
+                              "rust: ready (package-owned listener without PID record, PID 123)\n")
+
+    def test_unknown_status_protocol_is_rejected(self):
+        with self.assertRaisesRegex(AssertionError, "Unsupported bin/status protocol"):
+            runner.status_protocol(b"echo unknown")
+
+    def test_compatibility_manifest_pins_runner_and_archive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = root / "test-extracted-package.py"
+            script.write_text("runner")
+            archive_sha = "a" * 64
+            manifest = {
+                "schema_version": 1,
+                "runner_sha256": hashlib.sha256(script.read_bytes()).hexdigest(),
+                "archives": {"package.tar.gz": {"archive_sha256": archive_sha}},
+            }
+            (root / runner.COMPATIBILITY_MANIFEST).write_text(json.dumps(manifest))
+            self.assertEqual(runner.compatibility_entry(script, "package.tar.gz", archive_sha),
+                             manifest["archives"]["package.tar.gz"])
+            with self.assertRaisesRegex(AssertionError, "Archive checksum"):
+                runner.compatibility_entry(script, "package.tar.gz", "b" * 64)
 
 
 if __name__ == "__main__":
