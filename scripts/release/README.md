@@ -21,7 +21,7 @@ never recursively copied. Frozen models, Java sample contracts/policies and lice
 read from exact Git commits, not either repository's working tree. The four launchers and
 package documents come from `packaging/local/` in this checkout and are hashed in provenance.
 
-`build-info.json` must have these fields from the real builds:
+For an RC-pinned assembly, `build-info.json` must have these fields from the real builds:
 
 - `version`: `4.0.0-rc.1`
 - `java_build_commit`: `994770c97ed00d00b1a6bf974344a6c68c31d656` (the exact committed Java RC source revision)
@@ -49,8 +49,9 @@ python3 scripts/release/assemble-local.py \
 python3 -m unittest discover -s scripts/release -p 'test_*.py' -v
 ```
 
-The only other supported platform is linux-x64. An invocation produces one tar.gz and
-an external SHA256SUMS in a fresh output directory. Keep platform outputs separate until
+The only other supported platform is linux-x64. An invocation produces one tar.gz,
+`archive-runner-compatibility.json`, and an external SHA256SUMS in a fresh output directory.
+The external checksum file covers the archive and compatibility manifest. Keep platform outputs separate until
 the later release-asset collection step; no existing output is overwritten. Archive paths,
 file modes, timestamps, owner IDs and checksum ordering are normalized. The internal
 SHA256SUMS covers every regular payload file except itself.
@@ -75,7 +76,7 @@ commits. `license-sources.json` pins those exact URLs and hashes; download them 
 working directory and pass it as `--license-supplements`. Missing text or a mismatched hash
 blocks collection. Named/copyleft license conditions still require redistribution review.
 
-`stage-local-inputs.py` verifies the exported Java/Rust source files against the locked Git
+`stage-local-inputs.py` verifies the exported Java/Rust source files against the selected Git
 commits, checks real build logs and compiler/JDK evidence, and stages the required input files
 with actual hashes. Its `--workspace` expects `java-source/`, `rust-source/`,
 `cargo-PLATFORM.json`, `evidence-PLATFORM/`, `java-build.log`, and `rust-PLATFORM.log` for
@@ -105,8 +106,9 @@ for running this smoke test there.
 
 ## Step 6: standalone target-host acceptance
 
-Copy `test-extracted-package.py`, the matching platform tar.gz and its external SHA256SUMS
-to the target host. Run the script using Python 3.9+ outside any source checkout. It requires
+Copy `test-extracted-package.py`, `archive-runner-compatibility.json`, the matching platform
+tar.gz and its external SHA256SUMS to the target host. Place the runner and compatibility
+manifest in the same directory. Run the script using Python 3.9+ outside any source checkout. It requires
 the package runtime prerequisites (Java 21, Bash, curl, lsof and ps). `--work-dir` must be new.
 
 ```sh
@@ -144,7 +146,73 @@ and `packaging_source` containing the full `commit`, boolean `dirty`, and SHA-25
 `worktree_inventory_sha256`. Record source inventories before assembly and reuse this
 same JSON and all inputs for both reproducibility runs. Extra evidence fields are preserved.
 
-The development archive retains the verified runtime JAR names and embedded versions,
+To build Java artifacts from a newer clean development checkpoint, add `java_build_commit`
+and `rust_commit` to that JSON. `java_build_commit` must be a full SHA. `rust_commit` must
+remain the frozen `release-pins.json` value, and `packaging_source.dirty` must be `false`.
+`packaging_source.commit` must equal `java_build_commit`, guaranteeing that Java artifacts,
+contracts, launchers and packaging documents all come from the same clean checkpoint.
+This selects clean current-source development mode; it does not alter the RC manifest or
+accepted archives. Example:
+
+```sh
+test -z "$(git status --porcelain --untracked-files=all)"
+JAVA_COMMIT=$(git rev-parse HEAD)
+PACKAGING_INVENTORY_SHA256=$(git ls-files -s | sha256sum | awk '{print $1}')
+```
+
+```json
+{
+  "version": "4.0.0-phase1-phase2-dev.20260920",
+  "base_version": "4.0.0-rc.1",
+  "assembled_at": "2026-09-20T00:00:00Z",
+  "java_build_commit": "FULL_JAVA_COMMIT_SHA",
+  "rust_commit": "32ca579095ed5b91749b8c33999556624e58758f",
+  "packaging_source": {
+    "commit": "FULL_PACKAGING_COMMIT_SHA",
+    "dirty": false,
+    "worktree_inventory_sha256": "SHA256_OF_GIT_LS_FILES_S_OUTPUT"
+  }
+}
+```
+
+Use the selected Java commit when collecting dependency evidence so DCG components in the
+SBOM point to the source that produced the JARs:
+
+```sh
+python3 scripts/release/collect-dependency-evidence.py \
+  --java-source "$WORKSPACE/java-source" \
+  --cargo-metadata "$WORKSPACE/cargo-linux-x64.json" \
+  --maven-repo "$HOME/.m2/repository" \
+  --rust-sysroot "$RUST_SYSROOT" \
+  --license-supplements "$LICENSE_SUPPLEMENTS" \
+  --output "$WORKSPACE/evidence-linux-x64" \
+  --target x86_64-unknown-linux-gnu \
+  --java-build-commit "$JAVA_COMMIT"
+```
+
+Pass the identical frozen JSON to staging and both assembly runs:
+
+```sh
+python3 scripts/release/stage-local-inputs.py \
+  --workspace "$WORKSPACE" --java-repo "$JAVA_REPO" --rust-repo "$RUST_REPO" \
+  --java-home "$JAVA_HOME" --jdk-archive "$JDK_ARCHIVE" \
+  --output "$STAGED_INPUTS" --platform linux-x64 \
+  --development-info "$DEVELOPMENT_INFO"
+
+python3 scripts/release/assemble-local.py \
+  --inputs "$STAGED_INPUTS" --java-repo "$JAVA_REPO" --rust-repo "$RUST_REPO" \
+  --output "$ASSEMBLY_A" --platform linux-x64 \
+  --development-info "$DEVELOPMENT_INFO"
+```
+
+Current-source `linux-x64` staging must run on an actual Linux x86-64 host. It records WSL2
+explicitly when detected and rejects macOS/cross-host staging for this mode. Assembly emits
+the archive, `archive-runner-compatibility.json`, and an external `SHA256SUMS` covering both.
+Copy the generated compatibility manifest beside `test-extracted-package.py` for acceptance.
+Assembly also verifies the staging, evidence, assembly, acceptance-runner and pin-manifest
+files against the recorded packaging commit and records each tool's SHA-256 in `build-info.json`.
+
+The development archive retains the base runtime JAR names and embedded versions,
 labels its README/release notes and provenance as unpublished development, and isolates its
 default state directory. It never changes release pins or existing archives. Provenance
 records source template hashes separately from transformed packaged launcher hashes.

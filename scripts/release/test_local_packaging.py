@@ -17,6 +17,9 @@ import zipfile
 SPEC = importlib.util.spec_from_file_location("assembly", Path(__file__).with_name("assemble-local.py"))
 assembly = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(assembly)
+STAGE_SPEC = importlib.util.spec_from_file_location("staging", Path(__file__).with_name("stage-local-inputs.py"))
+staging = importlib.util.module_from_spec(STAGE_SPEC)
+STAGE_SPEC.loader.exec_module(staging)
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -271,6 +274,16 @@ stop_one java
                 assembly.development_identity({**info, "version": version})
         with self.assertRaises(ValueError):
             assembly.development_identity({**info, "packaging_source": {}})
+        current = {**info, "java_build_commit": "c" * 40, "rust_commit": assembly.RUST_SHA,
+                   "packaging_source": {**info["packaging_source"], "dirty": False}}
+        self.assertEqual(assembly.development_commits(current), ("c" * 40, assembly.RUST_SHA, True))
+        with self.assertRaisesRegex(ValueError, "clean packaging commit"):
+            assembly.development_identity({**current, "packaging_source": info["packaging_source"]})
+        with self.assertRaisesRegex(ValueError, "frozen model/runtime pin"):
+            assembly.development_identity({**current, "rust_commit": "d" * 40})
+        with self.assertRaisesRegex(ValueError, "must match"):
+            assembly.development_identity({**current, "packaging_source": {
+                **current["packaging_source"], "commit": "d" * 40}})
 
     def test_development_paths_detected_inside_nested_jar(self):
         inner = io.BytesIO()
@@ -319,6 +332,122 @@ stop_one java
             for line in files["SHA256SUMS"].decode().splitlines():
                 sha, name = line.split("  ", 1)
                 self.assertEqual(sha, assembly.digest(files[name]))
+
+    def test_clean_development_payload_uses_explicit_source_commits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            args = self.fixture_inputs(path)
+            current_java = "c" * 40
+            development = {**self.development_info(), "java_build_commit": current_java,
+                           "rust_commit": assembly.RUST_SHA,
+                           "packaging_source": {"commit": current_java, "dirty": False,
+                                                "worktree_inventory_sha256": "e" * 64}}
+            args.development_info = path / "development.json"
+            args.development_info.write_text(json.dumps(development))
+            info = json.loads((path / "build-info.json").read_text())
+            info["java_build_commit"] = current_java
+            info["development_source"] = {"java_build_commit": current_java,
+                                          "rust_commit": assembly.RUST_SHA,
+                                          "packaging_commit": current_java, "clean": True}
+            info["dependency_evidence"] = {
+                "notices_sha256": assembly.digest((path / "THIRD-PARTY-NOTICES.txt").read_bytes()),
+                "sbom_sha256": "pending"}
+            sbom = json.loads((path / "sbom.cdx.json").read_text())
+            sbom["components"].append({
+                "group": "com.ideas.contracts", "name": "contract-service",
+                "purl": "pkg:maven/com.ideas.contracts/contract-service@4.0.0-rc.1",
+                "externalReferences": [{"type": "vcs",
+                                        "url": f"https://github.com/S-idd/data-contract-governance/tree/{current_java}"}]})
+            (path / "sbom.cdx.json").write_text(json.dumps(sbom))
+            info["dependency_evidence"]["sbom_sha256"] = assembly.digest((path / "sbom.cdx.json").read_bytes())
+            (path / "build-info.json").write_text(json.dumps(info))
+
+            def source(repo, revision, name):
+                self.assertEqual(revision, current_java if repo == "fixture-java" else assembly.RUST_SHA)
+                if repo == "fixture-java" and name in assembly.TOOLING:
+                    return assembly.TOOLING[name].read_bytes()
+                if name == "contracts/policy-packs.json":
+                    return (ROOT / name).read_bytes()
+                return b"current source fixture"
+
+            def packaging(repo, revision, name):
+                self.assertEqual((repo, revision), ("fixture-java", current_java))
+                relative = name.removeprefix("packaging/local/")
+                candidate = ROOT / "packaging/local" / relative
+                return candidate.read_bytes() if candidate.is_file() else None
+
+            frozen = {name: assembly.digest(b"current source fixture") for name in assembly.FROZEN}
+            with patch.object(assembly, "git_file", side_effect=source), \
+                    patch.object(assembly, "git_file_optional", side_effect=packaging), \
+                    patch.object(assembly, "FROZEN", frozen):
+                files = assembly.payload(args)
+            metadata = json.loads(files["build-info.json"])
+            self.assertEqual(metadata["java_build_commit"], current_java)
+            self.assertEqual(metadata["development_source"]["packaging_commit"], current_java)
+            self.assertNotIn("java_preparation_commit", metadata)
+            self.assertEqual(metadata["development"], development)
+            self.assertEqual(set(metadata["packaging_tooling_sha256"]), set(assembly.TOOLING))
+            self.assertEqual(assembly.status_protocol(files["bin/status"]), "advisory-v2")
+
+    def test_compatibility_manifest_pins_generated_archive_and_runner(self):
+        files = {
+            "bin/status": assembly.template_path("bin/status").read_bytes(),
+            "build-info.json": json.dumps({
+                "java_build_commit": "c" * 40, "rust_commit": assembly.RUST_SHA,
+                "development": {"packaging_source": {"commit": "d" * 40}},
+            }).encode(),
+        }
+        archive = Path("dcg-development-linux-x64.tar.gz")
+        manifest = assembly.compatibility_manifest(archive, "a" * 64, files)
+        entry = manifest["archives"][archive.name]
+        self.assertEqual(manifest["runner_sha256"], assembly.digest(assembly.RUNNER.read_bytes()))
+        self.assertEqual(entry["archive_sha256"], "a" * 64)
+        self.assertEqual(entry["status_protocol"], "advisory-v2")
+        self.assertEqual(entry["packaging_commit"], "d" * 40)
+
+    def test_current_source_rejects_uncommitted_packaging_tooling(self):
+        with patch.object(assembly, "git_file", return_value=b"different"):
+            with self.assertRaisesRegex(ValueError, "Packaging tool differs"):
+                assembly.verify_packaging_tooling("fixture-java", "c" * 40)
+
+    def test_publish_output_checksums_archive_and_compatibility_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            files = {
+                "bin/status": assembly.template_path("bin/status").read_bytes(),
+                "build-info.json": json.dumps({
+                    "java_build_commit": "c" * 40, "rust_commit": assembly.RUST_SHA,
+                }).encode(),
+            }
+            archive = assembly.publish_output(files, output, "4.0.0-test-dev.1", "linux-x64")
+            manifest = output / "archive-runner-compatibility.json"
+            lines = (output / "SHA256SUMS").read_text().splitlines()
+            self.assertEqual(lines, [f"{assembly.digest(archive.read_bytes())}  {archive.name}",
+                                     f"{assembly.digest(manifest.read_bytes())}  {manifest.name}"])
+            self.assertEqual(json.loads(manifest.read_text())["archives"][archive.name]["archive_sha256"],
+                             assembly.digest(archive.read_bytes()))
+            with self.assertRaisesRegex(ValueError, "must be empty"):
+                assembly.publish_output(files, output, "4.0.0-test-dev.1", "linux-x64")
+
+    def test_clean_packaging_checkout_inventory_is_verified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.name", "Packaging Test"], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.email", "packaging@example.invalid"], check=True)
+            (repo / "tracked.txt").write_text("tracked\n")
+            subprocess.run(["git", "-C", str(repo), "add", "tracked.txt"], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True)
+            source = {"commit": subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                                                        text=True).strip(),
+                      "worktree_inventory_sha256": staging.tracked_inventory(repo)}
+            staging.verify_clean_checkout(repo, source)
+            (repo / "untracked.txt").write_text("dirty\n")
+            with self.assertRaisesRegex(ValueError, "not clean"):
+                staging.verify_clean_checkout(repo, source)
+            (repo / "untracked.txt").unlink()
+            with self.assertRaisesRegex(ValueError, "inventory"):
+                staging.verify_clean_checkout(repo, {**source, "worktree_inventory_sha256": "0" * 64})
 
 
 if __name__ == "__main__":

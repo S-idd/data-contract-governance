@@ -33,6 +33,9 @@ def collect(args):
     metadata = json.loads(args.cargo_metadata.read_text())
     supplements = json.loads(Path(__file__).with_name("license-sources.json").read_text())
     pins = json.loads(Path(__file__).with_name("release-pins.json").read_text())
+    java_build_commit = args.java_build_commit or pins["java_build_commit"]
+    if not re.fullmatch(r"[0-9a-f]{40}", java_build_commit):
+        raise ValueError("Java build commit must be a full SHA")
     report = {"maven_components": 0, "cargo_components": 0, "missing_license_text": [],
               "invalid_license_text": [], "missing_structured_attribution": [],
               "missing_upstream_source_url": [], "named_or_copyleft_licenses": [], "source_texts": []}
@@ -58,7 +61,7 @@ def collect(args):
         purl = component["purl"]
         if group == "com.ideas.contracts":
             component["licenses"] = [{"license": {"id": "Apache-2.0"}}]
-            component["externalReferences"] = [{"type": "vcs", "url": f"https://github.com/S-idd/data-contract-governance/tree/{pins['java_build_commit']}"}]
+            component["externalReferences"] = [{"type": "vcs", "url": f"https://github.com/S-idd/data-contract-governance/tree/{java_build_commit}"}]
             add(purl + " / LICENSE", (java / "LICENSE").read_bytes())
             continue
         qualifiers = parse_qs(urlsplit(purl).query)
@@ -249,7 +252,7 @@ def collect(args):
             upstream = next((item.get("url") for item in references if item.get("type") == "website" and item.get("url")), None)
         if purl.startswith("pkg:maven/"):
             group = component.get("group", "").replace(".", "/")
-            registry = (f"https://github.com/S-idd/data-contract-governance/tree/{pins['java_build_commit']}"
+            registry = (f"https://github.com/S-idd/data-contract-governance/tree/{java_build_commit}"
                         if component.get("group") == "com.ideas.contracts" else
                         f"https://repo.maven.apache.org/maven2/{group}/{name}/{version}/{name}-{version}.jar")
         elif purl.startswith("pkg:cargo/"):
@@ -285,4 +288,6 @@ if __name__ == "__main__":
     for field in ["java-source", "cargo-metadata", "maven-repo", "rust-sysroot", "license-supplements", "output"]:
         parser.add_argument("--" + field, type=Path, required=True)
     parser.add_argument("--target", required=True)
+    parser.add_argument("--java-build-commit",
+                        help="Full Java source SHA; defaults to the immutable RC pin")
     collect(parser.parse_args())
