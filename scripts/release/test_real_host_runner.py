@@ -57,6 +57,12 @@ class RealHostRunnerTests(unittest.TestCase):
                   b"printf 'rust: ready (package-owned listener without PID record, PID %s)\\n' 123")
         self.assertEqual(runner.status_protocol(current), "advisory-v2")
         self.assertEqual(runner.status_protocol(legacy), "legacy-v1")
+        self.assertEqual(runner.expected_status_exit("advisory-v2", "outage"), 0)
+        self.assertEqual(runner.expected_status_exit("legacy-v1", "outage"), 1)
+        for protocol in ("advisory-v2", "legacy-v1"):
+            self.assertEqual(runner.expected_status_exit(protocol, "ready"), 0)
+            self.assertEqual(runner.expected_status_exit(protocol, "stopped"), 1)
+            self.assertEqual(runner.expected_status_exit(protocol, "manual"), 1)
         runner.require_status("advisory-v2", "outage",
                               "Java service: RUNNING\nDeterministic enforcement: ACTIVE\n"
                               "AI advisory mode: UNAVAILABLE\nRust advisory process: STOPPED\n")
@@ -67,6 +73,8 @@ class RealHostRunnerTests(unittest.TestCase):
     def test_unknown_status_protocol_is_rejected(self):
         with self.assertRaisesRegex(AssertionError, "Unsupported bin/status protocol"):
             runner.status_protocol(b"echo unknown")
+        with self.assertRaisesRegex(AssertionError, "Unknown status exit assertion"):
+            runner.expected_status_exit("advisory-v2", "unknown")
 
     def test_compatibility_manifest_pins_runner_and_archive(self):
         with tempfile.TemporaryDirectory() as directory:
