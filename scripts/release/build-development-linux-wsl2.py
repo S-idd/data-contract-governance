@@ -23,6 +23,7 @@ PINS_PATH = RELEASE_DIR / "release-pins.json"
 LICENSE_SOURCES_PATH = RELEASE_DIR / "license-sources.json"
 TARGET = "x86_64-unknown-linux-gnu"
 PLATFORM = "linux-x64"
+RUST_REMAP_DESTINATION = "/dcg-build-home"
 
 
 def fail(message):
@@ -150,6 +151,17 @@ def verify_external_checksums(directory):
         require(sha256(directory / name) == expected, f"Checksum mismatch: {name}")
 
 
+def rust_path_remapping(builder_home):
+    return {
+        "schema_version": 1,
+        "applied": True,
+        "source_prefix": "<builder-home>",
+        "destination_prefix": RUST_REMAP_DESTINATION,
+        "reason": "Prevent developer-specific absolute source paths in the packaged Rust executable",
+        "rustflags": f"--remap-path-prefix=<builder-home>={RUST_REMAP_DESTINATION}",
+    }, f"--remap-path-prefix={builder_home}={RUST_REMAP_DESTINATION}"
+
+
 def parse_args():
     today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
     parser = argparse.ArgumentParser(description=__doc__)
@@ -245,9 +257,11 @@ def main():
     development_info = work / "development-info.json"
     development_info.write_text(json.dumps(development, indent=2) + "\n")
 
+    remapping, rustflags = rust_path_remapping(Path.home().resolve())
     build_env = {**os.environ, "JAVA_HOME": str(java_home),
                  "PATH": str(java_home / "bin") + os.pathsep + os.environ["PATH"],
-                 "RUSTUP_TOOLCHAIN": "1.96.0"}
+                 "RUSTUP_TOOLCHAIN": "1.96.0", "RUSTFLAGS": rustflags}
+    build_env.pop("CARGO_ENCODED_RUSTFLAGS", None)
     maven_command = [
         "./mvnw", "-B", "-ntp", "-pl", "contract-cli,contract-service", "-am", "package",
         "org.cyclonedx:cyclonedx-maven-plugin:2.9.2:makeAggregateBom",
@@ -265,9 +279,13 @@ def main():
     rust_platform.mkdir()
     rust_binary = rust_source / "target" / TARGET / "release/dcgaimodel"
     require(rust_binary.is_file(), f"Rust binary was not generated: {rust_binary}")
+    builder_home_prefix = str(Path.home().resolve()).rstrip("/").encode() + b"/"
+    require(builder_home_prefix not in rust_binary.read_bytes(),
+            "Rust path remapping failed; the executable still contains the builder home")
     shutil.copy2(rust_binary, rust_platform / "dcgaimodel")
     (rust_platform / "rustc.txt").write_text(rustc_identity + "\n")
     (rust_platform / "cargo.txt").write_text(cargo_identity + "\n")
+    (rust_platform / "path-remap.json").write_text(json.dumps(remapping, indent=2) + "\n")
 
     cargo_metadata = work / "cargo-linux-x64.json"
     with cargo_metadata.open("wb") as metadata:

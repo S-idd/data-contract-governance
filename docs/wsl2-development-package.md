@@ -68,7 +68,9 @@ This single command:
 1. rejects WSL1, containers, wrong architectures, dirty source, wrong commits/toolchains,
    reused output directories, Windows-mounted build directories, and occupied demo ports;
 2. exports both exact commits rather than building from mutable working-tree files;
-3. builds the Java CLI/service and Linux x64 Rust advisory binary;
+3. builds the Java CLI/service and Linux x64 Rust advisory binary; Rust compilation remaps
+   the private builder home to `/dcg-build-home` and verifies that the executable contains
+   no builder-home path before staging;
 4. generates and verifies dependency evidence;
 5. stages provenance and assembles the same package twice;
 6. requires identical archive, compatibility-manifest, and checksum bytes;
