@@ -30,6 +30,7 @@ SERVICE = f"contract-service-{VERSION}.jar"
 TEMPLATES = Path(__file__).resolve().parents[2] / "packaging/local"
 RUNNER = Path(__file__).with_name("test-extracted-package.py")
 TOOLING = {
+    "scripts/release/build-development-linux-wsl2.py": Path(__file__).with_name("build-development-linux-wsl2.py"),
     "scripts/release/assemble-local.py": Path(__file__),
     "scripts/release/stage-local-inputs.py": Path(__file__).with_name("stage-local-inputs.py"),
     "scripts/release/collect-dependency-evidence.py": Path(__file__).with_name("collect-dependency-evidence.py"),
