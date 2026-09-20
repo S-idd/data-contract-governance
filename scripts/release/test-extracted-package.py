@@ -77,6 +77,15 @@ def require_status(protocol, phase, output):
             f"Unexpected {phase} output for {protocol}: {output}")
 
 
+def expected_status_exit(protocol, phase):
+    expected = {
+        "advisory-v2": {"stopped": 1, "ready": 0, "outage": 0, "manual": 1},
+        "legacy-v1": {"stopped": 1, "ready": 0, "outage": 1, "manual": 1},
+    }
+    require(protocol in expected and phase in expected[protocol], "Unknown status exit assertion")
+    return expected[protocol][phase]
+
+
 def compatibility_entry(runner_path, archive_name, archive_sha256):
     """Verify an optional handoff manifest placed beside this standalone runner."""
     manifest_path = runner_path.resolve().with_name(COMPATIBILITY_MANIFEST)
@@ -253,9 +262,9 @@ def main():
         passed("Java absent produces actionable error", diagnostic=missing.stderr.strip())
         sentinel = subprocess.Popen(["/bin/sleep", "600"])
         require("check-compat" in run("dcg", "--help"), "CLI did not start")
-        run("status", expected=1)
+        run("status", expected=expected_status_exit(protocol, "stopped"))
         run("start")
-        require_status(protocol, "ready", run("status"))
+        require_status(protocol, "ready", run("status", expected=expected_status_exit(protocol, "ready")))
         listeners = subprocess.check_output(["lsof", "-nP", "-iTCP:8080", "-iTCP:8081", "-sTCP:LISTEN"], text=True)
         for port in [8080, 8081]:
             require(f"127.0.0.1:{port}" in listeners and f"*:{port}" not in listeners, "Non-loopback/missing listener")
@@ -268,7 +277,7 @@ def main():
         baseline = contract_check("healthy AI prediction", "shadow_inference_prediction")
         subprocess.run(["bash", "-c", 'source "$1"; state_init; lock; stop_one rust', "acceptance", str(package / "bin/dcg")],
                        env=env, cwd=work, check=True, timeout=40)
-        outage_status = run("status", expected=1)
+        outage_status = run("status", expected=expected_status_exit(protocol, "outage"))
         require_status(protocol, "outage", outage_status)
         if protocol == "advisory-v2":
             outage_start = run("start")
@@ -307,14 +316,14 @@ def main():
             run("status")
             run("stop")
             clean_shutdown()
-            run("status", expected=1)
+            run("status", expected=expected_status_exit(protocol, "stopped"))
             passed(f"additional start/stop cycle {cycle + 1}")
         with (state / "logs/rust.log").open("ab") as log:
             manual = subprocess.Popen(["./bin/dcgaimodel", "serve-shadow-inference", "--artifact-root", str(package / "model"),
                                        "--bind", "127.0.0.1:8081"], cwd=package, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
         wait_until(lambda: bool(subprocess.run(["curl", "--noproxy", "*", "-fsS", "http://127.0.0.1:8081/health/ready"],
                                                capture_output=True).returncode == 0), "Manual Rust process did not become ready")
-        require_status(protocol, "manual", run("status", expected=1))
+        require_status(protocol, "manual", run("status", expected=expected_status_exit(protocol, "manual")))
         run("stop")
         manual.wait(timeout=10)
         clean_shutdown()

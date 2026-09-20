@@ -133,7 +133,9 @@ port/PID cleanup, SQLite integrity and unchanged package files. It saves a struc
 `acceptance-report.json` and private service logs without copying the password into the report.
 It identifies the packaged `bin/status` protocol, verifies that launcher's hash against
 `build-info.json`, and applies assertions for that declared protocol instead of assuming the
-working checkout's current output wording. For transferred handoff bundles, place an
+working checkout's current output wording. Exit-code assertions are protocol-specific: an
+`advisory-v2` AI outage returns success while deterministic enforcement remains active,
+whereas the legacy protocol reports that partial state as failure. For transferred handoff bundles, place an
 `archive-runner-compatibility.json` beside the runner. When present, the runner requires its
 own hash, the selected archive hash, Java/Rust commits, status-launcher hash and protocol to
 match that manifest before any service is started.
