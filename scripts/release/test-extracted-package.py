@@ -18,6 +18,9 @@ import urllib.error
 import urllib.request
 
 
+COMPATIBILITY_MANIFEST = "archive-runner-compatibility.json"
+
+
 def require(condition, message):
     if not condition:
         raise AssertionError(message)
@@ -44,6 +47,52 @@ def check_files(package):
     return expected
 
 
+def status_protocol(data):
+    """Identify the status vocabulary shipped by the archive being tested."""
+    text = data.decode("utf-8")
+    if "AI advisory mode:" in text and "Rust advisory process:" in text:
+        return "advisory-v2"
+    if "stopped (or stale identity record)" in text and "package-owned listener without PID record" in text:
+        return "legacy-v1"
+    raise AssertionError("Unsupported bin/status protocol; use the acceptance runner paired with this archive")
+
+
+def require_status(protocol, phase, output):
+    expected = {
+        "advisory-v2": {
+            "ready": ("Java service: RUNNING", "Deterministic enforcement: ACTIVE",
+                      "AI advisory mode: AVAILABLE", "Rust advisory process: RUNNING"),
+            "outage": ("Java service: RUNNING", "Deterministic enforcement: ACTIVE",
+                       "AI advisory mode: UNAVAILABLE", "Rust advisory process: STOPPED"),
+            "manual": ("Rust advisory process: NOT OWNED",),
+        },
+        "legacy-v1": {
+            "ready": ("java: ready", "rust: ready"),
+            "outage": ("java: ready", "rust: stopped (or stale identity record)"),
+            "manual": ("rust: ready (package-owned listener without PID record",),
+        },
+    }
+    require(protocol in expected and phase in expected[protocol], "Unknown status assertion")
+    require(all(fragment in output for fragment in expected[protocol][phase]),
+            f"Unexpected {phase} output for {protocol}: {output}")
+
+
+def compatibility_entry(runner_path, archive_name, archive_sha256):
+    """Verify an optional handoff manifest placed beside this standalone runner."""
+    manifest_path = runner_path.resolve().with_name(COMPATIBILITY_MANIFEST)
+    if not manifest_path.exists():
+        return None
+    manifest = json.loads(manifest_path.read_text())
+    require(manifest.get("schema_version") == 1, "Unsupported archive/runner compatibility manifest")
+    require(manifest.get("runner_sha256") == sha(runner_path),
+            "Acceptance runner does not match archive-runner-compatibility.json")
+    entry = manifest.get("archives", {}).get(archive_name)
+    require(entry is not None, f"Archive is not listed in {COMPATIBILITY_MANIFEST}: {archive_name}")
+    require(entry.get("archive_sha256") == archive_sha256,
+            "Archive checksum does not match archive-runner-compatibility.json")
+    return entry
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, required=True)
@@ -64,11 +113,15 @@ def main():
         require("wsl2" in platform.release().lower() or "microsoft-standard" in platform.release().lower(), "Use WSL2, not WSL1, for this Linux runtime test")
     os.umask(0o077)
     work.mkdir(parents=True)
+    runner_path = Path(__file__).resolve()
+    archive_sha256 = sha(archive)
+    bundle_entry = compatibility_entry(runner_path, archive.name, archive_sha256)
     report = {"started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "archive": archive.name,
-              "archive_sha256": sha(archive), "machine": args.machine_description,
+              "archive_sha256": archive_sha256, "machine": args.machine_description,
               "system": platform.system(), "machine_arch": platform.machine(), "os_release": platform.release(),
               "execution_environment": "WSL2 (not bare-metal Linux)" if is_wsl else "native target host (operator-described)",
-              "runner_sha256": sha(Path(__file__)), "checks": [], "status": "RUNNING"}
+              "runner_sha256": sha(runner_path), "compatibility_manifest_verified": bundle_entry is not None,
+              "checks": [], "status": "RUNNING"}
     package = None
     restored = None
     manual = None
@@ -169,8 +222,24 @@ def main():
         checksums = check_files(package)
         info = json.loads((package / "build-info.json").read_text())
         require(info["target"] == host_target(platform.system(), platform.machine()), "Archive does not match the actual host architecture/OS")
-        report["target"] = info["target"]
-        passed("archive checksum, extraction and native-target match")
+        protocol = status_protocol((package / "bin/status").read_bytes())
+        status_sha = sha(package / "bin/status")
+        require(info.get("packaging_inputs", {}).get("bin/status") == status_sha,
+                "build-info.json does not identify the packaged bin/status bytes")
+        if bundle_entry is not None:
+            for key, actual in (("java_build_commit", info.get("java_build_commit")),
+                                ("rust_commit", info.get("rust_commit")),
+                                ("status_launcher_sha256", status_sha),
+                                ("status_protocol", protocol)):
+                require(bundle_entry.get(key) == actual,
+                        f"Archive {key} does not match {COMPATIBILITY_MANIFEST}")
+        report.update(target=info["target"], java_build_commit=info.get("java_build_commit"),
+                      rust_commit=info.get("rust_commit"), status_protocol=protocol,
+                      status_launcher_sha256=status_sha)
+        passed("archive checksum, extraction, provenance and native-target match",
+               java_build_commit=info.get("java_build_commit"), status_protocol=protocol,
+               status_launcher_sha256=status_sha,
+               compatibility_manifest_verified=bundle_entry is not None)
         no_java = work / "path without java"
         no_java.mkdir()
         for utility in ("bash", "dirname", "mkdir", "ps", "curl", "lsof"):
@@ -186,7 +255,7 @@ def main():
         require("check-compat" in run("dcg", "--help"), "CLI did not start")
         run("status", expected=1)
         run("start")
-        run("status")
+        require_status(protocol, "ready", run("status"))
         listeners = subprocess.check_output(["lsof", "-nP", "-iTCP:8080", "-iTCP:8081", "-sTCP:LISTEN"], text=True)
         for port in [8080, 8081]:
             require(f"127.0.0.1:{port}" in listeners and f"*:{port}" not in listeners, "Non-loopback/missing listener")
@@ -199,13 +268,15 @@ def main():
         baseline = contract_check("healthy AI prediction", "shadow_inference_prediction")
         subprocess.run(["bash", "-c", 'source "$1"; state_init; lock; stop_one rust', "acceptance", str(package / "bin/dcg")],
                        env=env, cwd=work, check=True, timeout=40)
-        outage_status = run("status")
-        require("AI advisory mode: UNAVAILABLE" in outage_status
-                and "Rust advisory process: STOPPED" in outage_status,
-                "Advisory outage not reported while deterministic enforcement remains active")
-        outage_start = run("start")
-        require("AI advisory: unavailable" in outage_start and "already running" in outage_start,
-                "Repeat start did not preserve the deterministic service during an advisory outage")
+        outage_status = run("status", expected=1)
+        require_status(protocol, "outage", outage_status)
+        if protocol == "advisory-v2":
+            outage_start = run("start")
+            require("AI advisory: unavailable" in outage_start and "already running" in outage_start,
+                    "Repeat start did not preserve the deterministic service during an advisory outage")
+        else:
+            require("Partial instance" in run("start", expected=1),
+                    "Legacy partial start must not spawn duplicate processes")
         require(identity == (state / "run/java.pid").read_bytes(),
                 "Advisory outage repeat start replaced Java")
         unavailable = contract_check("AI outage preserves authoritative result", "shadow_inference_call_failed")
@@ -243,8 +314,7 @@ def main():
                                        "--bind", "127.0.0.1:8081"], cwd=package, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
         wait_until(lambda: bool(subprocess.run(["curl", "--noproxy", "*", "-fsS", "http://127.0.0.1:8081/health/ready"],
                                                capture_output=True).returncode == 0), "Manual Rust process did not become ready")
-        require("Rust advisory process: NOT OWNED" in run("status", expected=1),
-                "Relative-path Rust listener without a PID record was not reported")
+        require_status(protocol, "manual", run("status", expected=1))
         run("stop")
         manual.wait(timeout=10)
         clean_shutdown()
