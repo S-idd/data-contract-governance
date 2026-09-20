@@ -229,8 +229,10 @@ records source template hashes separately from transformed packaged launcher has
 Development assembly requires `dependency_evidence.notices_sha256` and `sbom_sha256` to
 match the inputs before creating checksums; notices are copied as bytes, preserving upstream
 line endings. Developer home/temp paths are rejected, including inside nested JAR entries.
-A necessary path-remapped binary rebuild must record the original and replacement hashes,
-exact source/toolchain, reason, command and build log hash; it does not inherit RC acceptance.
+The maintained WSL2 workflow compiles the Rust executable once with a mandatory
+`--remap-path-prefix=<builder-home>=/dcg-build-home`, verifies the builder home is absent
+before staging, and records the sanitized flag, reason, exact toolchain and build-log hash in
+provenance. Do not patch an already-built binary; restart with a new workflow directory.
 
 Use `DCG_TEST_INSTALLED_LAUNCHERS=true` with `DCG_TEST_PACKAGE`, `IEMS_TEST_ROOT` and Java 21
 to run `test_no_ai_foundation.py` with launchers copied from the installed development

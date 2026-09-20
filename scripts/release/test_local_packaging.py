@@ -145,6 +145,24 @@ class PackagingTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "WSL ext4 filesystem"):
                 wsl_workflow.require_outside_windows_mount(Path("fixture"))
 
+    def test_wsl_rust_build_remaps_and_rejects_builder_home(self):
+        metadata, flag = wsl_workflow.rust_path_remapping(Path.home())
+        self.assertEqual(metadata, assembly.RUST_REMAP_PROVENANCE)
+        self.assertEqual(metadata["source_prefix"], "<builder-home>")
+        self.assertNotIn(str(Path.home()), metadata["rustflags"])
+        self.assertEqual(flag, f"--remap-path-prefix={Path.home()}=/dcg-build-home")
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            platform_dir = work / "linux-x64"
+            platform_dir.mkdir()
+            (platform_dir / "path-remap.json").write_text(json.dumps(metadata))
+            binary = platform_dir / "dcgaimodel"
+            binary.write_bytes(b"safe /dcg-build-home/rust-source/src/main.rs")
+            self.assertEqual(staging.rust_path_remapping(work, "linux-x64", True, binary), metadata)
+            binary.write_bytes(str(Path.home()).encode() + b"/private/source.rs")
+            with self.assertRaisesRegex(ValueError, "still contains the builder home"):
+                staging.rust_path_remapping(work, "linux-x64", True, binary)
+
     def test_java_wrong_major_rejected(self):
         with tempfile.TemporaryDirectory(prefix="dcg test ") as directory:
             path = Path(directory)

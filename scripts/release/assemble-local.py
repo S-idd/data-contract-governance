@@ -37,6 +37,14 @@ TOOLING = {
     "scripts/release/test-extracted-package.py": RUNNER,
     "scripts/release/release-pins.json": PIN_FILE,
 }
+RUST_REMAP_PROVENANCE = {
+    "schema_version": 1,
+    "applied": True,
+    "source_prefix": "<builder-home>",
+    "destination_prefix": "/dcg-build-home",
+    "reason": "Prevent developer-specific absolute source paths in the packaged Rust executable",
+    "rustflags": "--remap-path-prefix=<builder-home>=/dcg-build-home",
+}
 
 
 def digest(data):
@@ -193,6 +201,9 @@ def payload(args):
                     "java_build_commit": java_commit, "rust_commit": rust_commit,
                     "packaging_commit": development["packaging_source"]["commit"], "clean": True},
                 "Provenance mismatch: development_source")
+        if args.platform == "linux-x64":
+            require(provenance.get("rust_path_remapping") == RUST_REMAP_PROVENANCE,
+                    "Provenance mismatch: rust_path_remapping")
     require(provenance.get("jdk_archive_sha256") in JDK_HASHES, "Unverified JDK archive digest")
     require(RUSTC_SHA in provenance.get("rustc_verbose", ""), "Wrong/missing full Rust compiler identity")
     require(provenance.get("cargo_version", "").startswith("cargo 1.96.0 "), "Wrong Cargo version")

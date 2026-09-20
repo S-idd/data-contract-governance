@@ -47,6 +47,21 @@ def verify_export(repo, revision, directory):
                     raise ValueError(f"Build source differs from pinned revision: {member.name}")
 
 
+def rust_path_remapping(work, platform_name, current_source, binary):
+    if not current_source or platform_name != "linux-x64":
+        return None
+    path = work / platform_name / "path-remap.json"
+    if not path.is_file():
+        raise ValueError("Missing Rust path-remapping evidence")
+    expected = assembly.RUST_REMAP_PROVENANCE
+    if json.loads(path.read_text()) != expected:
+        raise ValueError("Missing or invalid Rust path-remapping evidence")
+    home_prefix = str(Path.home().resolve()).rstrip("/").encode() + b"/"
+    if home_prefix in binary.read_bytes():
+        raise ValueError("Rust executable still contains the builder home after path remapping")
+    return expected
+
+
 def stage(args):
     work, platform_name = args.workspace.resolve(), args.platform
     target = assembly.TARGETS[platform_name]
@@ -95,6 +110,7 @@ def stage(args):
              f"lib/{assembly.SERVICE}": java_source / "contract-service/target" / assembly.SERVICE,
              "bin/dcgaimodel": binary}
     assembly.validate_binary(binary.read_bytes(), platform_name)
+    remapping = rust_path_remapping(work, platform_name, current_source, binary)
     evidence = work / f"evidence-{platform_name}"
     audit = json.loads((evidence / "license-audit.json").read_text())
     if audit["missing_license_text"]:
@@ -107,7 +123,10 @@ def stage(args):
         "java_runtime_evidence": java_version, "rustc_verbose": rustc, "cargo_version": cargo,
         "cargo_lock_sha256": digest(rust_source / "Cargo.lock"), "rust_builder": builder,
         "java_build_command": "JAVA_HOME=<verified Temurin> ./mvnw -B -ntp -pl contract-cli,contract-service -am package org.cyclonedx:cyclonedx-maven-plugin:2.9.2:makeAggregateBom -DincludeTestScope=false -DincludeProvidedScope=false -DincludeSystemScope=false -DincludeLicenseText=true -DoutputFormat=json -Dmaven.repo.local=<selected Maven repository>",
-        "rust_build_command": f"cargo +1.96.0 build --release --locked --target {target}",
+        "rust_build_command": (f"RUSTFLAGS='--remap-path-prefix=<builder-home>=/dcg-build-home' "
+                               f"cargo +1.96.0 build --release --locked --target {target}"
+                               if remapping else
+                               f"cargo +1.96.0 build --release --locked --target {target}"),
         "release_pins_sha256": digest(assembly.PIN_FILE),
         "java_build_log_sha256": digest(work / "java-build.log"), "rust_build_log_sha256": digest(build_log),
         "artifacts": {name: digest(path) for name, path in paths.items()},
@@ -122,6 +141,8 @@ def stage(args):
         provenance["development_source"] = {
             "java_build_commit": java_commit, "rust_commit": rust_commit,
             "packaging_commit": development["packaging_source"]["commit"], "clean": True}
+        if remapping:
+            provenance["rust_path_remapping"] = remapping
         provenance["publication_status"] = "Unpublished local development build input; no RC acceptance implied"
     args.output.mkdir(parents=True, exist_ok=False)
     for path in paths.values():
