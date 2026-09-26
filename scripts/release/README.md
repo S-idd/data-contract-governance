@@ -241,3 +241,28 @@ to run `test_no_ai_foundation.py` with launchers copied from the installed devel
 package. Controlled missing-artifact and breaking fixtures never edit the primary installation
 or the project's approved contracts. Verify the primary installation's checksums and lifecycle
 separately. The AI-enabled host acceptance runner above is outside this no-AI verification.
+
+## Ubuntu 24.04 evaluator bundle
+
+The complete fresh-host sequence is documented in
+[`docs/ubuntu-24.04-evaluation-build.md`](../../docs/ubuntu-24.04-evaluation-build.md).
+After a Linux x86-64 DCG archive passes real-host acceptance and the current IEMS executable
+JAR is built, assemble the separate evaluator bundle. This does not alter either input:
+
+```sh
+python3 scripts/release/assemble-ubuntu-evaluation.py \
+  --dcg-archive /absolute/path/to/accepted-dcg-linux-x64.tar.gz \
+  --dcg-acceptance-report /absolute/path/to/acceptance-report.json \
+  --iems-jar /absolute/path/to/iems/target/inclusive-education-management-system-1.0.0-SNAPSHOT.jar \
+  --iems-root /absolute/path/to/iems \
+  --output /absolute/path/to/dcg-ubuntu-24.04-evaluation \
+  --archive /absolute/path/to/dcg-ubuntu-24.04-evaluation.tar.gz
+```
+
+The output and archive paths must not exist. The assembler verifies the acceptance report's
+PASS checks and archive digest plus the package's internal checksums and target. It copies only the IEMS executable/contracts/Postman collection,
+creates a clean authoring workspace, and emits a complete bundle `SHA256SUMS`. It rejects
+archive links, devices, absolute paths, and traversal paths. Run
+`python3 scripts/release/test_ubuntu_evaluation.py` before assembly.
+The IEMS checkout must be clean, and the JAR must be its standard `target/` output; the exact
+IEMS commit and JAR digest are recorded in `bundle-info.json`.
