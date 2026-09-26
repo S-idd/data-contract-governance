@@ -36,24 +36,53 @@ lock() {
   mkdir "$STATE/lock" 2>/dev/null || die "Another launcher holds $STATE/lock. If interrupted, confirm no launcher is running before removing this empty lock directory."
   trap 'rmdir "$STATE/lock"' EXIT
 }
-signature() { ps -p "$1" -o lstart= 2>/dev/null; }
+signature() {
+  if [[ "$OSTYPE" == linux* ]]; then
+    local stat boot fields
+    # /proc starttime is field 22: kernel ticks since boot, not calendar time.
+    # Strip through the LAST ") " because comm may contain spaces/parentheses.
+    stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+    boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null) || return 1
+    read -r -a fields <<< "${stat##*) }"
+    [[ -n "$boot" && "${fields[19]:-}" =~ ^[0-9]+$ ]] || return 1
+    printf 'linux:%s:%s\n' "$boot" "${fields[19]}"
+  else
+    ps -p "$1" -o lstart= 2>/dev/null
+  fi
+}
+recorded_process_exists() {
+  [[ -f "$STATE/$1.pid" ]] || return 1
+  local pid stat
+  pid=$(head -n 1 "$STATE/$1.pid")
+  [[ "$pid" =~ ^[0-9]+$ && "$pid" -gt 1 ]] || return 1
+  stat=$(ps -p "$pid" -o stat= 2>/dev/null) || return 1
+  [[ -n "$stat" && "$stat" != *Z* ]]
+}
 alive() {
+  ALIVE_REASON='missing PID record'
   [[ -f "$STATE/$1.pid" ]] || return 1
   local pid saved current expected args
   pid=$(head -n 1 "$STATE/$1.pid")
+  ALIVE_REASON='invalid PID record'
   [[ "$pid" =~ ^[0-9]+$ && "$pid" -gt 1 ]] || return 1
   saved=$(tail -n +2 "$STATE/$1.pid")
+  ALIVE_REASON='process identity unavailable'
   current=$(signature "$pid") || return 1
+  ALIVE_REASON='saved process identity mismatch'
   [[ -n "$saved" && "$saved" == "$current" ]] || return 1
+  ALIVE_REASON='process arguments unavailable'
   args=$(ps -ww -p "$pid" -o args= 2>/dev/null) || return 1
   if [[ "$1" == java ]]; then expected="$ROOT/lib/contract-service-$VERSION.jar"; else expected="$ROOT/bin/dcgaimodel"; fi
+  ALIVE_REASON='package arguments mismatch'
   [[ "$args" == *"$expected"* ]] || return 1
   if [[ "$1" == rust ]]; then
     [[ "$args" == *"serve-shadow-inference --artifact-root $ROOT/model --bind 127.0.0.1:8081" ]] || return 1
   else
     [[ "$args" == *"--spring.config.location=file:$DATA/application-local-demo.properties"* ]] || return 1
   fi
-  [[ "$(ps -p "$pid" -o stat=)" != *Z* ]]
+  ALIVE_REASON='process exited'
+  recorded_process_exists "$1" || return 1
+  ALIVE_REASON='verified'
 }
 remember() {
   local sig command expected i
@@ -103,8 +132,12 @@ stop_one() {
         return 1
       fi
     fi
+  elif recorded_process_exists "$name"; then
+    # Identity loss is not proof of exit. Retain the record for diagnosis rather
+    # than silently orphaning a still-running service (or signalling a reused PID).
+    printf 'DCG: %s ownership unverified (%s); not signalling; preserving identity file.\n' "$name" "$ALIVE_REASON" >&2
+    return 1
   fi
-  # A stale/reused PID is never signalled.
   rm -f "$STATE/$name.pid"
 }
 port_listeners() {

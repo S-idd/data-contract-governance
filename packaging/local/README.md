@@ -101,3 +101,12 @@ See RELEASE-NOTES.md for rollback boundaries and build-info.json for provenance.
 Health probes use direct IPv4 loopback, bypass proxy environment variables, and ignore
 user curl configuration. Readiness budgets measure elapsed time, including probes;
 a failed deadline adds one final one-second diagnostic probe to the captured log.
+
+On Linux, PID records identify a process by kernel boot ID and `/proc/PID/stat`
+start ticks; they do not depend on the wall-clock timestamp printed by `ps`.
+Status reports a verified live Java process as RUNNING even if its health probe
+fails (enforcement is then INACTIVE and status exits 1). A live PID or listener
+whose ownership cannot be verified is reported as UNVERIFIED, not STOPPED.
+Stop preserves such PID records and fails without signalling an unverified PID.
+Older live Linux records using calendar timestamps are not silently upgraded;
+use fresh state directories for new acceptance runs.

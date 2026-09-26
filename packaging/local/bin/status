@@ -4,10 +4,23 @@ source "$(cd "$(dirname "$0")" && pwd -P)/dcg"
 state_init
 running_ai_mode
 result=0
-if alive java && ready http://127.0.0.1:8080/actuator/health; then
-  printf 'Java service: RUNNING\nDeterministic enforcement: ACTIVE\n'
+if alive java; then
+  printf 'Java service: RUNNING\n'
+  if ready http://127.0.0.1:8080/actuator/health; then
+    printf 'Deterministic enforcement: ACTIVE\n'
+  else
+    printf 'Deterministic enforcement: INACTIVE\n'
+    printf 'DCG: Java process is running but its health probe failed.\n' >&2
+    result=1
+  fi
 else
-  printf 'Java service: STOPPED\nDeterministic enforcement: INACTIVE\n'
+  if recorded_process_exists java || [[ -n "$(port_listeners 8080)" ]]; then
+    printf 'Java service: UNVERIFIED\n'
+    printf 'DCG: Java ownership unverified (%s); inspect the PID record and port 8080.\n' "$ALIVE_REASON" >&2
+  else
+    printf 'Java service: STOPPED\n'
+  fi
+  printf 'Deterministic enforcement: INACTIVE\n'
   result=1
 fi
 if [[ "$RUNNING_AI_ENABLED" == false ]]; then

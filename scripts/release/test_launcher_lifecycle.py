@@ -123,7 +123,8 @@ while True: time.sleep(.1)
     def test_reused_identity_is_not_signalled(self):
         process, _ = self.managed_process(True)
         (self.state / 'java.pid').write_text(f'{process.pid}\nwrong start time\n')
-        self.assertEqual(self.shell('stop_one java').returncode, 0)
+        self.assertEqual(self.shell('stop_one java').returncode, 1)
+        self.assertTrue((self.state / 'java.pid').exists())
         self.assertIsNone(process.poll())
 
 
