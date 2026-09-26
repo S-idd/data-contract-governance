@@ -100,6 +100,7 @@ def main() -> int:
         shutil.copytree(BUNDLE / "examples" / "contracts" / "orders.created", target)
         run("sqlite-contract-check", [str(SCRIPTS / "check-contract.sh"), "orders.created", "BACKWARD", "sqlite"])
 
+        started_dcg = True  # Also clean up a partially failed start.
         run("start-dcg-no-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "false"})
         started_dcg = True
         status = run("status-dcg-no-ai", [str(SCRIPTS / "status-dcg.sh")])
@@ -108,6 +109,7 @@ def main() -> int:
         run("stop-dcg-no-ai", [str(SCRIPTS / "stop-dcg.sh")])
         started_dcg = False
 
+        started_dcg = True
         run("start-dcg-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "true"})
         started_dcg = True
         status = run("status-dcg-ai", [str(SCRIPTS / "status-dcg.sh")])

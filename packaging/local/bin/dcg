@@ -45,7 +45,7 @@ alive() {
   saved=$(tail -n +2 "$STATE/$1.pid")
   current=$(signature "$pid") || return 1
   [[ -n "$saved" && "$saved" == "$current" ]] || return 1
-  args=$(ps -p "$pid" -o args= 2>/dev/null) || return 1
+  args=$(ps -ww -p "$pid" -o args= 2>/dev/null) || return 1
   if [[ "$1" == java ]]; then expected="$ROOT/lib/contract-service-$VERSION.jar"; else expected="$ROOT/bin/dcgaimodel"; fi
   [[ "$args" == *"$expected"* ]] || return 1
   if [[ "$1" == rust ]]; then
@@ -71,17 +71,38 @@ remember() {
   done
   return 1
 }
+# Check the original process independently of argv during JVM shutdown. A zombie
+# has exited and cannot hold a socket; its parent is responsible for reaping it.
+identity_running() {
+  local current stat
+  current=$(signature "$1") || return 1
+  [[ -n "$2" && "$current" == "$2" ]] || return 1
+  stat=$(ps -p "$1" -o stat= 2>/dev/null) || return 1
+  [[ -n "$stat" && "$stat" != *Z* ]]
+}
 stop_one() {
-  local name=$1 pid i
+  local name=$1 pid sig deadline
   if alive "$name"; then
     pid=$(head -n 1 "$STATE/$name.pid")
-    kill -TERM "$pid" || return 1
-    for ((i=0; i<30; i++)); do
-      if ! alive "$name"; then rm -f "$STATE/$name.pid"; return 0; fi
-      sleep 1
-    done
-    printf 'DCG: %s did not stop; preserving identity file. No forced kill sent.\n' "$name" >&2
-    return 1
+    sig=$(tail -n +2 "$STATE/$name.pid")
+    identity_running "$pid" "$sig" && alive "$name" || return 1
+    kill -TERM "$pid" || { ! identity_running "$pid" "$sig" || return 1; }
+    deadline=$((SECONDS + 30))
+    while identity_running "$pid" "$sig" && ((SECONDS < deadline)); do sleep 0.2; done
+    if identity_running "$pid" "$sig"; then
+      # Graceful web-server shutdown is not proof that JVM hooks have finished.
+      # Never signal a process group, descendants, or a PID found only by port.
+      alive "$name" && [[ "$(head -n 1 "$STATE/$name.pid")" == "$pid" ]] || return 1
+      identity_running "$pid" "$sig" || return 1
+      printf 'DCG: %s still running after 30s; sending KILL to verified PID %s.\n' "$name" "$pid" >&2
+      kill -KILL "$pid" || { ! identity_running "$pid" "$sig" || return 1; }
+      deadline=$((SECONDS + 5))
+      while identity_running "$pid" "$sig" && ((SECONDS < deadline)); do sleep 0.2; done
+      if identity_running "$pid" "$sig"; then
+        printf 'DCG: %s did not exit; preserving identity file.\n' "$name" >&2
+        return 1
+      fi
+    fi
   fi
   # A stale/reused PID is never signalled.
   rm -f "$STATE/$name.pid"
@@ -96,7 +117,7 @@ owned_rust_listener() {
   # -Fn preserves spaces in the path, unlike parsing lsof's tabular output.
   exe_path=$(lsof -nP -a -p "$pid" -d txt -Fn 2>/dev/null | sed -n '/^n/{s/^n//;p;q;}') || return 1
   [[ "$exe_path" == "$ROOT/bin/dcgaimodel" ]] || return 1
-  command=$(ps -p "$pid" -o args= 2>/dev/null) || return 1
+  command=$(ps -ww -p "$pid" -o args= 2>/dev/null) || return 1
   expected_args="serve-shadow-inference --artifact-root $ROOT/model --bind 127.0.0.1:8081"
   # argv[0] may be relative, absolute, or contain spaces. Require the exact
   # remaining arguments after a space, with no trailing or extra arguments.
@@ -131,14 +152,28 @@ stop_untracked_rust() {
   printf 'DCG: owned Rust listener is still present after shutdown.\n' >&2
   return 1
 }
-ready() { curl --noproxy '*' -fsS --connect-timeout 1 --max-time 2 "$1" >/dev/null 2>&1; }
+# -q must be first: user curlrc settings must not change a local health probe.
+# Explicit IPv4 loopback and noproxy isolate probes from inherited proxy settings.
+ready() { curl -q --noproxy '*' -4 -fsS --connect-timeout 1 --max-time "${2:-2}" "$1" >/dev/null 2>&1; }
 wait_ready() {
-  local i attempts=${3:-60}
-  for ((i=0; i<attempts; i++)); do
-    alive "$1" || return 1
-    if ready "$2"; then return 0; fi
-    sleep 1
+  local deadline=$((SECONDS + ${3:-60})) remaining limit
+  while ((SECONDS < deadline)); do
+    if ! alive "$1"; then
+      printf 'DCG: %s process exited or its saved identity no longer matches.\n' "$1" >&2
+      return 1
+    fi
+    remaining=$((deadline - SECONDS))
+    ((remaining > 0)) || break
+    limit=2
+    ((remaining >= limit)) || limit=$remaining
+    if ready "$2" "$limit"; then return 0; fi
+    ((SECONDS < deadline)) && sleep 0.2
   done
+  printf 'DCG: readiness deadline reached for %s (%s); direct IPv4 probe, proxy bypass enabled, curlrc disabled.\n' "$1" "$2" >&2
+  alive "$1" || return 1
+  # Preserve a bounded probe diagnostic in the launcher's captured acceptance log.
+  curl -q --noproxy '*' -4 -fsS --connect-timeout 1 --max-time 1 \
+    --output /dev/null --write-out 'DCG: health HTTP %{http_code}\n' "$2" >&2 && return 0
   return 1
 }
 advisory_startup_timeout() {
