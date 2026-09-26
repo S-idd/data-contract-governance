@@ -127,6 +127,9 @@ def copy_iems(iems_jar: Path, iems_root: Path, destination: Path) -> str:
     expected_jar = iems_root / "target" / "inclusive-education-management-system-1.0.0-SNAPSHOT.jar"
     require(iems_jar.resolve() == expected_jar.resolve(), "IEMS JAR must be the standard target output inside --iems-root")
     commit = git_identity(iems_root)
+    # Keep this evaluator fixture in DCG so older IEMS checkouts need no helper patch.
+    seed = ROOT / "scripts/release/fixtures/iems/seed_notification.py"
+    require(seed.is_file(), f"Bundled IEMS notification fixture helper is missing: {seed}")
     target = destination / "iems"
     target.mkdir()
     shutil.copy2(iems_jar, target / "iems.jar")
@@ -134,6 +137,7 @@ def copy_iems(iems_jar: Path, iems_root: Path, destination: Path) -> str:
         source = iems_root / name
         require(source.is_dir(), f"IEMS input is missing {name}/")
         copy_tree(source, target / name)
+    shutil.copy2(seed, target / "postman" / seed.name)
     shutil.copy2(destination / "examples" / "policy-packs.json", target / "contracts" / "policy-packs.json")
     return commit
 
