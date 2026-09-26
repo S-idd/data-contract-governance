@@ -3,6 +3,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd -P)/dcg"
 requested_ai_mode
 advisory_startup_timeout
+java_startup_timeout
 state_init
 java_check
 lock
@@ -66,7 +67,8 @@ nohup "$JAVA" -jar "$ROOT/lib/contract-service-$VERSION.jar" \
 java_pid=$!
 remember java "$java_pid" || die 'Java exited or did not exec before its process identity could be recorded.'
 started_java=1
-wait_ready java http://127.0.0.1:8080/actuator/health || die 'Java readiness failed.'
+wait_ready java http://127.0.0.1:8080/actuator/health "$JAVA_STARTUP_TIMEOUT" || \
+  die "Java readiness failed after ${JAVA_STARTUP_TIMEOUT}s."
 printf '%s\n' "$AI_ENABLED" > "$STATE/ai-enabled"
 if [[ "$AI_ENABLED" == true ]]; then
   printf 'STARTING\n' > "$STATE/advisory-state"

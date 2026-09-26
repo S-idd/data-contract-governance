@@ -58,7 +58,9 @@ password file, not the password. Rust inference is advisory, asynchronous and fa
 Java remains authoritative. In AI-enabled mode Java starts first, then Rust starts
 best-effort. A missing binary/model, occupied Rust port, failed process or readiness
 timeout prints `AI advisory: unavailable` while Java continues. `bin/status` reports
-the Java and advisory states independently. `DCG_AI_STARTUP_TIMEOUT_SECONDS` may be
+the Java and advisory states independently. `DCG_JAVA_STARTUP_TIMEOUT_SECONDS` sets the
+bounded Java readiness deadline from 1 to 300 seconds (default 120; real-host acceptance
+uses 180). `DCG_AI_STARTUP_TIMEOUT_SECONDS` may be
 set to 1–10 (default 3); the Java inference request timeout remains configured by
 `shadow.inference.timeout` (default 500 ms). The IEMS application performs its own
 deterministic CLI checks before dispatching Java; this service launcher does not
