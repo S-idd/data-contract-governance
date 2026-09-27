@@ -65,6 +65,7 @@ class UbuntuEvaluationAssemblerTest(unittest.TestCase):
             state = bundle / "workspace/state/iems"
             state.mkdir(parents=True)
             (state / "admin-password").write_text("test-password")
+            (state / "backend").write_text("sqlite")
             database = bundle / "workspace/iems-data/iems.db"
             database.parent.mkdir()
             with sqlite3.connect(database) as db:

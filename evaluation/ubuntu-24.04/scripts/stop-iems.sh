@@ -10,5 +10,5 @@ if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
   kill -TERM "$pid"
   for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
 fi
-rm -f "$pid_file"
+rm -f "$pid_file" "$STATE_ROOT/iems/backend"
 printf 'IEMS stopped.\n'
