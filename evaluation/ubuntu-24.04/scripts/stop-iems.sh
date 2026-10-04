@@ -13,5 +13,5 @@ if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
     die "IEMS did not stop within 30 seconds; preserving $pid_file. No forced kill sent."
   fi
 fi
-rm -f "$pid_file"
+rm -f "$pid_file" "$STATE_ROOT/iems/backend"
 printf 'IEMS stopped.\n'

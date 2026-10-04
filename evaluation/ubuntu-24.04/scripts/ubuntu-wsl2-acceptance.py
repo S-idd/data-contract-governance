@@ -69,6 +69,9 @@ def main() -> int:
             "duration_seconds": round(time.time() - begin, 3),
         }
         checks.append(item)
+        stores = {"newman-iems-api": "sqlite", "newman-iems-postgres": "postgres", "newman-iems-mysql": "mysql"}
+        if name in stores:
+            report["api_database_matrix"][stores[name]] = item["status"]
         require(completed.returncode == expected, f"{name} exited {completed.returncode}; inspect its private log")
         return completed
 
@@ -83,6 +86,7 @@ def main() -> int:
         "bundle": BUNDLE.name,
         "checks": checks,
         "cleanup": cleanup,
+        "api_database_matrix": {store: "NOT_RUN" for store in ("sqlite", "postgres", "mysql")},
     }
     try:
         require(platform.system() == "Linux", "Linux is required")
@@ -100,8 +104,9 @@ def main() -> int:
         shutil.copytree(BUNDLE / "examples" / "contracts" / "orders.created", target)
         run("sqlite-contract-check", [str(SCRIPTS / "check-contract.sh"), "orders.created", "BACKWARD", "sqlite"])
 
-        started_dcg = True
+        started_dcg = True  # Also clean up a partially failed start.
         run("start-dcg-no-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "false"})
+        started_dcg = True
         status = run("status-dcg-no-ai", [str(SCRIPTS / "status-dcg.sh")])
         require("Deterministic enforcement: ACTIVE" in status.stdout and "AI advisory mode: DISABLED" in status.stdout,
                 "No-AI status did not report active deterministic enforcement")
@@ -110,13 +115,14 @@ def main() -> int:
 
         started_dcg = True
         run("start-dcg-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "true"})
+        started_dcg = True
         status = run("status-dcg-ai", [str(SCRIPTS / "status-dcg.sh")])
         require("Deterministic enforcement: ACTIVE" in status.stdout and "AI advisory mode: AVAILABLE" in status.stdout,
                 "AI advisory did not become available")
 
         started_iems = True
         run("start-iems-sqlite", [str(SCRIPTS / "start-iems.sh"), "sqlite"])
-        run("newman-iems-api", [str(SCRIPTS / "run-iems-postman.sh")])
+        run("newman-iems-api", [str(SCRIPTS / "run-iems-postman.sh"), "sqlite"])
         run("stop-iems-sqlite", [str(SCRIPTS / "stop-iems.sh")])
         started_iems = False
 
@@ -127,6 +133,7 @@ def main() -> int:
         for store in ("postgres", "mysql"):
             started_iems = True
             run(f"start-iems-{store}", [str(SCRIPTS / "start-iems.sh"), store])
+            run(f"newman-iems-{store}", [str(SCRIPTS / "run-iems-postman.sh"), store])
             run(f"stop-iems-{store}", [str(SCRIPTS / "stop-iems.sh")])
             started_iems = False
 
@@ -138,6 +145,7 @@ def main() -> int:
 
         for port in (8080, 8081, 8090, 54329, 33069):
             require(port_free(port), f"Port {port} remained occupied after cleanup")
+        require(all(value == "PASS" for value in report["api_database_matrix"].values()), "Incomplete API database matrix")
         report["status"] = "PASS"
         return_code = 0
     except Exception as exc:
@@ -151,6 +159,7 @@ def main() -> int:
             clean("stop-dcg", [str(SCRIPTS / "stop-dcg.sh")])
         if databases_started:
             clean("database-down", [str(SCRIPTS / "database-down.sh")])
+        report["check_count"] = len(checks)
         report["duration_seconds"] = round(time.time() - started, 3)
         (evidence / "results.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(f"{report['status']}: {evidence / 'results.json'}")

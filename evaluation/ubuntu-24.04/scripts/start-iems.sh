@@ -50,13 +50,14 @@ done
 [[ "$gate_rc" == 0 ]] || die "IEMS startup blocked by deterministic DCG gate (exit $gate_rc)."
 umask 077
 printf '%s\n' "$IEMS_DEMO_ADMIN_PASSWORD" > "$STATE_ROOT/iems/admin-password"
+printf '%s\n' "$store" > "$STATE_ROOT/iems/backend"
 nohup java -jar "$BUNDLE_ROOT/iems/iems.jar" --spring.profiles.active="$profiles" \
   > "$STATE_ROOT/iems/application.log" 2>&1 < /dev/null &
 pid=$!
 printf '%s\n' "$pid" > "$STATE_ROOT/iems/pid"
 for _ in $(seq 1 90); do
   if ! kill -0 "$pid" 2>/dev/null; then die "IEMS exited; inspect $STATE_ROOT/iems/application.log"; fi
-  if curl --noproxy '*' -fsS http://127.0.0.1:8090/actuator/health >/dev/null 2>&1; then
+  if curl -q --noproxy '*' -4 -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:8090/actuator/health >/dev/null 2>&1; then
     printf 'IEMS ready on http://127.0.0.1:8090 using %s. Log: %s\n' "$store" "$STATE_ROOT/iems/application.log"
     exit 0
   fi

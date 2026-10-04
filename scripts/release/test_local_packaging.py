@@ -199,7 +199,8 @@ STATE=$2
 printf '%s\n%s\n' "$3" "$(signature "$3")" > "$STATE/java.pid"
 stop_one java
 ''', "test", str(assembly.template_path("bin/dcg")), directory, str(process.pid)], capture_output=True)
-                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertTrue((Path(directory) / "java.pid").exists())
                 self.assertIsNone(process.poll())
             finally:
                 process.terminate()

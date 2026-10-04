@@ -81,7 +81,7 @@ AI labels and scores are advisory only. Deterministic DCG makes the final PASS/F
 
 ## 5. IEMS with SQLite
 
-The Newman runner seeds a fresh unread notification for `demo-admin` before each run using the bundled IEMS fixture helper. The `db-demo` profile disables the Kafka notification consumer; startup alone only creates the admin account. The collection deletes its notification fixture. This runner targets the SQLite database at `workspace/iems-data/iems.db`.
+The Newman runner seeds a fresh unread notification for `demo-admin` before each run using the bundled IEMS fixture helper. The `db-demo` profile disables the Kafka notification consumer; startup alone only creates the admin account. The collection deletes its notification fixture. The runner uses the backend recorded by `start-iems.sh`: SQLite at `workspace/iems-data/iems.db`, or `iems_app` in the PostgreSQL/MySQL Compose service. You can pass an explicit backend to the runner; a mismatch with the running instance is rejected. Each run writes a distinct `workspace/evidence/newman-<backend>-.../results.json`.
 
 Keep DCG running in deterministic or AI-advisory mode, then run:
 
@@ -128,3 +128,23 @@ jq '{status, target, checks, cleanup, error}' "$ACCEPTANCE_EVIDENCE/results.json
 ```
 
 The runner requires AI advisory availability, exercises the IEMS Postman collection, records DCG history in all three databases, starts IEMS on all three databases, removes only its disposable container volumes, and requires all task ports to be free afterward.
+
+## API coverage on each database
+
+After `scripts/database-up.sh`, run IEMS sequentially for each backend (stop the
+previous instance before starting another):
+
+```bash
+./scripts/start-iems.sh postgres
+./scripts/run-iems-postman.sh postgres
+./scripts/stop-iems.sh
+./scripts/start-iems.sh mysql
+./scripts/run-iems-postman.sh mysql
+./scripts/stop-iems.sh
+```
+
+The Ubuntu acceptance runner performs these API runs automatically, in addition
+to SQLite. A complete successful run has 23 checks and `api_database_matrix` entries
+of PASS for `sqlite`, `postgres`, and `mysql`; startup alone does not satisfy them.
+PostgreSQL/MySQL fixtures use native clients inside the existing Compose services.
+No extra host database clients or Python packages are needed.
