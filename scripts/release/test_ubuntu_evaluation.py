@@ -8,6 +8,7 @@ from pathlib import Path
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).with_name("assemble-ubuntu-evaluation.py")
@@ -18,6 +19,28 @@ SPEC.loader.exec_module(assembler)
 
 
 class UbuntuEvaluationAssemblerTest(unittest.TestCase):
+    def test_iems_bundle_requires_and_copies_notification_fixture(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "source"
+            destination = root / "bundle"
+            for directory in (source / "target", source / "contracts", source / "postman",
+                              source / "scripts/postman", destination / "examples"):
+                directory.mkdir(parents=True)
+            jar = source / "target/inclusive-education-management-system-1.0.0-SNAPSHOT.jar"
+            jar.write_bytes(b"jar")
+            (destination / "examples/policy-packs.json").write_text("{}")
+            with patch.object(assembler, "git_identity", return_value="test-commit"):
+                with self.assertRaisesRegex(ValueError, "notification fixture helper is missing"):
+                    assembler.copy_iems(jar, source, destination)
+                import shutil
+                shutil.rmtree(destination / "iems")
+                helper = source / "scripts/postman/seed_notification.py"
+                helper.write_text("# fixture from the pinned IEMS checkout\n")
+                assembler.copy_iems(jar, source, destination)
+            self.assertEqual((destination / "iems/postman/seed_notification.py").read_bytes(),
+                             helper.read_bytes())
+
     def test_rejects_traversal_and_links(self) -> None:
         bad = tarfile.TarInfo("../escape")
         with self.assertRaisesRegex(ValueError, "traversal"):

@@ -266,3 +266,35 @@ archive links, devices, absolute paths, and traversal paths. Run
 `python3 scripts/release/test_ubuntu_evaluation.py` before assembly.
 The IEMS checkout must be clean, and the JAR must be its standard `target/` output; the exact
 IEMS commit and JAR digest are recorded in `bundle-info.json`.
+
+## macOS ARM64 Milestone 1 (existing binaries)
+
+The macOS mode is limited to deterministic DCG plus AI advisory. It does not copy
+the Ubuntu matrix, Docker or IEMS. The Ubuntu default and its acceptance requirements
+remain unchanged. Use a separate output directory; neither input packages nor old
+archives are modified:
+
+```sh
+python3 scripts/release/assemble-ubuntu-evaluation.py \
+  --platform macos-arm64 \
+  --dcg-package /absolute/path/to/dcg-4.0.0-phase2-service-advisory-dev.20260918-r3-macos-arm64 \
+  --output /absolute/path/to/dcg-macos-arm64-milestone-1-telemetry-v2 \
+  --archive /absolute/path/to/dcg-macos-arm64-milestone-1-telemetry-v2.tar.gz
+```
+
+This mode verifies the input manifest, artifact provenance, Rust pin, Mach-O ARM64
+header, and frozen model hashes. It copies only manifest-listed files, reuses Java
+and Rust unchanged, overlays the current four local launchers, and records the
+transformation in `bundle-info.json`. Historical `dcg/build-info.json` remains intact.
+It does not infer acceptance from an older report. Run the shipped
+`scripts/macos-acceptance.py` after archive checksum verification and extraction into
+a path with spaces outside the checkout, following `evaluation/macos-arm64/README.md`.
+
+Relevant regressions:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/release -p 'test_local_packaging.py'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/release -p 'test_ubuntu_evaluation.py'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/release -p 'test_macos_evaluation.py'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/release -p 'test_macos_memory.py'
+```

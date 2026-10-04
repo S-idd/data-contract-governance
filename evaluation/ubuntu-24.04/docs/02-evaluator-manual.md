@@ -81,6 +81,8 @@ AI labels and scores are advisory only. Deterministic DCG makes the final PASS/F
 
 ## 5. IEMS with SQLite
 
+The Newman runner seeds a fresh unread notification for `demo-admin` before each run using the bundled IEMS fixture helper. The `db-demo` profile disables the Kafka notification consumer; startup alone only creates the admin account. The collection deletes its notification fixture. This runner targets the SQLite database at `workspace/iems-data/iems.db`.
+
 Keep DCG running in deterministic or AI-advisory mode, then run:
 
 ```bash

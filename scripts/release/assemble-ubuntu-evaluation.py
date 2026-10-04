@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble a clean Ubuntu 24.04 evaluator bundle from accepted binary inputs."""
+"""Assemble Ubuntu evaluation or macOS ARM64 Milestone 1 from existing binaries."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "evaluation" / "ubuntu-24.04"
+MAC_TEMPLATE = ROOT / "evaluation" / "macos-arm64"
 
 
 def require(condition: bool, message: str) -> None:
@@ -40,7 +41,7 @@ def validate_member(member: tarfile.TarInfo) -> None:
     require(member.isfile() or member.isdir(), f"Archive contains unsupported link or device: {member.name}")
 
 
-def extract_package(archive: Path, destination: Path) -> Path:
+def extract_package(archive: Path, destination: Path, target: str = "x86_64-unknown-linux-gnu") -> Path:
     with tarfile.open(archive, "r:gz") as source:
         members = source.getmembers()
         for member in members:
@@ -53,7 +54,7 @@ def extract_package(archive: Path, destination: Path) -> Path:
     require((package / "SHA256SUMS").is_file(), "DCG package is missing SHA256SUMS")
     verify_manifest(package, package / "SHA256SUMS")
     build_info = json.loads((package / "build-info.json").read_text(encoding="utf-8"))
-    require(build_info.get("target") == "x86_64-unknown-linux-gnu", "DCG package is not Linux x86-64")
+    require(build_info.get("target") == target, f"DCG package target must be {target}")
     return package
 
 
@@ -134,6 +135,9 @@ def copy_iems(iems_jar: Path, iems_root: Path, destination: Path) -> str:
         source = iems_root / name
         require(source.is_dir(), f"IEMS input is missing {name}/")
         copy_tree(source, target / name)
+    seed = iems_root / "scripts" / "postman" / "seed_notification.py"
+    require(seed.is_file(), "IEMS notification fixture helper is missing")
+    shutil.copy2(seed, target / "postman" / seed.name)
     shutil.copy2(destination / "examples" / "policy-packs.json", target / "contracts" / "policy-packs.json")
     return commit
 
@@ -195,7 +199,74 @@ def create_archive(destination: Path, archive: Path) -> None:
     )
 
 
+def assemble_macos(args: argparse.Namespace) -> None:
+    """Reuse manifest-listed inputs; never compile or copy mutable runtime state."""
+    destination = args.output.resolve()
+    require(not destination.exists(), f"Refusing to overwrite output: {destination}")
+    require(args.dcg_package is not None, "macos-arm64 requires --dcg-package")
+    package = args.dcg_package.resolve()
+    manifest = package / "SHA256SUMS"
+    entries = manifest_entries(manifest)
+    require(len(entries) == len({name for _, name in entries}), "Duplicate input manifest entry")
+    for _, name in entries:
+        path = package / name
+        require(not path.is_symlink() and path.resolve().is_relative_to(package), "Linked input is forbidden")
+    verify_manifest(package, manifest)
+    info = json.loads((package / "build-info.json").read_text())
+    require(info.get("target") == "aarch64-apple-darwin", "Milestone 1 requires native Apple Silicon inputs")
+    pins = json.loads((ROOT / "scripts/release/release-pins.json").read_text())
+    require(info.get("rust_commit") == pins["rust_commit"], "Unexpected Rust source pin")
+    names = {name for _, name in entries}
+    required = {"build-info.json", "bin/dcgaimodel", "lib/contract-cli-4.0.0-rc.1-all.jar",
+                "lib/contract-service-4.0.0-rc.1.jar"}
+    require(required <= names, "Input manifest omits required artifacts")
+    for name in required - {"build-info.json"}:
+        require(info.get("artifacts", {}).get(name) == sha256(package / name), f"Provenance mismatch: {name}")
+    binary = (package / "bin/dcgaimodel").read_bytes()
+    require(binary[:4] == b"\xcf\xfa\xed\xfe" and int.from_bytes(binary[4:8], "little") == 0x100000c,
+            "Rust executable is not Mach-O ARM64")
+    for name, digest in pins["frozen_artifacts"].items():
+        require("model/" + name in names and sha256(package / "model" / name) == digest,
+                f"Frozen model mismatch: {name}")
+    copy_tree(MAC_TEMPLATE, destination)
+    dcg = destination / "dcg"
+    for _, name in entries:
+        target = dcg / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(package / name, target)
+    # Original build-info describes the reused binaries, not these new launchers.
+    transformations = {}
+    for name in ("dcg", "start", "stop", "status"):
+        target = dcg / "bin" / name
+        shutil.copy2(ROOT / "packaging/local/bin" / name, target)
+        target.chmod(0o755)
+        transformations[f"dcg/bin/{name}"] = sha256(target)
+    write_manifest(dcg)
+    bundle_info = {
+        "bundle": destination.name, "target": "aarch64-apple-darwin", "scope": "milestone-1",
+        "bundle_revision": "milestone-1-telemetry-v2", "results_schema_version": 2,
+        "telemetry_sha256": {name: sha256(destination / "scripts" / name)
+                             for name in ("macos-acceptance.py", "memory_telemetry.py")},
+        "source_package": package.name, "source_manifest_sha256": sha256(manifest),
+        "source_build_info_sha256": sha256(package / "build-info.json"),
+        "reused_artifacts": info["artifacts"], "rust_rebuilt": False, "java_rebuilt": False,
+        "launcher_overrides": transformations,
+        "assembler_sha256": sha256(Path(__file__)),
+        "acceptance": "Run scripts/macos-acceptance.py on the extracted archive; no prior acceptance inferred",
+    }
+    (destination / "bundle-info.json").write_text(json.dumps(bundle_info, indent=2) + "\n")
+    make_executable_scripts(destination)
+    write_manifest(destination)
+    verify_manifest(destination, destination / "SHA256SUMS")
+    if args.archive:
+        create_archive(destination, args.archive.resolve())
+    print(destination)
+
+
 def assemble(args: argparse.Namespace) -> None:
+    if getattr(args, "platform", "ubuntu-24.04") == "macos-arm64":
+        assemble_macos(args)
+        return
     destination = args.output.resolve()
     require(not destination.exists(), f"Refusing to overwrite output: {destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -232,13 +303,24 @@ def assemble(args: argparse.Namespace) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dcg-archive", type=Path, required=True)
-    parser.add_argument("--dcg-acceptance-report", type=Path, required=True)
-    parser.add_argument("--iems-jar", type=Path, required=True)
-    parser.add_argument("--iems-root", type=Path, required=True)
+    parser.add_argument("--platform", choices=("ubuntu-24.04", "macos-arm64"), default="ubuntu-24.04")
+    parser.add_argument("--dcg-package", type=Path, help="Existing manifest-verified ARM64 package; macOS only")
+    parser.add_argument("--dcg-archive", type=Path)
+    parser.add_argument("--dcg-acceptance-report", type=Path)
+    parser.add_argument("--iems-jar", type=Path)
+    parser.add_argument("--iems-root", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--archive", type=Path)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.platform == "ubuntu-24.04":
+        for name in ("dcg_archive", "dcg_acceptance_report", "iems_jar", "iems_root"):
+            if getattr(args, name) is None:
+                parser.error("Ubuntu evaluation requires --" + name.replace("_", "-"))
+        if args.dcg_package:
+            parser.error("--dcg-package is only supported for macos-arm64")
+    elif not args.dcg_package or any((args.dcg_archive, args.dcg_acceptance_report, args.iems_jar, args.iems_root)):
+        parser.error("macos-arm64 requires --dcg-package and excludes Ubuntu/IEMS inputs")
+    return args
 
 
 if __name__ == "__main__":

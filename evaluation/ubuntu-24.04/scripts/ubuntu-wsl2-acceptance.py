@@ -100,33 +100,33 @@ def main() -> int:
         shutil.copytree(BUNDLE / "examples" / "contracts" / "orders.created", target)
         run("sqlite-contract-check", [str(SCRIPTS / "check-contract.sh"), "orders.created", "BACKWARD", "sqlite"])
 
-        run("start-dcg-no-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "false"})
         started_dcg = True
+        run("start-dcg-no-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "false"})
         status = run("status-dcg-no-ai", [str(SCRIPTS / "status-dcg.sh")])
         require("Deterministic enforcement: ACTIVE" in status.stdout and "AI advisory mode: DISABLED" in status.stdout,
                 "No-AI status did not report active deterministic enforcement")
         run("stop-dcg-no-ai", [str(SCRIPTS / "stop-dcg.sh")])
         started_dcg = False
 
-        run("start-dcg-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "true"})
         started_dcg = True
+        run("start-dcg-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "true"})
         status = run("status-dcg-ai", [str(SCRIPTS / "status-dcg.sh")])
         require("Deterministic enforcement: ACTIVE" in status.stdout and "AI advisory mode: AVAILABLE" in status.stdout,
                 "AI advisory did not become available")
 
-        run("start-iems-sqlite", [str(SCRIPTS / "start-iems.sh"), "sqlite"])
         started_iems = True
+        run("start-iems-sqlite", [str(SCRIPTS / "start-iems.sh"), "sqlite"])
         run("newman-iems-api", [str(SCRIPTS / "run-iems-postman.sh")])
         run("stop-iems-sqlite", [str(SCRIPTS / "stop-iems.sh")])
         started_iems = False
 
-        run("database-up", [str(SCRIPTS / "database-up.sh")])
         databases_started = True
+        run("database-up", [str(SCRIPTS / "database-up.sh")])
         run("postgres-contract-check", [str(SCRIPTS / "check-contract.sh"), "orders.created", "BACKWARD", "postgres"])
         run("mysql-contract-check", [str(SCRIPTS / "check-contract.sh"), "orders.created", "BACKWARD", "mysql"])
         for store in ("postgres", "mysql"):
-            run(f"start-iems-{store}", [str(SCRIPTS / "start-iems.sh"), store])
             started_iems = True
+            run(f"start-iems-{store}", [str(SCRIPTS / "start-iems.sh"), store])
             run(f"stop-iems-{store}", [str(SCRIPTS / "stop-iems.sh")])
             started_iems = False
 
@@ -141,6 +141,7 @@ def main() -> int:
         report["status"] = "PASS"
         return_code = 0
     except Exception as exc:
+        report["status"] = "FAIL"
         report["error"] = f"{type(exc).__name__}: {exc}"
         return_code = 1
     finally:

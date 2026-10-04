@@ -113,12 +113,13 @@ stop_untracked_rust() {
       printf 'DCG: port 8081 has an unrelated listener (PID %s); leaving it untouched.\n' "$pid" >&2
     fi
   done
+  # Bash 3.2 treats an empty array expansion as unbound under set -u.
+  [[ "${#owned[@]}" -gt 0 ]] || return 0
   for pid in "${owned[@]}"; do
     # Recheck ownership and listener identity immediately before sending a signal.
     owned_rust_listener "$pid" && [[ " $(port_listeners 8081 | tr '\n' ' ') " == *" $pid "* ]] || return 1
     kill -TERM "$pid" || return 1
   done
-  [[ "${#owned[@]}" -gt 0 ]] || return 0
   for ((i=0; i<30; i++)); do
     remaining=$(port_listeners 8081)
     still_owned=0

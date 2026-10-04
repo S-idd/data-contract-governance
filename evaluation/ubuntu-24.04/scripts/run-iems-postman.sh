@@ -3,8 +3,12 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd -P)/lib.sh"
 require_command jq
 require_command npx
+require_command python3
 password_file="$STATE_ROOT/iems/admin-password"
 [[ -s "$password_file" ]] || die 'Start IEMS first with scripts/start-iems.sh.'
+# db-demo disables the Kafka notification consumer. The collection consumes
+# this fixture (marks it read, then deletes it), so prepare it on every run.
+python3 "$BUNDLE_ROOT/iems/postman/seed_notification.py" "$WORKSPACE/iems-data/iems.db"
 evidence="$WORKSPACE/evidence/newman-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$evidence"
 environment="$evidence/iems-environment.json"
