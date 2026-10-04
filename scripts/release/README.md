@@ -241,3 +241,60 @@ to run `test_no_ai_foundation.py` with launchers copied from the installed devel
 package. Controlled missing-artifact and breaking fixtures never edit the primary installation
 or the project's approved contracts. Verify the primary installation's checksums and lifecycle
 separately. The AI-enabled host acceptance runner above is outside this no-AI verification.
+
+## Ubuntu 24.04 evaluator bundle
+
+The complete fresh-host sequence is documented in
+[`docs/ubuntu-24.04-evaluation-build.md`](../../docs/ubuntu-24.04-evaluation-build.md).
+After a Linux x86-64 DCG archive passes real-host acceptance and the current IEMS executable
+JAR is built, assemble the separate evaluator bundle. This does not alter either input:
+
+```sh
+python3 scripts/release/assemble-ubuntu-evaluation.py \
+  --dcg-archive /absolute/path/to/accepted-dcg-linux-x64.tar.gz \
+  --dcg-acceptance-report /absolute/path/to/acceptance-report.json \
+  --iems-jar /absolute/path/to/iems/target/inclusive-education-management-system-1.0.0-SNAPSHOT.jar \
+  --iems-root /absolute/path/to/iems \
+  --output /absolute/path/to/dcg-ubuntu-24.04-evaluation \
+  --archive /absolute/path/to/dcg-ubuntu-24.04-evaluation.tar.gz
+```
+
+The output and archive paths must not exist. The assembler verifies the acceptance report's
+PASS checks and archive digest plus the package's internal checksums and target. It copies only the IEMS executable/contracts/Postman collection,
+creates a clean authoring workspace, and emits a complete bundle `SHA256SUMS`. It rejects
+archive links, devices, absolute paths, and traversal paths. Run
+`python3 scripts/release/test_ubuntu_evaluation.py` before assembly.
+The IEMS checkout must be clean, and the JAR must be its standard `target/` output; the exact
+IEMS commit and JAR digest are recorded in `bundle-info.json`.
+
+## macOS ARM64 Milestone 1 (existing binaries)
+
+The macOS mode is limited to deterministic DCG plus AI advisory. It does not copy
+the Ubuntu matrix, Docker or IEMS. The Ubuntu default and its acceptance requirements
+remain unchanged. Use a separate output directory; neither input packages nor old
+archives are modified:
+
+```sh
+python3 scripts/release/assemble-ubuntu-evaluation.py \
+  --platform macos-arm64 \
+  --dcg-package /absolute/path/to/dcg-4.0.0-phase2-service-advisory-dev.20260918-r3-macos-arm64 \
+  --output /absolute/path/to/dcg-macos-arm64-milestone-1-telemetry-v2 \
+  --archive /absolute/path/to/dcg-macos-arm64-milestone-1-telemetry-v2.tar.gz
+```
+
+This mode verifies the input manifest, artifact provenance, Rust pin, Mach-O ARM64
+header, and frozen model hashes. It copies only manifest-listed files, reuses Java
+and Rust unchanged, overlays the current four local launchers, and records the
+transformation in `bundle-info.json`. Historical `dcg/build-info.json` remains intact.
+It does not infer acceptance from an older report. Run the shipped
+`scripts/macos-acceptance.py` after archive checksum verification and extraction into
+a path with spaces outside the checkout, following `evaluation/macos-arm64/README.md`.
+
+Relevant regressions:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/release -p 'test_local_packaging.py'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/release -p 'test_ubuntu_evaluation.py'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/release -p 'test_macos_evaluation.py'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/release -p 'test_macos_memory.py'
+```

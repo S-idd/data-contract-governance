@@ -136,17 +136,26 @@ def main():
     manual = None
     sentinel = None
     state = work / "persistent state"
-    env = {**os.environ, "JAVA_HOME": str(args.java_home.resolve()), "DCG_DATA_DIR": str(state)}
+    env = {**os.environ, "JAVA_HOME": str(args.java_home.resolve()), "DCG_DATA_DIR": str(state),
+           "DCG_JAVA_STARTUP_TIMEOUT_SECONDS": "180"}
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    command_attempts = {}
 
     def passed(name, **evidence):
         report["checks"].append({"check": name, "status": "PASS", **evidence})
         print("PASS:", name, flush=True)
 
     def run(name, *arguments, expected=0):
+        command_attempts[name] = command_attempts.get(name, 0) + 1
         result = subprocess.run([str(package / "bin" / name), *arguments], env=env, cwd=work,
                                 capture_output=True, text=True, timeout=220)
-        require(result.returncode == expected, f"{name}: exit {result.returncode}; {result.stdout}; {result.stderr}")
+        diagnostic = ""
+        java_log = state / "logs/java.log"
+        if name == "start" and result.returncode != expected and java_log.is_file():
+            diagnostic = "; private java.log tail:\n" + "\n".join(java_log.read_text(errors="replace").splitlines()[-80:])
+        require(result.returncode == expected,
+                f"{name} attempt {command_attempts[name]}: exit {result.returncode}; "
+                f"{result.stdout}; {result.stderr}{diagnostic}")
         return result.stdout + result.stderr
 
     def http(path, payload=None, auth=False):

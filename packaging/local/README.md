@@ -58,7 +58,9 @@ password file, not the password. Rust inference is advisory, asynchronous and fa
 Java remains authoritative. In AI-enabled mode Java starts first, then Rust starts
 best-effort. A missing binary/model, occupied Rust port, failed process or readiness
 timeout prints `AI advisory: unavailable` while Java continues. `bin/status` reports
-the Java and advisory states independently. `DCG_AI_STARTUP_TIMEOUT_SECONDS` may be
+the Java and advisory states independently. `DCG_JAVA_STARTUP_TIMEOUT_SECONDS` sets the
+bounded Java readiness deadline from 1 to 300 seconds (default 120; real-host acceptance
+uses 180). `DCG_AI_STARTUP_TIMEOUT_SECONDS` may be
 set to 1–10 (default 3); the Java inference request timeout remains configured by
 `shadow.inference.timeout` (default 500 ms). The IEMS application performs its own
 deterministic CLI checks before dispatching Java; this service launcher does not
@@ -69,7 +71,11 @@ absolute `DCG_DATA_DIR` outside the package, using the same value for start/stat
 Contracts are copied there once; upgrades never overwrite them. SQLite, logs, credentials
 and process identity records also live there. Stop retains all data. Logs append across runs.
 Tracked processes are signalled only when their recorded start time and command still match.
-If a process will not stop in 30 seconds, shutdown reports failure without a forced kill.
+Tracked processes receive TERM and have 30 seconds to exit. If one remains alive,
+shutdown rechecks its saved start time and package arguments, sends KILL only to that
+PID, and waits up to five more seconds. A web-server shutdown log alone does not mean
+the JVM exited. `bin/stop` also checks that port 8080 is released before reporting success;
+unrelated listeners are reported and never killed.
 If a manually started inference process from this exact package owns port 8081, `bin/stop`
 checks its executable and arguments and stops it, even when launched as
 `./bin/dcgaimodel`. An unrelated listener is reported and left untouched;
@@ -91,3 +97,16 @@ authentication, storage and inference settings are enforced on the Java command 
 Keep shell Java option variables free of unrelated application overrides.
 
 See RELEASE-NOTES.md for rollback boundaries and build-info.json for provenance.
+
+Health probes use direct IPv4 loopback, bypass proxy environment variables, and ignore
+user curl configuration. Readiness budgets measure elapsed time, including probes;
+a failed deadline adds one final one-second diagnostic probe to the captured log.
+
+On Linux, PID records identify a process by kernel boot ID and `/proc/PID/stat`
+start ticks; they do not depend on the wall-clock timestamp printed by `ps`.
+Status reports a verified live Java process as RUNNING even if its health probe
+fails (enforcement is then INACTIVE and status exits 1). A live PID or listener
+whose ownership cannot be verified is reported as UNVERIFIED, not STOPPED.
+Stop preserves such PID records and fails without signalling an unverified PID.
+Older live Linux records using calendar timestamps are not silently upgraded;
+use fresh state directories for new acceptance runs.

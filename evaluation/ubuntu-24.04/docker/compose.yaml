@@ -1,0 +1,40 @@
+name: dcg-evaluation
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:16}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dcg_demo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/database-up.sh first}
+      POSTGRES_DB: postgres
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-54329}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init/postgres.sh:/docker-entrypoint-initdb.d/10-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run scripts/database-up.sh first}
+      MYSQL_USER: ${MYSQL_USER:-dcg_demo}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Run scripts/database-up.sh first}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-33069}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init/mysql.sh:/docker-entrypoint-initdb.d/10-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+
+volumes:
+  postgres-data:
+  mysql-data:

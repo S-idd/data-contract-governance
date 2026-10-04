@@ -123,8 +123,8 @@ class InstalledLauncherResilienceTest(unittest.TestCase):
         content = helper.read_text()
         helper.unlink()
         helper.write_text(content.replace(
-            "ready() { curl --noproxy '*'",
-            "ready() { [[ \"$1\" != *:8081/* ]] || return 1; curl --noproxy '*'"))
+            "ready() { curl -q --noproxy '*'",
+            "ready() { [[ \"$1\" != *:8081/* ]] || return 1; curl -q --noproxy '*'"))
         helper.chmod(0o755)
         self.assertIn('AI advisory mode: UNAVAILABLE', self.command('status'))
 
@@ -151,8 +151,8 @@ class InstalledLauncherResilienceTest(unittest.TestCase):
         content = helper.read_text()
         helper.unlink()
         helper.write_text(content.replace(
-            "ready() { curl --noproxy '*'",
-            "ready() { [[ \"$1\" != *:8081/* ]] || return 1; curl --noproxy '*'"))
+            "ready() { curl -q --noproxy '*'",
+            "ready() { [[ \"$1\" != *:8081/* ]] || return 1; curl -q --noproxy '*'"))
         helper.chmod(0o755)
         self.env['DCG_AI_STARTUP_TIMEOUT_SECONDS'] = '3'
         process = subprocess.Popen([str(self.package / 'bin/start')], env=self.env,

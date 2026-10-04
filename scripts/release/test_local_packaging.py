@@ -27,6 +27,19 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class PackagingTests(unittest.TestCase):
+    def test_shutdown_with_only_unrelated_listener_on_system_bash(self):
+        result = subprocess.run(["/bin/bash", "-c", '''
+source "$1"
+port_listeners() { echo 999999; }
+owned_rust_listener() { return 1; }
+kill() { echo unexpected-signal >&2; exit 99; }
+stop_untracked_rust
+echo empty-array-safe
+''', "test", str(ROOT / "packaging/local/bin/dcg")], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("empty-array-safe", result.stdout)
+        self.assertIn("unrelated listener", result.stderr)
+
     def test_release_pins_loaded_from_manifest(self):
         pins = json.loads(assembly.PIN_FILE.read_text())
         self.assertEqual(assembly.VERSION, pins["version"])
@@ -186,7 +199,8 @@ STATE=$2
 printf '%s\n%s\n' "$3" "$(signature "$3")" > "$STATE/java.pid"
 stop_one java
 ''', "test", str(assembly.template_path("bin/dcg")), directory, str(process.pid)], capture_output=True)
-                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertTrue((Path(directory) / "java.pid").exists())
                 self.assertIsNone(process.poll())
             finally:
                 process.terminate()
