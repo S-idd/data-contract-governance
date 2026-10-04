@@ -44,3 +44,15 @@ jobs:
       - name: Check changed contracts
         shell: bash
         run: bash scripts/ci/check-changed-contracts.sh
+
+  release-tooling-tests:
+    name: Release tooling (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test packaging, lifecycle and memory classification
+        run: python3 -m unittest discover -s scripts/release -p 'test_*.py' -v
