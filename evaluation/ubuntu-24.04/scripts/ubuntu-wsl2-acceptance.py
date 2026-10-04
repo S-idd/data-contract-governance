@@ -106,7 +106,6 @@ def main() -> int:
 
         started_dcg = True  # Also clean up a partially failed start.
         run("start-dcg-no-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "false"})
-        started_dcg = True
         status = run("status-dcg-no-ai", [str(SCRIPTS / "status-dcg.sh")])
         require("Deterministic enforcement: ACTIVE" in status.stdout and "AI advisory mode: DISABLED" in status.stdout,
                 "No-AI status did not report active deterministic enforcement")
@@ -115,7 +114,6 @@ def main() -> int:
 
         started_dcg = True
         run("start-dcg-ai", [str(SCRIPTS / "start-dcg.sh")], env={"DCG_AI_ENABLED": "true"})
-        started_dcg = True
         status = run("status-dcg-ai", [str(SCRIPTS / "status-dcg.sh")])
         require("Deterministic enforcement: ACTIVE" in status.stdout and "AI advisory mode: AVAILABLE" in status.stdout,
                 "AI advisory did not become available")

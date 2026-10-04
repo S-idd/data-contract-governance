@@ -29,8 +29,8 @@ No Compose YAML or generated `.env` changes are necessary: existing services,
 credentials, initialization scripts, application databases, and ports support this.
 The same Compose file and `.env` used by startup are passed to the seed helper.
 
-Apply the delivered incremental patch with `git am /path/to/downloaded.patch` on
-top of your notification-fixture commit (`28de53b`). Reassemble into a fresh output
+The fixture and matrix changes are included in the repository source; no manual
+patch application is needed. Reassemble into a fresh output
 bundle/archive using the existing accepted DCG archive/report and IEMS JAR; no
 Java or Rust recompilation is required by this tooling change. Existing extracted
 bundles do not gain these changes automatically.
