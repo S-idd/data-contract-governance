@@ -15,6 +15,7 @@ described in [the release policy](docs/release-and-versioning.md).
 
 - Selected Java-led archive version for native macOS ARM64 and Linux x64 on WSL2; Compose is excluded.
 - Rust remains Cargo 0.1.0, embedded at a pinned commit for shadow-only, asynchronous, logging-only, fail-open inference; Java remains authoritative.
+- Update Jackson core/databind and companion modules to 2.22.3 to resolve the full dependency scan findings.
 - Integrate Ubuntu evaluation health-probe, Linux process-identity, managed shutdown, bundled notification fixture, and 23-check database/API matrix fixes.
 - Add Apple Silicon Milestone 1, Bash 3.2 shutdown compatibility, continuous memory telemetry and PASS/REVIEW/FAIL qualification.
 - Retain IEMS PID/backend records on shutdown timeout and clean up partial startup failures, covered by regressions on Linux and macOS CI.
